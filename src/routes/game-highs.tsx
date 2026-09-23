@@ -924,6 +924,17 @@ function GameHighsPage() {
             return match.serveAces > 0 && match.serveTotal >= 5;
           }
 
+          if (
+            metric.key === "receptionPositivePct" ||
+            metric.key === "receptionExcellentPct"
+          ) {
+            return match.receptionTotal >= 10;
+          }
+
+          if (metric.key === "attackKillPct" || metric.key === "attackEfficiency") {
+            return match.attackTotal >= 10;
+          }
+
           const value = match[metric.key as keyof typeof match] as number | null | undefined;
           return value != null;
         })

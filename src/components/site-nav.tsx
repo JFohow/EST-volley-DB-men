@@ -119,6 +119,16 @@ export function SiteNav() {
               {t("nav.trivia")}
             </Link>
 
+            {IMPORT_OPEN_IN_DEV && (
+              <Link
+                to="/add"
+                className="transition-colors hover:text-estonia-blue"
+                activeProps={{ className: "text-estonia-blue" }}
+              >
+                ADD
+              </Link>
+            )}
+
             {(isAdmin || IMPORT_OPEN_IN_DEV) && (
               <Link
                 to="/import"

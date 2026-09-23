@@ -103,7 +103,7 @@ function PlayersPage() {
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 placeholder={t("players.search")}
-                                className="w-full max-w-xl rounded-md border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder:text-white/50 outline-none backdrop-blur-sm focus:border-estonia-blue"
+                                className="h-10 w-full max-w-xl rounded-md border border-white/20 bg-white/10 px-3 text-sm text-white placeholder:text-white/50 outline-none backdrop-blur-sm focus:border-estonia-blue"
                             />
 
                             <div className="flex flex-wrap gap-2">
@@ -114,9 +114,9 @@ function PlayersPage() {
                                             key={position}
                                             type="button"
                                             onClick={() => togglePosition(position)}
-                                            className={`rounded-md border px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] transition ${selectedPositions.includes(position)
-                                                    ? "border-estonia-blue bg-estonia-blue text-white"
-                                                    : "border-white/20 bg-white/10 text-white/90 hover:bg-white/20"
+                                            className={`h-10 rounded-md border px-3 text-xs font-semibold uppercase tracking-[0.14em] transition ${selectedPositions.includes(position)
+                                                ? "border-estonia-blue bg-estonia-blue text-white"
+                                                : "border-white/20 bg-white/10 text-white/90 hover:bg-white/20"
                                                 }`}
                                         >
                                             {position}
@@ -125,18 +125,18 @@ function PlayersPage() {
                             </div>
                         </div>
 
-                        <div className="grid gap-3 sm:grid-cols-2 lg:w-[260px] lg:grid-cols-1">
-                            <div className="rounded-xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm">
+                        <div className="grid gap-3 sm:grid-cols-2 lg:w-[320px] lg:grid-cols-1">
+                            <div className="flex h-10 items-center justify-between rounded-md border border-white/10 bg-white/10 px-3 backdrop-blur-sm">
                                 <div className="text-[10px] uppercase tracking-[0.22em] text-white/55">
                                     {t("players.totalPlayers")}
                                 </div>
-                                <div className="mt-2 font-display text-3xl text-white">{players.length}</div>
+                                <div className="font-display text-lg text-white">{players.length}</div>
                             </div>
-                            <div className="rounded-xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm">
+                            <div className="flex h-10 items-center justify-between rounded-md border border-white/10 bg-white/10 px-3 backdrop-blur-sm">
                                 <div className="text-[10px] uppercase tracking-[0.22em] text-white/55">
                                     {t("common.total")}
                                 </div>
-                                <div className="mt-2 font-display text-3xl text-white">{filtered.length}</div>
+                                <div className="font-display text-lg text-white">{filtered.length}</div>
                             </div>
                         </div>
                     </div>

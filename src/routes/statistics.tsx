@@ -90,6 +90,7 @@ function StatisticsPage() {
     const [selectedCompetition, setSelectedCompetition] = useState<string[]>(["all"]);
     const [selectedOpponent, setSelectedOpponent] = useState<string[]>(["all"]);
     const [selectedMatches, setSelectedMatches] = useState<string[]>([]);
+    const [selectedPlayers, setSelectedPlayers] = useState<string[]>([]);
     const [sortField, setSortField] = useState<SortField | "appearances">("appearances");
     const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
     const [displayMode, setDisplayMode] = useState<DisplayMode>("total");
@@ -251,16 +252,41 @@ function StatisticsPage() {
         });
     }, [modeFilteredAppearances, selectedYear, selectedCompetition, selectedOpponent, selectedMatches, currentLanguage]);
 
+    const playerOptions = useMemo(() => {
+        const values = new Map<number, string>();
+
+        filteredAppearances.forEach((appearance) => {
+            if (!values.has(appearance.player_id)) {
+                const player = data.players.find((item) => item.player_id === appearance.player_id);
+                if (!player) return;
+                values.set(player.player_id, `${player.first_name} ${player.last_name}`);
+            }
+        });
+
+        return Array.from(values.entries())
+            .map(([id, label]) => ({ value: String(id), label }))
+            .sort((left, right) => left.label.localeCompare(right.label));
+    }, [data.players, filteredAppearances]);
+
+    useEffect(() => {
+        const allowedIds = new Set(playerOptions.map((player) => player.value));
+        setSelectedPlayers((current) => current.filter((id) => allowedIds.has(id)));
+    }, [playerOptions]);
+
     const rows = useMemo(() => {
         const rowMap = new Map<number, { row: PlayerStatisticsRow; perGameGroup: ReturnType<typeof createGroup> }>();
         const hasActiveDetailFilters =
             !selectedYear.includes("all") ||
             !selectedCompetition.includes("all") ||
             !selectedOpponent.includes("all") ||
-            selectedMatches.length > 0;
+            selectedMatches.length > 0 ||
+            selectedPlayers.length > 0;
 
         data.players
             .filter((player) => selectedPosition === "ALL" || player.position === selectedPosition)
+            .filter((player) =>
+                selectedPlayers.length === 0 ? true : selectedPlayers.includes(String(player.player_id))
+            )
             .forEach((player) => {
                 rowMap.set(player.player_id, {
                     row: {
@@ -366,6 +392,7 @@ function StatisticsPage() {
         selectedCompetition,
         selectedMatches,
         selectedOpponent,
+        selectedPlayers,
         selectedPosition,
         selectedYear,
     ]);
@@ -492,6 +519,18 @@ function StatisticsPage() {
                         value={selectedMatches}
                         onChange={(v) => setSelectedMatches(v)}
                         placeholder={t("players.statsFilter.matches")}
+                        className="w-full"
+                        maxDisplay={2}
+                    />
+                </div>
+
+                <div className="mt-2">
+                    <label className="sr-only">{t("players.statsFilter.players")}</label>
+                    <MultiSelect
+                        options={playerOptions}
+                        value={selectedPlayers}
+                        onChange={(v) => setSelectedPlayers(v)}
+                        placeholder={t("players.statsFilter.players")}
                         className="w-full"
                         maxDisplay={2}
                     />

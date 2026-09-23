@@ -510,7 +510,8 @@ function TotalTopPage() {
                 totals: PlayerTotals;
                 receptionPositiveCount: number;
                 receptionExcellentCount: number;
-                qualifiedReceptionTotal: number;
+                qualifiedReceptionTotalForPositive: number;
+                qualifiedReceptionTotalForExcellent: number;
                 qualifiedAttackTotal: number;
                 qualifiedAttackKills: number;
                 qualifiedAttackBlocked: number;
@@ -538,7 +539,8 @@ function TotalTopPage() {
                 totals: createEmptyTotals(),
                 receptionPositiveCount: 0,
                 receptionExcellentCount: 0,
-                qualifiedReceptionTotal: 0,
+                qualifiedReceptionTotalForPositive: 0,
+                qualifiedReceptionTotalForExcellent: 0,
                 qualifiedAttackTotal: 0,
                 qualifiedAttackKills: 0,
                 qualifiedAttackBlocked: 0,
@@ -584,14 +586,12 @@ function TotalTopPage() {
 
             if (receptionTotal >= 10 && positivePct !== null) {
                 bucket.receptionPositiveCount += receptionTotal * (positivePct / 100);
-                bucket.qualifiedReceptionTotal += receptionTotal;
+                bucket.qualifiedReceptionTotalForPositive += receptionTotal;
             }
 
             if (receptionTotal >= 10 && excellentPct !== null) {
                 bucket.receptionExcellentCount += receptionTotal * (excellentPct / 100);
-                if (positivePct === null) {
-                    bucket.qualifiedReceptionTotal += receptionTotal;
-                }
+                bucket.qualifiedReceptionTotalForExcellent += receptionTotal;
             }
 
             const attackTotal = Number(stats.attack_total ?? 0);
@@ -617,18 +617,22 @@ function TotalTopPage() {
                     totals: createEmptyTotals(),
                     receptionPositiveCount: 0,
                     receptionExcellentCount: 0,
-                    qualifiedReceptionTotal: 0,
+                    qualifiedReceptionTotalForPositive: 0,
+                    qualifiedReceptionTotalForExcellent: 0,
                     qualifiedAttackTotal: 0,
                     qualifiedAttackKills: 0,
                     qualifiedAttackBlocked: 0,
                     qualifiedAttackErrors: 0,
                 };
 
-                if (bucket.qualifiedReceptionTotal > 0) {
+                if (bucket.qualifiedReceptionTotalForPositive > 0) {
                     bucket.totals.receptionPositivePct =
-                        (bucket.receptionPositiveCount / bucket.qualifiedReceptionTotal) * 100;
+                        (bucket.receptionPositiveCount / bucket.qualifiedReceptionTotalForPositive) * 100;
+                }
+
+                if (bucket.qualifiedReceptionTotalForExcellent > 0) {
                     bucket.totals.receptionExcellentPct =
-                        (bucket.receptionExcellentCount / bucket.qualifiedReceptionTotal) * 100;
+                        (bucket.receptionExcellentCount / bucket.qualifiedReceptionTotalForExcellent) * 100;
                 }
 
                 if (bucket.qualifiedAttackTotal > 0) {
@@ -645,6 +649,9 @@ function TotalTopPage() {
                 return {
                     ...row,
                     filteredTotals: bucket.totals,
+                    qualifiedReceptionTotalForPositive: bucket.qualifiedReceptionTotalForPositive,
+                    qualifiedReceptionTotalForExcellent: bucket.qualifiedReceptionTotalForExcellent,
+                    qualifiedAttackTotal: bucket.qualifiedAttackTotal,
                 };
             })
             .filter((row) => (hasActiveDetailFilters ? row.filteredTotals.appearances > 0 : true));
@@ -685,10 +692,17 @@ function TotalTopPage() {
         ]);
 
         const getMetricValue = (
-            totals: PlayerTotals,
+            row: {
+                filteredTotals: PlayerTotals;
+                qualifiedReceptionTotalForPositive: number;
+                qualifiedReceptionTotalForExcellent: number;
+                qualifiedAttackTotal: number;
+            },
             metric: TotalTopStatKey,
             mode: SortMode,
         ): number | null => {
+            const totals = row.filteredTotals;
+
             if (metric === "serveErrorsLeast") {
                 if (totals.serveTotal < 10) return null;
                 return mode === "perGame"
@@ -715,6 +729,23 @@ function TotalTopPage() {
                 return getStatValue(totals, "serveAceErrorRatio");
             }
 
+            if (metric === "receptionPositivePct" || metric === "receptionPositivePctWorst") {
+                if (row.qualifiedReceptionTotalForPositive < 10) return null;
+            }
+
+            if (metric === "receptionExcellentPct" || metric === "receptionExcellentPctWorst") {
+                if (row.qualifiedReceptionTotalForExcellent < 10) return null;
+            }
+
+            if (
+                metric === "attackKillPct" ||
+                metric === "attackKillPctWorst" ||
+                metric === "attackEfficiency" ||
+                metric === "attackEfficiencyWorst"
+            ) {
+                if (row.qualifiedAttackTotal < 10) return null;
+            }
+
             return mode === "perGame"
                 ? getPerGameValue(totals, metric)
                 : getStatValue(totals, metric);
@@ -724,7 +755,7 @@ function TotalTopPage() {
             const ranked = rankableRows
                 .map((row) => {
                     const totals = row.filteredTotals;
-                    const value = getMetricValue(totals, metric, displayMode);
+                    const value = getMetricValue(row, metric, displayMode);
                     const valueLabel =
                         metric === "serveAceErrorRatio"
                             ? `${totals.serveAces} : ${totals.serveErrors}`

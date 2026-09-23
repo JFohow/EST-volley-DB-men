@@ -1,6 +1,5 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { Database } from "@/integrations/supabase/types";
 
 export type PlayerListItem = {
     player_id: number;
@@ -31,6 +30,7 @@ type PlayerRow = {
 };
 
 type AppearanceMatchRow = {
+    match_id: number;
     vm: boolean | null;
     am: boolean | null;
     mam: boolean | null;
@@ -59,6 +59,11 @@ type AppearanceRow = {
         attack_kill_pct: number | null;
         attack_efficiency: number | null;
         break_points: number | null;
+        set1_position: string | null;
+        set2_position: string | null;
+        set3_position: string | null;
+        set4_position: string | null;
+        set5_position: string | null;
     }
     | Array<{
         points: number | null;
@@ -78,6 +83,11 @@ type AppearanceRow = {
         attack_kill_pct: number | null;
         attack_efficiency: number | null;
         break_points: number | null;
+        set1_position: string | null;
+        set2_position: string | null;
+        set3_position: string | null;
+        set4_position: string | null;
+        set5_position: string | null;
     }>
     | null;
     matches:
@@ -104,6 +114,11 @@ type AppearanceStatsRow = {
     attack_kill_pct: number | null;
     attack_efficiency: number | null;
     break_points: number | null;
+    set1_position: string | null;
+    set2_position: string | null;
+    set3_position: string | null;
+    set4_position: string | null;
+    set5_position: string | null;
 };
 
 function normalizeRelations<T>(value: T | T[] | null): T[] {
@@ -114,8 +129,20 @@ function normalizeRelations<T>(value: T | T[] | null): T[] {
     return value ? [value] : [];
 }
 
-function hasFullStatistics(stats: AppearanceStatsRow): boolean {
-    const values: Array<number | null> = [
+function countPlayedSetsFromPositions(stats: AppearanceStatsRow): number {
+    const values = [
+        stats.set1_position,
+        stats.set2_position,
+        stats.set3_position,
+        stats.set4_position,
+        stats.set5_position,
+    ];
+
+    return values.filter((value) => typeof value === "string" && value.trim() !== "").length;
+}
+
+function hasAnyNumericMatchStats(stats: AppearanceStatsRow): boolean {
+    const statValues: Array<number | null> = [
         stats.points,
         stats.block_points,
         stats.plus_minus,
@@ -135,7 +162,7 @@ function hasFullStatistics(stats: AppearanceStatsRow): boolean {
         stats.break_points,
     ];
 
-    return values.some((value) => typeof value === "number");
+    return statValues.some((value) => typeof value === "number");
 }
 
 async function fetchPlayers(): Promise<PlayerListItem[]> {
@@ -180,7 +207,12 @@ async function fetchPlayers(): Promise<PlayerListItem[]> {
                     attack_kills,
                     attack_kill_pct,
                     attack_efficiency,
-                    break_points
+                    break_points,
+                    set1_position,
+                    set2_position,
+                    set3_position,
+                    set4_position,
+                    set5_position
                 ),
                 matches(
                     match_id,
@@ -226,6 +258,21 @@ async function fetchPlayers(): Promise<PlayerListItem[]> {
         }
     >();
 
+    const matchHasFullStats = new Map<number, boolean>();
+
+    (apps ?? []).forEach((a) => {
+        const match = Array.isArray(a.matches)
+            ? a.matches[0]
+            : a.matches;
+
+        if (!match) return;
+
+        const statsRows = normalizeRelations(a.player_match_stats);
+        const hasFullStatsForAppearance = statsRows.some((row) => hasAnyNumericMatchStats(row));
+        const current = matchHasFullStats.get(match.match_id) ?? false;
+        matchHasFullStats.set(match.match_id, current || hasFullStatsForAppearance);
+    });
+
     (apps ?? []).forEach((a) => {
         const match = Array.isArray(a.matches)
             ? a.matches[0]
@@ -248,8 +295,14 @@ async function fetchPlayers(): Promise<PlayerListItem[]> {
         };
 
         const statsRows = normalizeRelations(a.player_match_stats);
-        const hasFullStatsForAppearance = statsRows.some((row) => hasFullStatistics(row));
-        const wasPlayed = hasFullStatsForAppearance && (a.sets_played ?? 0) > 0;
+        const setsFromPositions = statsRows.reduce(
+            (maxPlayedSets, row) => Math.max(maxPlayedSets, countPlayedSetsFromPositions(row)),
+            0,
+        );
+
+        const isPlayersListOnlyMatch = match ? !Boolean(matchHasFullStats.get(match.match_id)) : false;
+        const wasPlayed = isPlayersListOnlyMatch || setsFromPositions > 0;
+        const wasBench = !wasPlayed;
 
         // Official (AM)
 
@@ -260,7 +313,7 @@ async function fetchPlayers(): Promise<PlayerListItem[]> {
                 current.amGamesPlayed += 1;
             }
 
-            if (hasFullStatsForAppearance && !wasPlayed) {
+            if (wasBench) {
                 current.amBench += 1;
             }
         }
@@ -274,7 +327,7 @@ async function fetchPlayers(): Promise<PlayerListItem[]> {
                 current.vmGamesPlayed += 1;
             }
 
-            if (hasFullStatsForAppearance && !wasPlayed) {
+            if (wasBench) {
                 current.vmBench += 1;
             }
         }
@@ -287,7 +340,7 @@ async function fetchPlayers(): Promise<PlayerListItem[]> {
             current.allGamesPlayed += 1;
         }
 
-        if (hasFullStatsForAppearance && !wasPlayed) {
+        if (wasBench) {
             current.allBench += 1;
         }
 
