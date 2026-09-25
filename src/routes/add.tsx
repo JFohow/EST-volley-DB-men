@@ -23,6 +23,28 @@ type DvwPlayer = {
     setPosition5: string;
 };
 
+type DvwDerivedPlayerStats = {
+    team: "home" | "away";
+    jerseyNumber: string;
+    lastName: string;
+    firstName: string;
+    serve_total: number;
+    serve_errors: number;
+    serve_aces: number;
+    reception_total: number;
+    reception_errors: number;
+    reception_positive_pct: number;
+    reception_excellent_pct: number;
+    attack_total: number;
+    attack_errors: number;
+    attack_blocked: number;
+    attack_kills: number;
+    attack_kill_pct: number;
+    block_points: number;
+    plus_minus: number;
+    points: number;
+};
+
 type DvwPreview = {
     fileMetadata: Array<{ key: string; value: string }>;
     fileFormat: string | null;
@@ -58,8 +80,225 @@ type DvwPreview = {
             away: Record<string, number>;
         };
     };
+    scoutRows: string[];
     sectionOverview: Array<{ section: string; lineCount: number; sampleLines: string[] }>;
 };
+
+function parseScoutEvent(line: string): {
+    team: "home" | "away";
+    playerNumber: string;
+    action: string;
+    suffix: string;
+} | null {
+    const trimmed = line.trim();
+    if (!trimmed) return null;
+
+    const firstToken = trimmed.split(";")[0]?.trim() ?? "";
+    if (!firstToken) return null;
+
+    const match = firstToken.match(/^([*a])(\d{1,2})([A-Z]+)(.*)$/i);
+    if (!match) return null;
+
+    return {
+        team: match[1] === "*" ? "home" : "away",
+        playerNumber: match[2],
+        action: match[3].toUpperCase(),
+        suffix: match[4] ?? "",
+    };
+}
+
+function computeDvwDerivedStats(preview: DvwPreview): {
+    home: DvwDerivedPlayerStats[];
+    away: DvwDerivedPlayerStats[];
+} {
+    const allPlayers = [
+        ...preview.homePlayers.map((player) => ({ ...player, team: "home" as const })),
+        ...preview.awayPlayers.map((player) => ({ ...player, team: "away" as const })),
+    ];
+
+    const playerMap = new Map<string, DvwDerivedPlayerStats>();
+    for (const player of allPlayers) {
+        playerMap.set(`${player.team}:${player.jerseyNumber}`, {
+            team: player.team,
+            jerseyNumber: player.jerseyNumber,
+            lastName: player.lastName,
+            firstName: player.firstName,
+            serve_total: 0,
+            serve_errors: 0,
+            serve_aces: 0,
+            reception_total: 0,
+            reception_errors: 0,
+            reception_positive_pct: 0,
+            reception_excellent_pct: 0,
+            attack_total: 0,
+            attack_errors: 0,
+            attack_blocked: 0,
+            attack_kills: 0,
+            attack_kill_pct: 0,
+            block_points: 0,
+            plus_minus: 0,
+            points: 0,
+        });
+    }
+
+    const attackActions = new Set([
+        "AT",
+        "AQ",
+        "AH",
+        "AM",
+        "AO",
+        "BT",
+        "BH",
+        "DT",
+        "DH",
+        "FH",
+        "EM",
+        "EH",
+        "DM",
+    ]);
+    const serveActions = new Set(["SM", "SQ", "SE", "SS", "SC", "SA", "SV", "SO"]);
+    const receptionActions = new Set(["RQ", "EQ", "DQ", "RE", "RT", "RA", "RS", "RX"]);
+
+    for (const line of preview.scoutRows) {
+        const event = parseScoutEvent(line);
+        if (!event) continue;
+
+        const key = `${event.team}:${event.playerNumber}`;
+        const stat = playerMap.get(key);
+        if (!stat) continue;
+
+        const suffix = event.suffix.toUpperCase();
+        const isPositive = /[+=!]/.test(suffix);
+        const isExcellent = /[=!]/.test(suffix);
+        const isError = /[-E]/.test(suffix) || /[A-Z]/.test(event.action) && /[-]/.test(suffix);
+
+        if (attackActions.has(event.action)) {
+            stat.attack_total += 1;
+            if (isError) {
+                stat.attack_errors += 1;
+            }
+            if (/[#!+=]/.test(suffix)) {
+                stat.attack_kills += 1;
+                stat.points += 1;
+            }
+            if (/[~]/.test(suffix)) {
+                stat.attack_blocked += 1;
+                stat.block_points += 1;
+            }
+            if (/[A]/.test(suffix)) {
+                stat.block_points += 1;
+            }
+        }
+
+        if (serveActions.has(event.action)) {
+            stat.serve_total += 1;
+            if (isError || /[-]/.test(suffix)) {
+                stat.serve_errors += 1;
+            }
+            if (/[A]/.test(suffix) || /[+=!#]/.test(suffix)) {
+                stat.serve_aces += 1;
+                stat.points += 1;
+            }
+        }
+
+        if (receptionActions.has(event.action)) {
+            stat.reception_total += 1;
+            if (isError || /[-]/.test(suffix)) {
+                stat.reception_errors += 1;
+            }
+            if (isPositive) {
+                stat.reception_positive_pct += 1;
+            }
+            if (isExcellent) {
+                stat.reception_excellent_pct += 1;
+            }
+        }
+
+        if (stat.attack_total > 0) {
+            stat.attack_kill_pct = Number(((stat.attack_kills / stat.attack_total) * 100).toFixed(1));
+        }
+
+        if (stat.reception_total > 0) {
+            stat.reception_positive_pct = Number(((stat.reception_positive_pct / stat.reception_total) * 100).toFixed(1));
+            stat.reception_excellent_pct = Number(((stat.reception_excellent_pct / stat.reception_total) * 100).toFixed(1));
+        }
+
+        stat.plus_minus = stat.points - (stat.attack_errors + stat.serve_errors + stat.reception_errors + stat.attack_blocked);
+    }
+
+    return {
+        home: [...playerMap.values()].filter((player) => player.team === "home"),
+        away: [...playerMap.values()].filter((player) => player.team === "away"),
+    };
+}
+
+function buildTransferableSummary(preview: DvwPreview) {
+    const homePoints = preview.sets.reduce((sum, setItem) => sum + (setItem.homePoints ?? 0), 0);
+    const awayPoints = preview.sets.reduce((sum, setItem) => sum + (setItem.awayPoints ?? 0), 0);
+    const homeSets = preview.sets.filter((setItem) => setItem.winner === "home").length;
+    const awaySets = preview.sets.filter((setItem) => setItem.winner === "away").length;
+
+    const derivedStats = computeDvwDerivedStats(preview);
+
+    return {
+        match: {
+            homeTeam: preview.homeTeamName,
+            awayTeam: preview.awayTeamName,
+            date: preview.matchDate,
+            time: preview.matchTime,
+            competition: preview.competition,
+            city: preview.city,
+            venue: preview.venue,
+            scoreBySets: preview.scoreBySets,
+            scoreFromMatchHeader: preview.scoreFromMatchHeader,
+            finalSetPoints: preview.setPointsTotal,
+        },
+        sets: preview.sets.map((setItem) => ({
+            setNumber: setItem.setNumber,
+            score: setItem.score,
+            homePoints: setItem.homePoints,
+            awayPoints: setItem.awayPoints,
+            winner: setItem.winner,
+        })),
+        roster: {
+            home: preview.homePlayers.map((player) => ({
+                jerseyNumber: player.jerseyNumber,
+                lastName: player.lastName,
+                firstName: player.firstName,
+                setPositions: [player.setPosition1, player.setPosition2, player.setPosition3, player.setPosition4, player.setPosition5].filter(Boolean),
+            })),
+            away: preview.awayPlayers.map((player) => ({
+                jerseyNumber: player.jerseyNumber,
+                lastName: player.lastName,
+                firstName: player.firstName,
+                setPositions: [player.setPosition1, player.setPosition2, player.setPosition3, player.setPosition4, player.setPosition5].filter(Boolean),
+            })),
+        },
+        totals: {
+            homeSets,
+            awaySets,
+            homePoints,
+            awayPoints,
+            totalActionRows: preview.scoutSummary.actionRows,
+            totalScoreMarkers: preview.scoutSummary.scoreMarkers,
+            totalTimeoutMarkers: preview.scoutSummary.timeoutMarkers,
+            totalLineupMarkers: preview.scoutSummary.lineupMarkers,
+            totalSubstitutions: preview.scoutSummary.substitutions,
+        },
+        derivedPlayerTotals: {
+            home: derivedStats.home,
+            away: derivedStats.away,
+        },
+        safeToStore: [
+            "match metadata",
+            "set-by-set scores",
+            "team/roster players",
+            "scheduled match context",
+            "action summary totals",
+            "derived player totals preview",
+        ],
+    };
+}
 
 export const Route = createFileRoute("/add")({
     component: AddPage,
@@ -299,6 +538,7 @@ function parseDvwPreview(text: string): DvwPreview {
         attackCombinationCount: attackCombinationLines.filter((line) => line.trim() !== "").length,
         setterCallCount: setterCallLines.filter((line) => line.trim() !== "").length,
         scoutSummary,
+        scoutRows: scoutLines.filter((line) => line.trim() !== ""),
         sectionOverview,
     };
 }
@@ -365,8 +605,8 @@ function AddPage() {
                         type="button"
                         onClick={() => setMode("dvw")}
                         className={`h-11 rounded-md border px-4 text-xs font-semibold uppercase tracking-[0.16em] transition ${mode === "dvw"
-                                ? "border-estonia-blue bg-estonia-blue text-white"
-                                : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                            ? "border-estonia-blue bg-estonia-blue text-white"
+                            : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
                             }`}
                     >
                         DVW FILE
@@ -376,8 +616,8 @@ function AddPage() {
                         type="button"
                         onClick={() => setMode("pdf")}
                         className={`h-11 rounded-md border px-4 text-xs font-semibold uppercase tracking-[0.16em] transition ${mode === "pdf"
-                                ? "border-estonia-blue bg-estonia-blue text-white"
-                                : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                            ? "border-estonia-blue bg-estonia-blue text-white"
+                            : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
                             }`}
                     >
                         PDF SCORESHEET
@@ -387,8 +627,8 @@ function AddPage() {
                         type="button"
                         onClick={() => setMode("cev")}
                         className={`h-11 rounded-md border px-4 text-xs font-semibold uppercase tracking-[0.16em] transition ${mode === "cev"
-                                ? "border-estonia-blue bg-estonia-blue text-white"
-                                : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                            ? "border-estonia-blue bg-estonia-blue text-white"
+                            : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
                             }`}
                     >
                         CEV STATS
@@ -427,139 +667,188 @@ function AddPage() {
                             </p>
                         )}
 
-                        {preview && (
-                            <div className="mt-4 space-y-4">
-                                <div className="grid gap-3 md:grid-cols-2">
-                                    <div className="rounded-md border border-slate-200 bg-white p-3">
-                                        <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Match</div>
-                                        <div className="mt-2 text-sm text-slate-800">
-                                            <div>
-                                                {preview.homeTeamName ?? "?"} vs {preview.awayTeamName ?? "?"}
-                                            </div>
-                                            <div>{preview.matchDate ?? "?"} {preview.matchTime ?? ""}</div>
-                                            <div>{preview.competition ?? "?"}</div>
-                                            <div>Score (from set lines): {preview.scoreBySets ?? "?"}</div>
-                                            <div>Score (from match header): {preview.scoreFromMatchHeader ?? "?"}</div>
-                                            {preview.scoreBySets && preview.scoreFromMatchHeader && preview.scoreBySets !== preview.scoreFromMatchHeader && (
-                                                <div className="mt-1 rounded bg-amber-50 px-2 py-1 text-xs text-amber-700">
-                                                    Mismatch detected. Using set-line score is safer.
+                        {preview && (() => {
+                            const transferSummary = buildTransferableSummary(preview);
+                            return (
+                                <div className="mt-4 space-y-4">
+                                    <div className="grid gap-3 md:grid-cols-2">
+                                        <div className="rounded-md border border-slate-200 bg-white p-3">
+                                            <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Supabase-ready summary</div>
+                                            <div className="mt-2 text-sm text-slate-800">
+                                                <div>
+                                                    {transferSummary.match.homeTeam ?? "?"} vs {transferSummary.match.awayTeam ?? "?"}
                                                 </div>
-                                            )}
-                                            <div>Total set points: {preview.setPointsTotal ?? "?"}</div>
-                                            <div>City: {preview.city ?? "?"}</div>
-                                            <div>Venue: {preview.venue ?? "?"}</div>
-                                        </div>
-                                    </div>
-
-                                    <div className="rounded-md border border-slate-200 bg-white p-3">
-                                        <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">File Meta</div>
-                                        <div className="mt-2 text-sm text-slate-800">
-                                            <div>Format: {preview.fileFormat ?? "?"}</div>
-                                            <div>Generated: {preview.generatorDay ?? "?"}</div>
-                                            <div>Season: {preview.season ?? "?"}</div>
-                                            <div>Phase: {preview.phase ?? "?"}</div>
-                                            <div>Scout rows: {preview.scoutRowCount}</div>
-                                            <div>Attack combos: {preview.attackCombinationCount}</div>
-                                            <div>Setter calls: {preview.setterCallCount}</div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="rounded-md border border-slate-200 bg-white p-3">
-                                    <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Set Scores</div>
-                                    <div className="mt-2 flex flex-wrap gap-2 text-sm">
-                                        {preview.sets.length === 0 && <span className="text-slate-500">No set score lines parsed.</span>}
-                                        {preview.sets.map((setItem) => (
-                                            <span key={setItem.setNumber} className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1">
-                                                Set {setItem.setNumber}: {setItem.score} ({setItem.winner === "home" ? "home" : setItem.winner === "away" ? "away" : "?"})
-                                            </span>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div className="grid gap-3 md:grid-cols-2">
-                                    <div className="rounded-md border border-slate-200 bg-white p-3">
-                                        <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Scout Summary</div>
-                                        <div className="mt-2 text-sm text-slate-800">
-                                            <div>Action rows: {preview.scoutSummary.actionRows}</div>
-                                            <div>Score markers: {preview.scoutSummary.scoreMarkers}</div>
-                                            <div>Timeout markers: {preview.scoutSummary.timeoutMarkers}</div>
-                                            <div>Lineup markers: {preview.scoutSummary.lineupMarkers}</div>
-                                            <div>Substitution markers: {preview.scoutSummary.substitutions}</div>
-                                        </div>
-                                        <div className="mt-2 grid gap-2 text-xs text-slate-700 sm:grid-cols-2">
-                                            <div className="rounded bg-slate-50 p-2">
-                                                <div className="font-semibold">Home action codes</div>
-                                                <pre className="mt-1 overflow-auto whitespace-pre-wrap">{JSON.stringify(preview.scoutSummary.teamActionCounts.home, null, 2)}</pre>
+                                                <div>{transferSummary.match.date ?? "?"} {transferSummary.match.time ?? ""}</div>
+                                                <div>{transferSummary.match.competition ?? "?"}</div>
+                                                <div>Set score: {transferSummary.match.scoreBySets ?? "?"}</div>
+                                                <div>Header score: {transferSummary.match.scoreFromMatchHeader ?? "?"}</div>
+                                                <div>Total set points: {transferSummary.match.finalSetPoints ?? "?"}</div>
+                                                <div>City: {transferSummary.match.city ?? "?"}</div>
+                                                <div>Venue: {transferSummary.match.venue ?? "?"}</div>
                                             </div>
-                                            <div className="rounded bg-slate-50 p-2">
-                                                <div className="font-semibold">Away action codes</div>
-                                                <pre className="mt-1 overflow-auto whitespace-pre-wrap">{JSON.stringify(preview.scoutSummary.teamActionCounts.away, null, 2)}</pre>
+                                            <div className="mt-3 rounded bg-emerald-50 px-2 py-2 text-xs text-emerald-800">
+                                                Safe transfer fields: {transferSummary.safeToStore.join(", ")}
+                                            </div>
+                                        </div>
+
+                                        <div className="rounded-md border border-slate-200 bg-white p-3">
+                                            <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">End totals for match stats</div>
+                                            <div className="mt-2 text-sm text-slate-800">
+                                                <div>Home sets: {transferSummary.totals.homeSets}</div>
+                                                <div>Away sets: {transferSummary.totals.awaySets}</div>
+                                                <div>Home points: {transferSummary.totals.homePoints}</div>
+                                                <div>Away points: {transferSummary.totals.awayPoints}</div>
+                                                <div>Action rows: {transferSummary.totals.totalActionRows}</div>
+                                                <div>Score markers: {transferSummary.totals.totalScoreMarkers}</div>
+                                                <div>Timeout markers: {transferSummary.totals.totalTimeoutMarkers}</div>
+                                                <div>Lineup markers: {transferSummary.totals.totalLineupMarkers}</div>
+                                                <div>Substitutions: {transferSummary.totals.totalSubstitutions}</div>
                                             </div>
                                         </div>
                                     </div>
 
                                     <div className="rounded-md border border-slate-200 bg-white p-3">
-                                        <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Section Overview</div>
-                                        <div className="mt-2 max-h-64 overflow-auto text-xs text-slate-700">
-                                            {preview.sectionOverview.map((sectionInfo) => (
-                                                <div key={sectionInfo.section} className="mb-2 rounded border border-slate-100 p-2">
-                                                    <div className="font-semibold">{sectionInfo.section} ({sectionInfo.lineCount} lines)</div>
-                                                    <pre className="mt-1 overflow-auto whitespace-pre-wrap text-[11px]">{sectionInfo.sampleLines.join("\n") || "(empty)"}</pre>
+                                        <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Set scores</div>
+                                        <div className="mt-2 flex flex-wrap gap-2 text-sm">
+                                            {preview.sets.length === 0 && <span className="text-slate-500">No set score lines parsed.</span>}
+                                            {preview.sets.map((setItem) => (
+                                                <span key={setItem.setNumber} className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1">
+                                                    Set {setItem.setNumber}: {setItem.score} ({setItem.winner === "home" ? "home" : setItem.winner === "away" ? "away" : "?"})
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="rounded-md border border-slate-200 bg-white p-3">
+                                        <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Derived player totals preview</div>
+                                        <div className="mt-3 text-xs text-amber-700">
+                                            Best effort from DVW scout event codes. This is a derived preview, not an official DataVolley export.
+                                        </div>
+                                        <div className="mt-3 overflow-x-auto">
+                                            <table className="w-full border-collapse text-sm">
+                                                <thead>
+                                                    <tr className="border-b border-slate-200 bg-slate-50 text-left text-[11px] uppercase tracking-[0.12em] text-slate-600">
+                                                        <th className="px-2 py-2">Team</th>
+                                                        <th className="px-2 py-2">#</th>
+                                                        <th className="px-2 py-2">Name</th>
+                                                        <th className="px-2 py-2">A Tot</th>
+                                                        <th className="px-2 py-2">A Err</th>
+                                                        <th className="px-2 py-2">A K</th>
+                                                        <th className="px-2 py-2">R Tot</th>
+                                                        <th className="px-2 py-2">R Err</th>
+                                                        <th className="px-2 py-2">S Aces</th>
+                                                        <th className="px-2 py-2">Pts</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {[...transferSummary.derivedPlayerTotals.home, ...transferSummary.derivedPlayerTotals.away].map((player) => (
+                                                        <tr key={`${player.team}-${player.jerseyNumber}`} className="border-b border-slate-100">
+                                                            <td className="px-2 py-1">{player.team === "home" ? "EST" : "OPP"}</td>
+                                                            <td className="px-2 py-1">{player.jerseyNumber}</td>
+                                                            <td className="px-2 py-1">{player.firstName} {player.lastName}</td>
+                                                            <td className="px-2 py-1">{player.attack_total}</td>
+                                                            <td className="px-2 py-1">{player.attack_errors}</td>
+                                                            <td className="px-2 py-1">{player.attack_kills}</td>
+                                                            <td className="px-2 py-1">{player.reception_total}</td>
+                                                            <td className="px-2 py-1">{player.reception_errors}</td>
+                                                            <td className="px-2 py-1">{player.serve_aces}</td>
+                                                            <td className="px-2 py-1">{player.points}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                    <div className="rounded-md border border-slate-200 bg-white p-3">
+                                        <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Transferable payload</div>
+                                        <pre className="mt-2 max-h-96 overflow-auto rounded bg-slate-900 p-3 text-xs text-slate-100">{JSON.stringify(transferSummary, null, 2)}</pre>
+                                    </div>
+
+                                    <div className="grid gap-3 md:grid-cols-2">
+                                        <div className="rounded-md border border-slate-200 bg-white p-3">
+                                            <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Scout summary</div>
+                                            <div className="mt-2 text-sm text-slate-800">
+                                                <div>Action rows: {preview.scoutSummary.actionRows}</div>
+                                                <div>Score markers: {preview.scoutSummary.scoreMarkers}</div>
+                                                <div>Timeout markers: {preview.scoutSummary.timeoutMarkers}</div>
+                                                <div>Lineup markers: {preview.scoutSummary.lineupMarkers}</div>
+                                                <div>Substitution markers: {preview.scoutSummary.substitutions}</div>
+                                            </div>
+                                            <div className="mt-2 grid gap-2 text-xs text-slate-700 sm:grid-cols-2">
+                                                <div className="rounded bg-slate-50 p-2">
+                                                    <div className="font-semibold">Home action codes</div>
+                                                    <pre className="mt-1 overflow-auto whitespace-pre-wrap">{JSON.stringify(preview.scoutSummary.teamActionCounts.home, null, 2)}</pre>
+                                                </div>
+                                                <div className="rounded bg-slate-50 p-2">
+                                                    <div className="font-semibold">Away action codes</div>
+                                                    <pre className="mt-1 overflow-auto whitespace-pre-wrap">{JSON.stringify(preview.scoutSummary.teamActionCounts.away, null, 2)}</pre>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="rounded-md border border-slate-200 bg-white p-3">
+                                            <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Section overview</div>
+                                            <div className="mt-2 max-h-64 overflow-auto text-xs text-slate-700">
+                                                {preview.sectionOverview.map((sectionInfo) => (
+                                                    <div key={sectionInfo.section} className="mb-2 rounded border border-slate-100 p-2">
+                                                        <div className="font-semibold">{sectionInfo.section} ({sectionInfo.lineCount} lines)</div>
+                                                        <pre className="mt-1 overflow-auto whitespace-pre-wrap text-[11px]">{sectionInfo.sampleLines.join("\n") || "(empty)"}</pre>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="rounded-md border border-slate-200 bg-white p-3">
+                                        <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Metadata KV</div>
+                                        <div className="mt-2 max-h-56 overflow-auto text-sm text-slate-800">
+                                            {preview.fileMetadata.length === 0 && <div className="text-slate-500">No metadata key-value lines parsed.</div>}
+                                            {preview.fileMetadata.map((item) => (
+                                                <div key={item.key} className="grid grid-cols-[220px_1fr] gap-2 border-b border-slate-100 py-1">
+                                                    <div className="font-mono text-xs text-slate-500">{item.key}</div>
+                                                    <div className="break-all">{item.value}</div>
                                                 </div>
                                             ))}
                                         </div>
                                     </div>
-                                </div>
 
-                                <div className="rounded-md border border-slate-200 bg-white p-3">
-                                    <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Metadata KV</div>
-                                    <div className="mt-2 max-h-56 overflow-auto text-sm text-slate-800">
-                                        {preview.fileMetadata.length === 0 && <div className="text-slate-500">No metadata key-value lines parsed.</div>}
-                                        {preview.fileMetadata.map((item) => (
-                                            <div key={item.key} className="grid grid-cols-[220px_1fr] gap-2 border-b border-slate-100 py-1">
-                                                <div className="font-mono text-xs text-slate-500">{item.key}</div>
-                                                <div className="break-all">{item.value}</div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div className="rounded-md border border-slate-200 bg-white p-3">
-                                    <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Roster Preview</div>
-                                    <div className="mt-2 overflow-x-auto">
-                                        <table className="min-w-[840px] w-full border-collapse text-sm">
-                                            <thead>
-                                                <tr className="border-b border-slate-200 bg-slate-50 text-left text-[11px] uppercase tracking-[0.12em] text-slate-600">
-                                                    <th className="px-2 py-2">Team</th>
-                                                    <th className="px-2 py-2">#</th>
-                                                    <th className="px-2 py-2">Name</th>
-                                                    <th className="px-2 py-2">S1</th>
-                                                    <th className="px-2 py-2">S2</th>
-                                                    <th className="px-2 py-2">S3</th>
-                                                    <th className="px-2 py-2">S4</th>
-                                                    <th className="px-2 py-2">S5</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {[...preview.homePlayers, ...preview.awayPlayers].map((player, index) => (
-                                                    <tr key={`${player.team}-${player.jerseyNumber}-${index}`} className="border-b border-slate-100">
-                                                        <td className="px-2 py-1">{player.team === "home" ? "EST" : "OPP"}</td>
-                                                        <td className="px-2 py-1">{player.jerseyNumber}</td>
-                                                        <td className="px-2 py-1">{player.lastName} {player.firstName}</td>
-                                                        <td className="px-2 py-1">{player.setPosition1 || "-"}</td>
-                                                        <td className="px-2 py-1">{player.setPosition2 || "-"}</td>
-                                                        <td className="px-2 py-1">{player.setPosition3 || "-"}</td>
-                                                        <td className="px-2 py-1">{player.setPosition4 || "-"}</td>
-                                                        <td className="px-2 py-1">{player.setPosition5 || "-"}</td>
+                                    <div className="rounded-md border border-slate-200 bg-white p-3">
+                                        <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Roster preview</div>
+                                        <div className="mt-2 overflow-x-auto">
+                                            <table className="min-w-[840px] w-full border-collapse text-sm">
+                                                <thead>
+                                                    <tr className="border-b border-slate-200 bg-slate-50 text-left text-[11px] uppercase tracking-[0.12em] text-slate-600">
+                                                        <th className="px-2 py-2">Team</th>
+                                                        <th className="px-2 py-2">#</th>
+                                                        <th className="px-2 py-2">Name</th>
+                                                        <th className="px-2 py-2">S1</th>
+                                                        <th className="px-2 py-2">S2</th>
+                                                        <th className="px-2 py-2">S3</th>
+                                                        <th className="px-2 py-2">S4</th>
+                                                        <th className="px-2 py-2">S5</th>
                                                     </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
+                                                </thead>
+                                                <tbody>
+                                                    {[...preview.homePlayers, ...preview.awayPlayers].map((player, index) => (
+                                                        <tr key={`${player.team}-${player.jerseyNumber}-${index}`} className="border-b border-slate-100">
+                                                            <td className="px-2 py-1">{player.team === "home" ? "EST" : "OPP"}</td>
+                                                            <td className="px-2 py-1">{player.jerseyNumber}</td>
+                                                            <td className="px-2 py-1">{player.lastName} {player.firstName}</td>
+                                                            <td className="px-2 py-1">{player.setPosition1 || "-"}</td>
+                                                            <td className="px-2 py-1">{player.setPosition2 || "-"}</td>
+                                                            <td className="px-2 py-1">{player.setPosition3 || "-"}</td>
+                                                            <td className="px-2 py-1">{player.setPosition4 || "-"}</td>
+                                                            <td className="px-2 py-1">{player.setPosition5 || "-"}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        )}
+                            );
+                        })()}
                     </div>
                 )}
 

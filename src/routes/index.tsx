@@ -6,6 +6,12 @@ import { totalTopOptions, type TotalTopRow } from "@/lib/total-top.queries";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  getConfiguredHomeCardLabel,
+  loadHomeCardConfigs,
+  saveHomeCardConfigs,
+  type HomeCardMetricConfig,
+} from "@/lib/home-card-config";
 
 const ADMIN_EMAILS = new Set(["karl_juhkami@hotmail.com", "mjuhkami@gmail.com"]);
 
@@ -54,6 +60,7 @@ type TotalTopStatKey =
 type TopLeaderCard = {
   stat: TotalTopStatKey;
   statLabel: string;
+  configId: string;
   row: TotalTopRow;
   value: number;
 };
@@ -86,6 +93,7 @@ type RotatingLeaderCard =
   | {
     kind: "totalTop";
     title: string;
+    configId: string;
     row: TotalTopRow;
     value: number;
     isPercent: boolean;
@@ -93,6 +101,7 @@ type RotatingLeaderCard =
   | {
     kind: "gameHigh";
     title: string;
+    configId: string;
     row: GameHighRow;
     value: number;
     isPercent: boolean;
@@ -398,6 +407,7 @@ function HomePage() {
   const { data: gameHighRows } = useSuspenseQuery(gameHighsOptions());
   const [activeLeaderIndex, setActiveLeaderIndex] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [homeCardConfigs, setHomeCardConfigs] = useState<HomeCardMetricConfig[]>(() => loadHomeCardConfigs());
   const [isSavingImport, setIsSavingImport] = useState(false);
   const [importStatus, setImportStatus] = useState<string>("");
   const [createdMatchId, setCreatedMatchId] = useState<number | null>(null);
@@ -444,6 +454,14 @@ function HomePage() {
       : 0;
 
   const currentLanguage = i18n.language?.startsWith("et") ? "et" : "en";
+  const homeCardConfigMap = useMemo(
+    () => new Map(homeCardConfigs.map((config) => [config.id, config])),
+    [homeCardConfigs],
+  );
+
+  useEffect(() => {
+    saveHomeCardConfigs(homeCardConfigs);
+  }, [homeCardConfigs]);
 
   const topLeaders = useMemo<TopLeaderCard[]>(() => {
     return topStatFields
@@ -463,6 +481,7 @@ function HomePage() {
         return {
           stat: field.key,
           statLabel: t(field.labelKey),
+          configId: `totalTop:${field.key}`,
           row: leader,
           value: leader.all[field.key],
         };
@@ -490,6 +509,7 @@ function HomePage() {
         return {
           kind: "gameHigh" as const,
           title: t(field.labelKey),
+          configId: `gameHigh:${field.key}`,
           row: leader,
           value: getGameHighValue(leader, field.key) ?? 0,
           isPercent: field.isPercent === true,
@@ -508,10 +528,11 @@ function HomePage() {
   }, [gameHighRows, currentLanguage, t]);
 
   const rotatingLeaders = useMemo<RotatingLeaderCard[]>(() => {
-    return [
+    const cards: RotatingLeaderCard[] = [
       ...topLeaders.map((leader) => ({
         kind: "totalTop" as const,
-        title: leader.statLabel,
+        title: getConfiguredHomeCardLabel(leader.configId, leader.statLabel),
+        configId: leader.configId,
         row: leader.row,
         value: leader.value,
         isPercent:
@@ -520,9 +541,14 @@ function HomePage() {
           leader.stat === "attackKillPct" ||
           leader.stat === "attackEfficiency",
       })),
-      ...gameHighLeaders,
+      ...gameHighLeaders.map((leader) => ({
+        ...leader,
+        title: getConfiguredHomeCardLabel(leader.configId, leader.title),
+      })),
     ];
-  }, [gameHighLeaders, topLeaders]);
+
+    return cards.filter((leader) => (homeCardConfigMap.get(leader.configId)?.enabled ?? true));
+  }, [gameHighLeaders, homeCardConfigMap, topLeaders]);
 
   useEffect(() => {
     if (rotatingLeaders.length === 0) {
@@ -553,6 +579,12 @@ function HomePage() {
   const activeLeader =
     rotatingLeaders.length > 0 ? rotatingLeaders[activeLeaderIndex % rotatingLeaders.length] : null;
   const canManuallyCycleLeaders = rotatingLeaders.length > 1;
+
+  function updateHomeCardConfig(id: string, updater: (config: HomeCardMetricConfig) => HomeCardMetricConfig) {
+    setHomeCardConfigs((current) =>
+      current.map((config) => (config.id === id ? updater(config) : config)),
+    );
+  }
 
   useEffect(() => {
     let isMounted = true;
@@ -980,18 +1012,68 @@ function HomePage() {
       {/* Main */}
       <main className="mx-auto -mt-8 max-w-7xl px-4 sm:-mt-12 sm:px-6">
         {isAdmin && (
-          <section
-            id="admin-import"
-            className="mb-6 rounded-2xl border border-estonia-blue/30 bg-white p-4 shadow-sm sm:p-6"
-          >
-            <div className="mb-1 text-[11px] font-bold uppercase tracking-[0.2em] text-estonia-blue">
-              Admin Import
-            </div>
-            <h2 className="font-display text-2xl uppercase italic text-slate-900">Add New Match</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Create a match first, then use the selected Match ID to import sets, appearances, and
-              player stats.
-            </p>
+          <>
+            <section
+              id="admin-home-card-config"
+              className="mb-6 rounded-2xl border border-estonia-blue/30 bg-white p-4 shadow-sm sm:p-6"
+            >
+              <div className="mb-1 text-[11px] font-bold uppercase tracking-[0.2em] text-estonia-blue">
+                Home card setup
+              </div>
+              <h2 className="font-display text-2xl uppercase italic text-slate-900">
+                Configure rotating stat cards
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Toggle metrics on or off and rename them to match the wording you want on the home page.
+              </p>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {homeCardConfigs.map((config) => (
+                  <div
+                    key={config.id}
+                    className="rounded-xl border border-slate-200 bg-slate-50 p-3"
+                  >
+                    <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={config.enabled}
+                        onChange={() =>
+                          updateHomeCardConfig(config.id, (item) => ({
+                            ...item,
+                            enabled: !item.enabled,
+                          }))
+                        }
+                      />
+                      {config.group === "totalTop" ? "Career" : "Match"}
+                    </label>
+                    <input
+                      type="text"
+                      value={config.label}
+                      onChange={(event) =>
+                        updateHomeCardConfig(config.id, (item) => ({
+                          ...item,
+                          label: event.target.value,
+                        }))
+                      }
+                      className="mt-2 h-9 w-full rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-900 outline-none focus:border-estonia-blue"
+                    />
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section
+              id="admin-import"
+              className="mb-6 rounded-2xl border border-estonia-blue/30 bg-white p-4 shadow-sm sm:p-6"
+            >
+              <div className="mb-1 text-[11px] font-bold uppercase tracking-[0.2em] text-estonia-blue">
+                Admin Import
+              </div>
+              <h2 className="font-display text-2xl uppercase italic text-slate-900">Add New Match</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Create a match first, then use the selected Match ID to import sets, appearances, and
+                player stats.
+              </p>
 
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <input
@@ -1226,6 +1308,7 @@ function HomePage() {
               </div>
             </div>
           </section>
+          </>
         )}
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8">
@@ -1273,37 +1356,46 @@ function HomePage() {
                       &gt;
                     </button>
                   </div>
-                  <div className="min-h-[188px] space-y-3 px-4 py-4 text-center">
-                    <div className="flex items-center justify-center gap-4 text-center">
-                      {activeLeader.kind === "totalTop" && activeLeader.row.photoUrl ? (
-                        <img
-                          src={activeLeader.row.photoUrl}
-                          alt={activeLeader.row.name}
-                          className="h-24 w-20 shrink-0 rounded-lg border-2 border-estonia-blue/20 object-cover sm:h-28 sm:w-24"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <div className="grid h-24 w-20 shrink-0 place-items-center rounded-lg bg-estonia-dark font-display text-xl text-white sm:h-28 sm:w-24 sm:text-2xl">
-                          {activeLeader.row.name.split(" ")[0]?.[0] ?? "?"}
-                          {activeLeader.row.name.split(" ").slice(-1)[0]?.[0] ?? "?"}
-                        </div>
-                      )}
-                      <div className="min-w-0 text-center">
-                        <h3 className="truncate text-base font-bold uppercase leading-tight text-slate-900 sm:text-lg">
-                          {activeLeader.row.name}
-                        </h3>
-                        <p className="mt-1 text-sm font-semibold text-estonia-blue">
-                          {activeLeader.row.position ?? "—"}
-                        </p>
-                        {activeLeader.kind === "gameHigh" && (
-                          <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-slate-500">
-                            {activeLeader.opponent} · {activeLeader.matchDate}
-                          </p>
+                  <div className="px-3 py-3">
+                    <div className="grid grid-cols-[minmax(0,170px)_minmax(0,1fr)] items-stretch gap-3">
+                      <div className="overflow-hidden rounded-xl border border-estonia-blue/20 bg-estonia-dark">
+                        {activeLeader.kind === "totalTop" && activeLeader.row.photoUrl ? (
+                          <img
+                            src={activeLeader.row.photoUrl}
+                            alt={activeLeader.row.name}
+                            className="h-full min-h-[220px] w-full object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="grid h-full min-h-[220px] w-full place-items-center bg-estonia-dark font-display text-3xl text-white">
+                            {activeLeader.row.name.split(" ")[0]?.[0] ?? "?"}
+                            {activeLeader.row.name.split(" ").slice(-1)[0]?.[0] ?? "?"}
+                          </div>
                         )}
                       </div>
-                    </div>
-                    <div className="min-h-[16px] text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">
-                      {activeLeader.kind === "gameHigh" ? activeLeader.competition : "\u00A0"}
+
+                      <div className="flex min-h-[220px] flex-col justify-between text-left">
+                        <div className="pt-1">
+                          <h3 className="truncate text-base font-bold uppercase leading-tight text-slate-900 sm:text-lg">
+                            {activeLeader.row.name}
+                          </h3>
+                          <p className="mt-1 text-sm font-semibold text-estonia-blue">
+                            {activeLeader.row.position ?? "—"}
+                          </p>
+                          {activeLeader.kind === "gameHigh" && (
+                            <div className="mt-2 space-y-1 text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                              <p>{activeLeader.opponent}</p>
+                              <p>{activeLeader.matchDate}</p>
+                            </div>
+                          )}
+                        </div>
+
+                        {activeLeader.kind === "gameHigh" && (
+                          <div className="pt-2 text-left text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">
+                            {activeLeader.competition}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="border-t border-slate-200 bg-slate-50 px-4 py-4 text-center">

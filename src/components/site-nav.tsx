@@ -5,7 +5,6 @@ import i18n from "@/i18n";
 import { supabase } from "@/integrations/supabase/client";
 
 const ADMIN_EMAILS = new Set(["karl_juhkami@hotmail.com", "mjuhkami@gmail.com"]);
-const IMPORT_OPEN_IN_DEV = import.meta.env.DEV;
 
 function isAdminUser(user: { app_metadata?: Record<string, unknown> | null; user_metadata?: Record<string, unknown> | null } | null) {
   if (!user) return false;
@@ -19,25 +18,6 @@ function isAdminUser(user: { app_metadata?: Record<string, unknown> | null; user
 
 export function SiteNav() {
   const { t } = useTranslation();
-  const [isAdmin, setIsAdmin] = useState(false);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    void supabase.auth.getSession().then(({ data }) => {
-      if (!isMounted) return;
-      setIsAdmin(isAdminUser(data.session?.user ?? null));
-    });
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsAdmin(isAdminUser(session?.user ?? null));
-    });
-
-    return () => {
-      isMounted = false;
-      listener.subscription.unsubscribe();
-    };
-  }, []);
 
   return (
     <nav className="sticky top-0 z-50 bg-estonia-dark text-white shadow-lg">
@@ -119,25 +99,6 @@ export function SiteNav() {
               {t("nav.trivia")}
             </Link>
 
-            {IMPORT_OPEN_IN_DEV && (
-              <Link
-                to="/add"
-                className="transition-colors hover:text-estonia-blue"
-                activeProps={{ className: "text-estonia-blue" }}
-              >
-                ADD
-              </Link>
-            )}
-
-            {(isAdmin || IMPORT_OPEN_IN_DEV) && (
-              <Link
-                to="/import"
-                className="transition-colors hover:text-estonia-blue"
-                activeProps={{ className: "text-estonia-blue" }}
-              >
-                Import
-              </Link>
-            )}
           </div>
         </div>
 
