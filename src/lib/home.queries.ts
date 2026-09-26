@@ -26,6 +26,7 @@ export type RecentMatch = {
 
 export type HomeSummary = {
   totalMatches: number;
+  officialMatches: number;
   totalPlayers: number;
   totalAppearances: number;
   totalSets: number;
@@ -60,9 +61,10 @@ function extractMatchIdFromAppearanceRelation(value: unknown): number | null {
 }
 
 async function fetchHomeSummary(): Promise<HomeSummary> {
-  const { data: matchList } = await supabase.from("matches").select("match_id");
+  const { data: matchList } = await supabase.from("matches").select("match_id, am");
   const filteredMatchIds = (matchList ?? []).map((m) => m.match_id);
   const totalMatches = filteredMatchIds.length;
+  const officialMatches = (matchList ?? []).filter((match) => match.am === true).length;
 
   const [playersCount, apps, sets, recent, statCoverage] = await Promise.all([
     supabase.from("players").select("*", { count: "exact", head: true }),
@@ -136,6 +138,7 @@ async function fetchHomeSummary(): Promise<HomeSummary> {
 
   return {
     totalMatches,
+    officialMatches,
     totalPlayers,
     totalAppearances,
     totalSets,

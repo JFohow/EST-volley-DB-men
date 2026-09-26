@@ -125,16 +125,10 @@ function PlayersPage() {
                             </div>
                         </div>
 
-                        <div className="grid gap-3 sm:grid-cols-2 lg:w-[320px] lg:grid-cols-1">
+                        <div className="grid gap-3 sm:grid-cols-1 lg:w-[320px]">
                             <div className="flex h-10 items-center justify-between rounded-md border border-white/10 bg-white/10 px-3 backdrop-blur-sm">
                                 <div className="text-[10px] uppercase tracking-[0.22em] text-white/55">
-                                    {t("players.totalPlayers")}
-                                </div>
-                                <div className="font-display text-lg text-white">{players.length}</div>
-                            </div>
-                            <div className="flex h-10 items-center justify-between rounded-md border border-white/10 bg-white/10 px-3 backdrop-blur-sm">
-                                <div className="text-[10px] uppercase tracking-[0.22em] text-white/55">
-                                    {t("common.total")}
+                                    {t("players.title")}
                                 </div>
                                 <div className="font-display text-lg text-white">{filtered.length}</div>
                             </div>

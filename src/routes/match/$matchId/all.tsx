@@ -26,8 +26,45 @@ function MatchStatsAllPage() {
 
     const opponent = currentLanguage === "et" ? match.opponent : match.opponent_en ?? match.opponent;
     const competition = currentLanguage === "et" ? match.competition : match.competition_en ?? match.competition;
-    const city = currentLanguage === "et" ? match.city : match.city_en ?? match.city;
+    const city = match.city_en ?? match.city;
     const estoniaLabel = t("common.estonia");
+    const sourceUrl = typeof match.source_row === "string" && match.source_row.trim() ? match.source_row.trim() : null;
+
+    const getCountryFlag = (country: string | null | undefined) => {
+        const normalized = (country ?? "").trim().toLowerCase();
+        const map: Record<string, string> = {
+            estonia: "🇪🇪",
+            finland: "🇫🇮",
+            belgium: "🇧🇪",
+            france: "🇫🇷",
+            italy: "🇮🇹",
+            spain: "🇪🇸",
+            germany: "🇩🇪",
+            poland: "🇵🇱",
+            portugal: "🇵🇹",
+            netherlands: "🇳🇱",
+            brazil: "🇧🇷",
+            serbia: "🇷🇸",
+            slovenia: "🇸🇮",
+            turkey: "🇹🇷",
+            latvia: "🇱🇻",
+            lithuania: "🇱🇹",
+            greece: "🇬🇷",
+            croatia: "🇭🇷",
+            montenegro: "🇲🇪",
+            usa: "🇺🇸",
+            "united states": "🇺🇸",
+            uk: "🇬🇧",
+            "united kingdom": "🇬🇧",
+            sweden: "🇸🇪",
+            switzerland: "🇨🇭",
+            norway: "🇳🇴",
+            denmark: "🇩🇰",
+            "czech republic": "🇨🇿",
+            slovakia: "🇸🇰",
+        };
+        return map[normalized] ?? "🌍";
+    };
 
     const officialSetScores = (match.match_sets ?? [])
         .filter((set: { set_number: number; estonia_points: number; opponent_points: number }) => set.set_number <= 5)
@@ -206,8 +243,8 @@ function MatchStatsAllPage() {
                 <div className="rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
                     <div className="flex items-center justify-between gap-6">
                         <div className="flex-shrink-0">
-                            <div className="text-7xl">🇪🇪</div>
-                            <p className="mt-2 text-center text-xs font-semibold text-slate-600">{estoniaLabel}</p>
+                            <div className="text-[5rem] leading-none">{getCountryFlag("Estonia")}</div>
+                            <p className="mt-2 text-center text-base font-semibold text-slate-700">{estoniaLabel}</p>
                         </div>
 
                         <div className="flex-1 text-center">
@@ -251,17 +288,23 @@ function MatchStatsAllPage() {
                                 </div>
                             )}
 
-                            {officialSetScores && (
+                            {(
                                 <div className="mt-3 text-xs">
-                                    <a
-                                        href={match.source_row || `https://www.cev.eu/`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center text-estonia-blue hover:text-estonia-dark"
-                                    >
-                                        📊 {t("matches.sourceLink")}
-                                        <span className="ml-1">↗</span>
-                                    </a>
+                                    {sourceUrl ? (
+                                        <a
+                                            href={sourceUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center text-estonia-blue hover:text-estonia-dark"
+                                        >
+                                            📊 {t("matches.sourceLink")}
+                                            <span className="ml-1">↗</span>
+                                        </a>
+                                    ) : (
+                                        <span className="inline-flex items-center text-slate-500">
+                                            📊 {t("matches.sourceLink")}: N/A
+                                        </span>
+                                    )}
                                 </div>
                             )}
 
@@ -273,8 +316,8 @@ function MatchStatsAllPage() {
                         </div>
 
                         <div className="flex-shrink-0 text-center">
-                            <div className="text-7xl">🏐</div>
-                            <p className="mt-2 text-center text-xs font-semibold text-slate-600 uppercase">
+                            <div className="text-[5rem] leading-none">{getCountryFlag(opponent)}</div>
+                            <p className="mt-2 text-center text-base font-semibold text-slate-700 uppercase">
                                 {opponent}
                             </p>
                         </div>

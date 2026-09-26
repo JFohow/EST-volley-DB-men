@@ -213,7 +213,7 @@
         "matchResults": "Mänge lõptulemusega",
         "matchesWithPlayers": "Mänge algkoosseisudega",
         "fullStatistics": "Mänge täieliku statistikaga",
-        "coverageSummary": "{{matchesWithStats}} mängu detailse statistikaga, kokku {{totalMatches}} mängu.",
+        "coverageSummary": "Detailstatistika: {{matchesWithStats}} / {{totalMatches}} mängu",
         "tipText": "ALL vs AM: Lisageimidega kohtumised on salvestatud kahes versioonis. Filtreeri AM järgi, et näha ainult ametlikke rahvusvahelisi tulemusi."
     },
     "matches": {
@@ -233,6 +233,10 @@
         "setScore": "Geimide tulemus",
         "statistics": "Statistika",
         "additionalSetsInfo": "Lisageimidega kohtumistel on kaks erinevat statistikat: üks hõlmab mängu ametlikku osa, teine kogu kohtumist.",
+        "statsMode": {
+            "official": "Ametlik Mäng",
+            "all": "Lisageimidega statistika"
+        },
         "additional_set_one": "{{count}} lisageim",
         "additional_set_other": "{{count}} lisageimi",
         "year": "Aasta",

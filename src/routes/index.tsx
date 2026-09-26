@@ -997,7 +997,7 @@ function HomePage() {
               <div className="space-y-2 text-sm">
                 <div className="flex items-center justify-between gap-3 border-b border-white/15 pb-2">
                   <span className="font-semibold text-white/80">{t("common.matches")}</span>
-                  <span className="font-display text-3xl text-white">{fmt(data.totalMatches)}</span>
+                  <span className="font-display text-3xl text-white">{fmt(data.officialMatches)}</span>
                 </div>
                 <div className="flex items-center justify-between gap-3 pt-1">
                   <span className="font-semibold text-white/80">{t("nav.players")}</span>
@@ -1075,239 +1075,239 @@ function HomePage() {
                 player stats.
               </p>
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <input
-                type="date"
-                value={importDraft.matchDate}
-                onChange={(event) =>
-                  setImportDraft((current) => ({ ...current, matchDate: event.target.value }))
-                }
-                className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-estonia-blue"
-              />
-              <input
-                type="text"
-                placeholder="Opponent (ET)"
-                value={importDraft.opponent}
-                onChange={(event) =>
-                  setImportDraft((current) => ({ ...current, opponent: event.target.value }))
-                }
-                className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-estonia-blue"
-              />
-              <input
-                type="text"
-                placeholder="Opponent (EN)"
-                value={importDraft.opponentEn}
-                onChange={(event) =>
-                  setImportDraft((current) => ({ ...current, opponentEn: event.target.value }))
-                }
-                className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-estonia-blue"
-              />
-              <input
-                type="text"
-                placeholder="Competition (ET)"
-                value={importDraft.competition}
-                onChange={(event) =>
-                  setImportDraft((current) => ({ ...current, competition: event.target.value }))
-                }
-                className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-estonia-blue"
-              />
-              <input
-                type="text"
-                placeholder="Competition (EN)"
-                value={importDraft.competitionEn}
-                onChange={(event) =>
-                  setImportDraft((current) => ({ ...current, competitionEn: event.target.value }))
-                }
-                className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-estonia-blue"
-              />
-              <input
-                type="text"
-                placeholder="City (ET)"
-                value={importDraft.city}
-                onChange={(event) =>
-                  setImportDraft((current) => ({ ...current, city: event.target.value }))
-                }
-                className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-estonia-blue"
-              />
-              <input
-                type="text"
-                placeholder="City (EN)"
-                value={importDraft.cityEn}
-                onChange={(event) =>
-                  setImportDraft((current) => ({ ...current, cityEn: event.target.value }))
-                }
-                className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-estonia-blue"
-              />
-              <input
-                type="number"
-                min={0}
-                placeholder="Estonia sets"
-                value={importDraft.estoniaSets}
-                onChange={(event) =>
-                  setImportDraft((current) => ({ ...current, estoniaSets: event.target.value }))
-                }
-                className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-estonia-blue"
-              />
-              <input
-                type="number"
-                min={0}
-                placeholder="Opponent sets"
-                value={importDraft.opponentSets}
-                onChange={(event) =>
-                  setImportDraft((current) => ({ ...current, opponentSets: event.target.value }))
-                }
-                className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-estonia-blue"
-              />
-            </div>
-
-            <div className="mt-4 flex flex-wrap gap-3">
-              <label className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-700">
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <input
-                  type="checkbox"
-                  checked={importDraft.am}
-                  onChange={() =>
-                    setImportDraft((current) => ({ ...current, am: true, vm: false, mam: false }))
+                  type="date"
+                  value={importDraft.matchDate}
+                  onChange={(event) =>
+                    setImportDraft((current) => ({ ...current, matchDate: event.target.value }))
                   }
+                  className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-estonia-blue"
                 />
-                AM
-              </label>
-              <label className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-700">
                 <input
-                  type="checkbox"
-                  checked={importDraft.vm}
-                  onChange={() =>
-                    setImportDraft((current) => ({ ...current, am: false, vm: true, mam: false }))
+                  type="text"
+                  placeholder="Opponent (ET)"
+                  value={importDraft.opponent}
+                  onChange={(event) =>
+                    setImportDraft((current) => ({ ...current, opponent: event.target.value }))
                   }
+                  className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-estonia-blue"
                 />
-                VM
-              </label>
-              <label className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-700">
                 <input
-                  type="checkbox"
-                  checked={importDraft.mam}
-                  onChange={() =>
-                    setImportDraft((current) => ({ ...current, am: false, vm: false, mam: true }))
+                  type="text"
+                  placeholder="Opponent (EN)"
+                  value={importDraft.opponentEn}
+                  onChange={(event) =>
+                    setImportDraft((current) => ({ ...current, opponentEn: event.target.value }))
                   }
+                  className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-estonia-blue"
                 />
-                MAM
-              </label>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleSaveMatch}
-              disabled={isSavingImport}
-              className="mt-5 h-10 rounded-md bg-estonia-blue px-4 text-sm font-semibold text-white transition hover:bg-estonia-blue/90"
-            >
-              {isSavingImport ? "Saving..." : "Save match"}
-            </button>
-
-            {importStatus && <p className="mt-3 text-sm text-slate-600">{importStatus}</p>}
-
-            {createdMatchId != null && (
-              <a
-                href={`/match/${createdMatchId}`}
-                className="mt-2 inline-block text-sm font-semibold text-estonia-blue underline-offset-2 hover:underline"
-              >
-                Open match statistics
-              </a>
-            )}
-
-            <div className="mt-6 border-t border-slate-200 pt-5">
-              <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
-                Next steps
-              </div>
-              <div className="mt-3 grid gap-3 sm:max-w-xs">
-                <label className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                  Target Match ID
-                </label>
+                <input
+                  type="text"
+                  placeholder="Competition (ET)"
+                  value={importDraft.competition}
+                  onChange={(event) =>
+                    setImportDraft((current) => ({ ...current, competition: event.target.value }))
+                  }
+                  className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-estonia-blue"
+                />
+                <input
+                  type="text"
+                  placeholder="Competition (EN)"
+                  value={importDraft.competitionEn}
+                  onChange={(event) =>
+                    setImportDraft((current) => ({ ...current, competitionEn: event.target.value }))
+                  }
+                  className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-estonia-blue"
+                />
+                <input
+                  type="text"
+                  placeholder="City (ET)"
+                  value={importDraft.city}
+                  onChange={(event) =>
+                    setImportDraft((current) => ({ ...current, city: event.target.value }))
+                  }
+                  className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-estonia-blue"
+                />
+                <input
+                  type="text"
+                  placeholder="City (EN)"
+                  value={importDraft.cityEn}
+                  onChange={(event) =>
+                    setImportDraft((current) => ({ ...current, cityEn: event.target.value }))
+                  }
+                  className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-estonia-blue"
+                />
                 <input
                   type="number"
-                  min={1}
-                  value={targetMatchId}
-                  onChange={(event) => setTargetMatchId(event.target.value)}
-                  placeholder="e.g. 123"
+                  min={0}
+                  placeholder="Estonia sets"
+                  value={importDraft.estoniaSets}
+                  onChange={(event) =>
+                    setImportDraft((current) => ({ ...current, estoniaSets: event.target.value }))
+                  }
+                  className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-estonia-blue"
+                />
+                <input
+                  type="number"
+                  min={0}
+                  placeholder="Opponent sets"
+                  value={importDraft.opponentSets}
+                  onChange={(event) =>
+                    setImportDraft((current) => ({ ...current, opponentSets: event.target.value }))
+                  }
                   className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-estonia-blue"
                 />
               </div>
 
-              <div className="mt-5 grid gap-5 lg:grid-cols-3">
-                <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <h3 className="text-sm font-bold uppercase tracking-wide text-slate-800">
-                    Step 2: Match sets
-                  </h3>
-                  <p className="mt-1 text-xs text-slate-500">
-                    JSON array with set_number, estonia_points, opponent_points.
-                  </p>
-                  <textarea
-                    value={setsPayloadText}
-                    onChange={(event) => setSetsPayloadText(event.target.value)}
-                    rows={9}
-                    className="mt-2 w-full rounded-md border border-slate-200 bg-white p-2 text-xs text-slate-900 outline-none focus:border-estonia-blue"
+              <div className="mt-4 flex flex-wrap gap-3">
+                <label className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={importDraft.am}
+                    onChange={() =>
+                      setImportDraft((current) => ({ ...current, am: true, vm: false, mam: false }))
+                    }
                   />
-                  <button
-                    type="button"
-                    onClick={handleSaveSets}
-                    disabled={isSavingSets}
-                    className="mt-3 h-9 rounded-md bg-estonia-dark px-3 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-estonia-blue disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {isSavingSets ? "Saving..." : "Save sets"}
-                  </button>
-                  {setsStatus && <p className="mt-2 text-xs text-slate-600">{setsStatus}</p>}
-                </section>
-
-                <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <h3 className="text-sm font-bold uppercase tracking-wide text-slate-800">
-                    Step 3: Appearances
-                  </h3>
-                  <p className="mt-1 text-xs text-slate-500">
-                    JSON array with player_id and appearance fields.
-                  </p>
-                  <textarea
-                    value={appearancesPayloadText}
-                    onChange={(event) => setAppearancesPayloadText(event.target.value)}
-                    rows={9}
-                    className="mt-2 w-full rounded-md border border-slate-200 bg-white p-2 text-xs text-slate-900 outline-none focus:border-estonia-blue"
+                  AM
+                </label>
+                <label className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={importDraft.vm}
+                    onChange={() =>
+                      setImportDraft((current) => ({ ...current, am: false, vm: true, mam: false }))
+                    }
                   />
-                  <button
-                    type="button"
-                    onClick={handleSaveAppearances}
-                    disabled={isSavingAppearances}
-                    className="mt-3 h-9 rounded-md bg-estonia-dark px-3 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-estonia-blue disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {isSavingAppearances ? "Saving..." : "Save appearances"}
-                  </button>
-                  {appearancesStatus && (
-                    <p className="mt-2 text-xs text-slate-600">{appearancesStatus}</p>
-                  )}
-                </section>
-
-                <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <h3 className="text-sm font-bold uppercase tracking-wide text-slate-800">
-                    Step 4: Player stats
-                  </h3>
-                  <p className="mt-1 text-xs text-slate-500">
-                    JSON array with stats fields and either appearance_id or player_id.
-                  </p>
-                  <textarea
-                    value={statsPayloadText}
-                    onChange={(event) => setStatsPayloadText(event.target.value)}
-                    rows={9}
-                    className="mt-2 w-full rounded-md border border-slate-200 bg-white p-2 text-xs text-slate-900 outline-none focus:border-estonia-blue"
+                  VM
+                </label>
+                <label className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={importDraft.mam}
+                    onChange={() =>
+                      setImportDraft((current) => ({ ...current, am: false, vm: false, mam: true }))
+                    }
                   />
-                  <button
-                    type="button"
-                    onClick={handleSaveStats}
-                    disabled={isSavingStats}
-                    className="mt-3 h-9 rounded-md bg-estonia-dark px-3 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-estonia-blue disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {isSavingStats ? "Saving..." : "Save stats"}
-                  </button>
-                  {statsStatus && <p className="mt-2 text-xs text-slate-600">{statsStatus}</p>}
-                </section>
+                  MAM
+                </label>
               </div>
-            </div>
-          </section>
+
+              <button
+                type="button"
+                onClick={handleSaveMatch}
+                disabled={isSavingImport}
+                className="mt-5 h-10 rounded-md bg-estonia-blue px-4 text-sm font-semibold text-white transition hover:bg-estonia-blue/90"
+              >
+                {isSavingImport ? "Saving..." : "Save match"}
+              </button>
+
+              {importStatus && <p className="mt-3 text-sm text-slate-600">{importStatus}</p>}
+
+              {createdMatchId != null && (
+                <a
+                  href={`/match/${createdMatchId}`}
+                  className="mt-2 inline-block text-sm font-semibold text-estonia-blue underline-offset-2 hover:underline"
+                >
+                  Open match statistics
+                </a>
+              )}
+
+              <div className="mt-6 border-t border-slate-200 pt-5">
+                <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
+                  Next steps
+                </div>
+                <div className="mt-3 grid gap-3 sm:max-w-xs">
+                  <label className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+                    Target Match ID
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={targetMatchId}
+                    onChange={(event) => setTargetMatchId(event.target.value)}
+                    placeholder="e.g. 123"
+                    className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-estonia-blue"
+                  />
+                </div>
+
+                <div className="mt-5 grid gap-5 lg:grid-cols-3">
+                  <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <h3 className="text-sm font-bold uppercase tracking-wide text-slate-800">
+                      Step 2: Match sets
+                    </h3>
+                    <p className="mt-1 text-xs text-slate-500">
+                      JSON array with set_number, estonia_points, opponent_points.
+                    </p>
+                    <textarea
+                      value={setsPayloadText}
+                      onChange={(event) => setSetsPayloadText(event.target.value)}
+                      rows={9}
+                      className="mt-2 w-full rounded-md border border-slate-200 bg-white p-2 text-xs text-slate-900 outline-none focus:border-estonia-blue"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSaveSets}
+                      disabled={isSavingSets}
+                      className="mt-3 h-9 rounded-md bg-estonia-dark px-3 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-estonia-blue disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isSavingSets ? "Saving..." : "Save sets"}
+                    </button>
+                    {setsStatus && <p className="mt-2 text-xs text-slate-600">{setsStatus}</p>}
+                  </section>
+
+                  <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <h3 className="text-sm font-bold uppercase tracking-wide text-slate-800">
+                      Step 3: Appearances
+                    </h3>
+                    <p className="mt-1 text-xs text-slate-500">
+                      JSON array with player_id and appearance fields.
+                    </p>
+                    <textarea
+                      value={appearancesPayloadText}
+                      onChange={(event) => setAppearancesPayloadText(event.target.value)}
+                      rows={9}
+                      className="mt-2 w-full rounded-md border border-slate-200 bg-white p-2 text-xs text-slate-900 outline-none focus:border-estonia-blue"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSaveAppearances}
+                      disabled={isSavingAppearances}
+                      className="mt-3 h-9 rounded-md bg-estonia-dark px-3 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-estonia-blue disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isSavingAppearances ? "Saving..." : "Save appearances"}
+                    </button>
+                    {appearancesStatus && (
+                      <p className="mt-2 text-xs text-slate-600">{appearancesStatus}</p>
+                    )}
+                  </section>
+
+                  <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <h3 className="text-sm font-bold uppercase tracking-wide text-slate-800">
+                      Step 4: Player stats
+                    </h3>
+                    <p className="mt-1 text-xs text-slate-500">
+                      JSON array with stats fields and either appearance_id or player_id.
+                    </p>
+                    <textarea
+                      value={statsPayloadText}
+                      onChange={(event) => setStatsPayloadText(event.target.value)}
+                      rows={9}
+                      className="mt-2 w-full rounded-md border border-slate-200 bg-white p-2 text-xs text-slate-900 outline-none focus:border-estonia-blue"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSaveStats}
+                      disabled={isSavingStats}
+                      className="mt-3 h-9 rounded-md bg-estonia-dark px-3 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-estonia-blue disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isSavingStats ? "Saving..." : "Save stats"}
+                    </button>
+                    {statsStatus && <p className="mt-2 text-xs text-slate-600">{statsStatus}</p>}
+                  </section>
+                </div>
+              </div>
+            </section>
           </>
         )}
 
@@ -1357,26 +1357,26 @@ function HomePage() {
                     </button>
                   </div>
                   <div className="px-3 py-3">
-                    <div className="grid grid-cols-[minmax(0,170px)_minmax(0,1fr)] items-stretch gap-3">
+                    <div className="grid grid-cols-[110px_minmax(0,1fr)] items-stretch gap-3">
                       <div className="overflow-hidden rounded-xl border border-estonia-blue/20 bg-estonia-dark">
                         {activeLeader.kind === "totalTop" && activeLeader.row.photoUrl ? (
                           <img
                             src={activeLeader.row.photoUrl}
                             alt={activeLeader.row.name}
-                            className="h-full min-h-[220px] w-full object-cover"
+                            className="h-full min-h-[170px] w-full object-cover object-center"
                             loading="lazy"
                           />
                         ) : (
-                          <div className="grid h-full min-h-[220px] w-full place-items-center bg-estonia-dark font-display text-3xl text-white">
+                          <div className="grid h-full min-h-[170px] w-full place-items-center bg-estonia-dark font-display text-3xl text-white">
                             {activeLeader.row.name.split(" ")[0]?.[0] ?? "?"}
                             {activeLeader.row.name.split(" ").slice(-1)[0]?.[0] ?? "?"}
                           </div>
                         )}
                       </div>
 
-                      <div className="flex min-h-[220px] flex-col justify-between text-left">
+                      <div className="flex min-h-[170px] min-w-0 flex-col justify-between text-left">
                         <div className="pt-1">
-                          <h3 className="truncate text-base font-bold uppercase leading-tight text-slate-900 sm:text-lg">
+                          <h3 className="break-words text-base font-bold uppercase leading-tight text-slate-900 sm:text-lg">
                             {activeLeader.row.name}
                           </h3>
                           <p className="mt-1 text-sm font-semibold text-estonia-blue">
@@ -1410,10 +1410,10 @@ function HomePage() {
             </section>
 
             <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-              <div className="bg-slate-900 px-6 py-3 font-display text-sm uppercase tracking-widest text-white">
+              <div className="bg-slate-900 px-4 py-2.5 font-display text-xs uppercase tracking-[0.22em] text-white">
                 {t("home.coverageStatus")}
               </div>
-              <div className="space-y-4 p-4 sm:p-6">
+              <div className="space-y-3 p-3 sm:p-4">
                 <CoverageBar
                   label={t("home.matchResults")}
                   pct={data.totalMatches > 0 ? 100 : 0}
@@ -1429,7 +1429,7 @@ function HomePage() {
                   pct={coveragePct}
                   color={coveragePct >= 80 ? "green" : "amber"}
                 />
-                <p className="pt-2 text-[11px] leading-relaxed text-slate-400">
+                <p className="pt-1 text-[10px] leading-snug text-slate-400">
                   {t("home.coverageSummary", {
                     matchesWithStats: data.statsCoverage.matchesWithStats.toLocaleString(),
                     totalMatches: data.statsCoverage.totalMatches.toLocaleString(),

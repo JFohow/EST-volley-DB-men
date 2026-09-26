@@ -213,7 +213,7 @@
         "matchResults": "Matches with Results",
         "matchesWithPlayers": "Matches with Players Lists",
         "fullStatistics": "Matches with Full Statistics",
-        "coverageSummary": "{{matchesWithStats}} matches with detailed box-score statistics across {{totalMatches}} recorded matches.",
+        "coverageSummary": "Detailed stats: {{matchesWithStats}} / {{totalMatches}} matches",
         "tipText": "ALL vs AM: Matches with additional training sets are stored in two versions. Filter by AM to see only official international results."
     },
     "matches": {
@@ -233,6 +233,10 @@
         "statistics": "Statistics",
         "additionalSetsInfo": "Matches with additional sets have two different statistics: one for the official part, the second for the full match.",
         "sourceLink": "Source for statistics",
+        "statsMode": {
+            "official": "Official Match",
+            "all": "Additional Sets Included"
+        },
         "additional_set_one": "{{count}} additional set",
         "additional_set_other": "{{count}} additional sets",
         "year": "Year",

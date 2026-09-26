@@ -132,6 +132,61 @@ function TriviaPage() {
 
     const modeData = data[mode];
 
+    const getSectionSummary = (sectionKey: string): string => {
+        switch (sectionKey) {
+            case "topCities": {
+                const row = modeData.topCities[0];
+                return row ? `${row.city} — ${row.count}` : "—";
+            }
+            case "topAbroadCities": {
+                const row = modeData.topAbroadCities[0];
+                return row ? `${row.city} — ${row.count}` : "—";
+            }
+            case "leastEstPoints": {
+                const row = modeData.leastEstoniaPointsMatches[0];
+                return row ? `${row.estoniaSets}-${row.opponentSets} • ${row.estoniaPoints}` : "—";
+            }
+            case "leastOppPoints": {
+                const row = modeData.leastOpponentPointsMatches[0];
+                return row ? `${row.estoniaSets}-${row.opponentSets} • ${row.opponentPoints}` : "—";
+            }
+            case "mostEstPoints": {
+                const row = modeData.mostEstoniaPointsMatches[0];
+                return row ? `${row.estoniaSets}-${row.opponentSets} • ${row.estoniaPoints}` : "—";
+            }
+            case "mostOppPoints": {
+                const row = modeData.mostOpponentPointsMatches[0];
+                return row ? `${row.estoniaSets}-${row.opponentSets} • ${row.opponentPoints}` : "—";
+            }
+            case "highestScoringSets": {
+                const row = modeData.highestScoringSets[0];
+                return row ? `${row.estoniaPoints}-${row.opponentPoints} • ${row.estoniaSets}-${row.opponentSets}` : "—";
+            }
+            case "lowestScoringSets": {
+                const row = modeData.lowestScoringSets[0];
+                return row ? `${row.estoniaPoints}-${row.opponentPoints} • ${row.estoniaSets}-${row.opponentSets}` : "—";
+            }
+            case "shortestSetDuration": {
+                const row = modeData.shortestSets[0];
+                return row ? `${row.estoniaPoints}-${row.opponentPoints} • ${row.setDuration} min` : "—";
+            }
+            case "longestSetDuration": {
+                const row = modeData.longestSets[0];
+                return row ? `${row.estoniaPoints}-${row.opponentPoints} • ${row.setDuration} min` : "—";
+            }
+            case "shortestMatchDuration": {
+                const row = modeData.shortestMatches[0];
+                return row ? `${row.estoniaSets}-${row.opponentSets} • ${row.durationMinutes} min` : "—";
+            }
+            case "longestMatchDuration": {
+                const row = modeData.longestMatches[0];
+                return row ? `${row.estoniaSets}-${row.opponentSets} • ${row.durationMinutes} min` : "—";
+            }
+            default:
+                return "—";
+        }
+    };
+
     const sections: Section[] = [
         {
             key: "topCities",
@@ -257,8 +312,8 @@ function TriviaPage() {
                                         type="button"
                                         onClick={() => setMode(currentMode)}
                                         className={`rounded-md border px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] transition ${mode === currentMode
-                                                ? "border-estonia-blue bg-estonia-blue text-white"
-                                                : "border-white/20 bg-white/10 text-white/90 hover:bg-white/20"
+                                            ? "border-estonia-blue bg-estonia-blue text-white"
+                                            : "border-white/20 bg-white/10 text-white/90 hover:bg-white/20"
                                             }`}
                                     >
                                         {t(`statistics.filters.${currentMode}`)}
@@ -273,6 +328,7 @@ function TriviaPage() {
             <section className="mt-8 grid gap-5 lg:grid-cols-2">
                 {sections.map((section) => {
                     const isExpanded = expandedSection === section.key;
+                    const summary = getSectionSummary(section.key);
 
                     return (
                         <article
@@ -286,13 +342,16 @@ function TriviaPage() {
                                 }
                                 className="flex w-full items-center justify-between gap-4 border-b border-slate-100 px-4 py-4 text-left sm:px-5"
                             >
-                                <div>
+                                <div className="min-w-0">
                                     <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
                                         #1
                                     </div>
                                     <h2 className="mt-1 font-display text-2xl uppercase italic text-slate-900">
                                         {section.title}
                                     </h2>
+                                    <div className="mt-2 text-sm font-medium text-estonia-dark">
+                                        {summary}
+                                    </div>
                                 </div>
                                 <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-slate-300 bg-slate-50 text-lg font-bold text-slate-700 transition group-hover:border-estonia-blue group-hover:text-estonia-blue">
                                     {isExpanded ? "▴" : "▾"}
