@@ -48,32 +48,60 @@ export type HomeSummary = {
   };
 };
 
-function extractMatchIdFromAppearanceRelation(value: unknown): number | null {
-  if (!value) return null;
+const PAGE_SIZE = 1000;
 
-  if (Array.isArray(value)) {
-    const first = value[0] as { match_id?: unknown } | undefined;
-    return typeof first?.match_id === "number" ? first.match_id : null;
+async function fetchAllMatchFlags() {
+  const rows: { match_id: number; am: boolean | null }[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from("matches")
+      .select("match_id, am")
+      .order("match_id", { ascending: true })
+      .range(from, from + PAGE_SIZE - 1);
+    if (error) throw error;
+    rows.push(...(data ?? []));
+    if ((data ?? []).length < PAGE_SIZE) break;
   }
+  return rows;
+}
 
-  const row = value as { match_id?: unknown };
-  return typeof row.match_id === "number" ? row.match_id : null;
+async function fetchAllAppearances() {
+  const rows: {
+    appearance_id: number;
+    player_id: number;
+    sets_played: number | null;
+    match_id: number;
+    player_match_stats: Record<string, number | null>[] | Record<string, number | null> | null;
+  }[] = [];
+  let lastId = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from("appearances")
+      .select(
+        "appearance_id, player_id, sets_played, match_id, player_match_stats(points, plus_minus, break_points, serve_total, reception_total, attack_total, attack_kills, block_points)",
+      )
+      .gt("appearance_id", lastId)
+      .order("appearance_id", { ascending: true })
+      .limit(PAGE_SIZE);
+    if (error) throw error;
+    const chunk = data ?? [];
+    if (chunk.length === 0) break;
+    rows.push(...chunk);
+    lastId = chunk[chunk.length - 1].appearance_id;
+    if (chunk.length < PAGE_SIZE) break;
+  }
+  return rows;
 }
 
 async function fetchHomeSummary(): Promise<HomeSummary> {
-  const { data: matchList } = await supabase.from("matches").select("match_id, am");
-  const filteredMatchIds = (matchList ?? []).map((m) => m.match_id);
-  const totalMatches = filteredMatchIds.length;
-  const officialMatches = (matchList ?? []).filter((match) => match.am === true).length;
+  const matchList = await fetchAllMatchFlags();
+  const totalMatches = matchList.length;
+  const officialMatches = matchList.filter((match) => match.am === true).length;
 
-  const [playersCount, apps, sets, recent, statCoverage] = await Promise.all([
+  const [playersCount, allApps, sets, recent] = await Promise.all([
     supabase.from("players").select("*", { count: "exact", head: true }),
-    filteredMatchIds.length
-      ? supabase.from("appearances").select("player_id, sets_played, match_id").in("match_id", filteredMatchIds)
-      : Promise.resolve({ data: [] as any[] }),
-    filteredMatchIds.length
-      ? supabase.from("match_sets").select("match_set_id", { count: "exact", head: true }).in("match_id", filteredMatchIds)
-      : Promise.resolve({ count: 0 }),
+    fetchAllAppearances(),
+    supabase.from("match_sets").select("match_set_id", { count: "exact", head: true }),
     supabase
       .from("matches")
       .select(
@@ -81,41 +109,28 @@ async function fetchHomeSummary(): Promise<HomeSummary> {
       )
       .order("match_date", { ascending: false })
       .limit(6),
-    filteredMatchIds.length
-      ? supabase
-        .from("player_match_stats")
-        .select(`
-        appearance_id,
-        appearances!inner(
-          match_id
-        )
-      `)
-      : Promise.resolve({ data: [] as any[] }),
   ]);
 
   const totalPlayers = playersCount.count ?? 0;
-  const totalAppearances = (apps as any).data?.length ?? 0;
-  const totalSets = (sets as any).count ?? 0;
+  const totalAppearances = allApps.length;
+  const totalSets = sets.count ?? 0;
 
-  const appsDataRaw = (apps as any).data ?? [];
-  const statsData = (statCoverage as any).data ?? [];
-
-  const appearanceMatchIds = appsDataRaw
-    .map((a: any) => (typeof a.match_id === "number" ? a.match_id : null))
-    .filter((matchId: number | null): matchId is number => matchId != null);
-
-  const statsMatchIds = statsData
-    .map((s: any) => extractMatchIdFromAppearanceRelation(s.appearances))
-    .filter((matchId: number | null): matchId is number => matchId != null);
-
-  const matchesWithPlayers = new Set([...appearanceMatchIds, ...statsMatchIds]).size;
-
+  const officialIds = new Set(matchList.filter((m) => m.am === true).map((m) => m.match_id));
+  const officialApps = allApps.filter((a) => officialIds.has(a.match_id));
+  const matchesWithPlayers = new Set(officialApps.map((a) => a.match_id)).size;
+  // Only stat rows with real numeric values count; players-list-only rows are empty.
   const matchesWithStats = new Set(
-    statsMatchIds
+    officialApps
+      .filter((a) =>
+        [a.player_match_stats].flat().some(
+          (s) => s && Object.values(s).some((v) => typeof v === "number"),
+        ),
+      )
+      .map((a) => a.match_id),
   ).size;
 
   let topAppearance: HomeSummary["topAppearance"] = null;
-  const appsData = (apps as any).data as { player_id: number; sets_played: number | null }[] | undefined;
+  const appsData = allApps as { player_id: number; sets_played: number | null }[];
   if (appsData && appsData.length) {
     const agg = new Map<number, { matches: number; sets: number }>();
     for (const a of appsData) {
@@ -146,11 +161,11 @@ async function fetchHomeSummary(): Promise<HomeSummary> {
     topAppearance,
     statsCoverage: {
       matchesWithStats,
-      totalMatches,
+      totalMatches: officialMatches,
     },
     playerCoverage: {
       matchesWithPlayers,
-      totalMatches,
+      totalMatches: officialMatches,
     },
   };
 }

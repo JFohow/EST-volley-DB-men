@@ -203,9 +203,6 @@ function PlayerPage() {
 
     const appearanceMatchesWithStats = useMemo(() => {
         return appearances.filter((a) => {
-            const stats = pickStatsRowForMode(a.player_match_stats);
-            if (!stats) return false;
-
             const match = getMatch(a);
             if (!match) return false;
 
@@ -804,7 +801,7 @@ function PlayerPage() {
 
             <main className="mx-auto max-w-[1480px] px-4 py-8 sm:px-6 sm:py-10 lg:px-14">
                 <section className="mb-10 rounded-3xl border border-slate-200 bg-slate-50 p-4 shadow-sm sm:p-6">
-                    <div className="mb-6 grid gap-2">
+                    <div className="sticky top-24 z-40 -mx-2 mb-6 grid gap-2 rounded-2xl bg-slate-50/95 px-2 py-2 shadow-sm backdrop-blur sm:top-[4.25rem]">
                         <div className="grid grid-cols-3 gap-2">
                             {(["official", "competitive", "all"] as const).map((mode) => (
                                 <button
@@ -968,9 +965,14 @@ function PlayerPage() {
                         </table>
                     </div>
 
-                    <h3 className="mt-4 mb-2 text-center font-display text-2xl uppercase italic text-slate-900">
-                        {currentLanguage === "et" ? "Ühe mängu parimad" : "Game Highs"}
-                    </h3>
+                    <div className="mt-4 mb-2 flex justify-center gap-2">
+                        <button
+                            type="button"
+                            className="rounded-full border border-slate-900 bg-slate-900 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-white"
+                        >
+                            {currentLanguage === "et" ? "Ühe mängu parimad" : "Game Highs"}
+                        </button>
+                    </div>
 
                     <div className="mt-4 overflow-x-auto rounded-3xl border border-slate-200 bg-white shadow-sm">
                         <table className="w-full min-w-[980px] border-collapse">

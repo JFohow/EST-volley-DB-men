@@ -368,7 +368,7 @@ async function fetchTotalTop(): Promise<TotalTopRow[]> {
 
   const { count: totalAppearanceCount, error: totalAppearanceCountError } = await supabase
     .from("appearances")
-    .select("appearance_id, player_match_stats!inner(stats_version)", { count: "exact", head: true });
+    .select("appearance_id", { count: "exact", head: true });
 
   if (totalAppearanceCountError) throw totalAppearanceCountError;
 
@@ -380,7 +380,7 @@ async function fetchTotalTop(): Promise<TotalTopRow[]> {
     const { data, error } = await supabase
       .from("appearances")
       .select(
-        `appearance_id, player_id, match_id, sets_played, sets_started, on_the_bench, matches(match_id, match_date, opponent, opponent_en, competition, competition_en, estonia_sets, opponent_sets, vm, am, mam), player_match_stats!inner(points, block_points, plus_minus, serve_total, serve_aces, serve_errors, reception_total, reception_errors, reception_positive_pct, reception_excellent_pct, attack_total, attack_errors, attack_blocked, attack_kills, attack_kill_pct, attack_efficiency, break_points, stats_version, set1_position, set2_position, set3_position, set4_position, set5_position)`,
+        `appearance_id, player_id, match_id, sets_played, sets_started, on_the_bench, matches(match_id, match_date, opponent, opponent_en, competition, competition_en, estonia_sets, opponent_sets, vm, am, mam), player_match_stats(points, block_points, plus_minus, serve_total, serve_aces, serve_errors, reception_total, reception_errors, reception_positive_pct, reception_excellent_pct, attack_total, attack_errors, attack_blocked, attack_kills, attack_kill_pct, attack_efficiency, break_points, stats_version, set1_position, set2_position, set3_position, set4_position, set5_position)`,
       )
       .gt("appearance_id", lastAppearanceId)
       .order("appearance_id", { ascending: true })

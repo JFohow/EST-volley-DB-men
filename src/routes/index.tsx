@@ -467,11 +467,11 @@ function HomePage() {
     return topStatFields
       .map((field) => {
         const leader = totalTopRows.reduce<TotalTopRow | null>((best, row) => {
-          const rowValue = row.all[field.key];
+          const rowValue = row.official[field.key];
           if (!best) {
             return row;
           }
-          return rowValue > best.all[field.key] ? row : best;
+          return rowValue > best.official[field.key] ? row : best;
         }, null);
 
         if (!leader) {
@@ -483,7 +483,7 @@ function HomePage() {
           statLabel: t(field.labelKey),
           configId: `totalTop:${field.key}`,
           row: leader,
-          value: leader.all[field.key],
+          value: leader.official[field.key],
         };
       })
       .filter((leader): leader is TopLeaderCard => leader !== null);
@@ -993,14 +993,14 @@ function HomePage() {
               </p>
             </div>
 
-            <div className="mx-auto w-full max-w-[34rem] rounded-2xl border border-white/10 bg-white/10 p-5 backdrop-blur-sm lg:mx-0 lg:max-w-none">
+            <div className="w-full rounded-2xl border border-white/10 bg-white/10 p-5 backdrop-blur-sm">
               <div className="space-y-2 text-sm">
                 <div className="flex items-center justify-between gap-3 border-b border-white/15 pb-2">
-                  <span className="font-semibold text-white/80">{t("common.matches")}</span>
+                  <span className="text-base font-semibold uppercase tracking-wider text-white/80">{t("common.matches")}</span>
                   <span className="font-display text-3xl text-white">{fmt(data.officialMatches)}</span>
                 </div>
                 <div className="flex items-center justify-between gap-3 pt-1">
-                  <span className="font-semibold text-white/80">{t("nav.players")}</span>
+                  <span className="text-base font-semibold uppercase tracking-wider text-white/80">{t("nav.players")}</span>
                   <span className="font-display text-3xl text-white">{fmt(data.totalPlayers)}</span>
                 </div>
               </div>
@@ -1379,9 +1379,6 @@ function HomePage() {
                           <h3 className="break-words text-base font-bold uppercase leading-tight text-slate-900 sm:text-lg">
                             {activeLeader.row.name}
                           </h3>
-                          <p className="mt-1 text-sm font-semibold text-estonia-blue">
-                            {activeLeader.row.position ?? "—"}
-                          </p>
                           {activeLeader.kind === "gameHigh" && (
                             <div className="mt-2 space-y-1 text-[11px] uppercase tracking-[0.18em] text-slate-500">
                               <p>{activeLeader.opponent}</p>

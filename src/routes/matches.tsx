@@ -596,9 +596,7 @@ function MatchRow({
       </div>
 
       {detailLine ? (
-        <div className="col-span-13 border-l-4 border-estonia-blue bg-blue-50 px-3 py-1 text-sm text-slate-600">
-          {detailLine}
-        </div>
+        <div className="col-span-13 text-center text-xs italic text-slate-500">{detailLine}</div>
       ) : null}
     </li>
   );

@@ -325,7 +325,7 @@ function TriviaPage() {
                 </div>
             </header>
 
-            <section className="mt-8 grid gap-5 lg:grid-cols-2">
+            <section className="mt-8 space-y-3">
                 {sections.map((section) => {
                     const isExpanded = expandedSection === section.key;
                     const summary = getSectionSummary(section.key);
@@ -340,24 +340,22 @@ function TriviaPage() {
                                 onClick={() =>
                                     setExpandedSection((current) => (current === section.key ? null : section.key))
                                 }
-                                className="flex w-full items-center justify-between gap-4 border-b border-slate-100 px-4 py-4 text-left sm:px-5"
+                                className="flex w-full items-center gap-4 px-4 py-3 text-left sm:px-5"
                             >
-                                <div className="min-w-0">
-                                    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                                        #1
-                                    </div>
-                                    <h2 className="mt-1 font-display text-2xl uppercase italic text-slate-900">
-                                        {section.title}
-                                    </h2>
-                                    <div className="mt-2 text-sm font-medium text-estonia-dark">
-                                        {summary}
-                                    </div>
+                                <div className="w-8 shrink-0 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                                    #1
                                 </div>
-                                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-slate-300 bg-slate-50 text-lg font-bold text-slate-700 transition group-hover:border-estonia-blue group-hover:text-estonia-blue">
+                                <h2 className="min-w-0 flex-1 truncate font-display text-lg uppercase italic text-slate-900 sm:text-xl">
+                                    {section.title}
+                                </h2>
+                                <div className="shrink-0 text-sm font-semibold text-estonia-dark">{summary}</div>
+                                <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-slate-300 bg-white text-base font-bold text-slate-800">
                                     {isExpanded ? "▴" : "▾"}
                                 </div>
                             </button>
-                            {isExpanded && <div className="p-4 sm:p-5">{section.content}</div>}
+                            {isExpanded && (
+                                <div className="border-t border-slate-100 p-4 sm:p-5">{section.content}</div>
+                            )}
                         </article>
                     );
                 })}

@@ -85,13 +85,20 @@ function hasFullStats(stats: MatchCoverageStatRow): boolean {
 }
 
 async function fetchAllMatches(): Promise<MatchListItem[]> {
-  const { data, error } = await supabase
-    .from("matches")
-    .select(
-      "match_id, match_date, opponent, opponent_en, competition, competition_en, city, city_en, notes, estonia_sets, opponent_sets, vm, am, mam, has_additional_sets, additional_sets_count, match_sets(set_number, estonia_points, opponent_points)",
-    )
-    .order("match_date", { ascending: false });
-  if (error) throw error;
+  const data: Omit<MatchListItem, "statsCoverage">[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data: page, error } = await supabase
+      .from("matches")
+      .select(
+        "match_id, match_date, opponent, opponent_en, competition, competition_en, city, city_en, notes, estonia_sets, opponent_sets, vm, am, mam, has_additional_sets, additional_sets_count, match_sets(set_number, estonia_points, opponent_points)",
+      )
+      .order("match_date", { ascending: false })
+      .order("match_id", { ascending: false })
+      .range(from, from + 999);
+    if (error) throw error;
+    data.push(...((page ?? []) as unknown as Omit<MatchListItem, "statsCoverage">[]));
+    if ((page ?? []).length < 1000) break;
+  }
 
   const coverageByMatch = new Map<number, { hasAppearances: boolean; hasFullStats: boolean }>();
   const pageSize = 1000;
