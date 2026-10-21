@@ -195,8 +195,8 @@
         "Unknown": "Unknown"
     },
     "home": {
-        "title": "Estonian Men's National Team",
-        "titleAccent": "Database",
+        "title": "Estonian Men's National Volleyball Team",
+        "titleAccent": "Statistical Database",
         "subtitle": "Every match. Every set. If the statistics exists...",
         "totalMatches": "Total Matches",
         "totalPlayers": "Total Players",
@@ -213,6 +213,8 @@
         "matchResults": "Matches with Results",
         "matchesWithPlayers": "Matches with Players Lists",
         "fullStatistics": "Matches with Full Statistics",
+        "partialStatistics": "Matches with Partial Statistics",
+        "withoutStatistics": "Matches Without Statistics",
         "coverageSummary": "Detailed stats: {{matchesWithStats}} / {{totalMatches}} matches",
         "tipText": "ALL vs AM: Matches with additional training sets are stored in two versions. Filter by AM to see only official international results."
     },
@@ -233,6 +235,7 @@
         "statistics": "Statistics",
         "additionalSetsInfo": "Matches with additional sets have two different statistics: one for the official part, the second for the full match.",
         "sourceLink": "Source for statistics",
+        "partialStatisticsNotice": "NB! Partial Statistics!",
         "statsMode": {
             "official": "Official Match",
             "all": "Additional Sets Included"

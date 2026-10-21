@@ -364,6 +364,12 @@ function TriviaPage() {
     );
 }
 
+function getScoreStyle(estoniaScore: number, opponentScore: number): string {
+    if (estoniaScore > opponentScore) return "text-estonia-blue";
+    if (estoniaScore < opponentScore) return "text-red-700";
+    return "text-green-700";
+}
+
 function CitiesTable({
     rows,
     isEstonian,
@@ -440,6 +446,7 @@ function MatchPointsTable({
                         const scoreTarget = row.hasAdditionalSets
                             ? `/match/${row.matchId}/all`
                             : `/match/${row.matchId}`;
+                        const scoreStyle = getScoreStyle(row.estoniaSets, row.opponentSets);
 
                         return (
                             <tr
@@ -450,7 +457,7 @@ function MatchPointsTable({
                                 <td className="px-2 py-2">{new Date(row.matchDate).toLocaleDateString("en-GB")}</td>
                                 <td className="px-2 py-2 font-medium text-slate-800">{opponent}</td>
                                 <td className="px-2 py-2 text-center font-semibold">
-                                    <a href={scoreTarget} className="text-estonia-blue hover:underline">
+                                    <a href={scoreTarget} className={`${scoreStyle} hover:underline`}>
                                         {row.estoniaSets}-{row.opponentSets}
                                     </a>
                                 </td>
@@ -498,12 +505,8 @@ function SetsTable({
                         const competition = isEstonian
                             ? row.competition
                             : (row.competitionEn ?? row.competition);
-                        const setResultStyle =
-                            row.estoniaPoints > row.opponentPoints
-                                ? "text-estonia-blue"
-                                : row.estoniaPoints === row.opponentPoints
-                                    ? "text-green-700"
-                                    : "text-red-700";
+                        const scoreStyle = getScoreStyle(row.estoniaSets, row.opponentSets);
+                        const setResultStyle = getScoreStyle(row.estoniaPoints, row.opponentPoints);
                         const scoreTarget = row.hasAdditionalSets
                             ? `/match/${row.matchId}/all`
                             : `/match/${row.matchId}`;
@@ -517,7 +520,9 @@ function SetsTable({
                                 <td className="px-2 py-2">{new Date(row.matchDate).toLocaleDateString("en-GB")}</td>
                                 <td className="px-2 py-2 font-medium text-slate-800">{opponent}</td>
                                 <td className="px-2 py-2 text-center font-semibold">
-                                    {row.estoniaSets}-{row.opponentSets}
+                                    <a href={scoreTarget} className={`${scoreStyle} hover:underline`}>
+                                        {row.estoniaSets}-{row.opponentSets}
+                                    </a>
                                 </td>
                                 <td className="px-2 py-2 text-center font-semibold">
                                     <a href={scoreTarget} className={`${setResultStyle} hover:underline`}>
@@ -570,6 +575,7 @@ function MatchDurationTable({
                         const scoreTarget = row.hasAdditionalSets
                             ? `/match/${row.matchId}/all`
                             : `/match/${row.matchId}`;
+                        const scoreStyle = getScoreStyle(row.estoniaSets, row.opponentSets);
 
                         return (
                             <tr
@@ -580,7 +586,7 @@ function MatchDurationTable({
                                 <td className="px-2 py-2">{new Date(row.matchDate).toLocaleDateString("en-GB")}</td>
                                 <td className="px-2 py-2 font-medium text-slate-800">{opponent}</td>
                                 <td className="px-2 py-2 text-center font-semibold">
-                                    <a href={scoreTarget} className="text-estonia-blue hover:underline">
+                                    <a href={scoreTarget} className={`${scoreStyle} hover:underline`}>
                                         {row.estoniaSets}-{row.opponentSets}
                                     </a>
                                 </td>

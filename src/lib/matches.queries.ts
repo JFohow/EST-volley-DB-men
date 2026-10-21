@@ -1,5 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { MatchUnavailableStatRow } from "@/lib/match-unavailable-stats";
 
 export type MatchListItem = {
   match_id: number;
@@ -19,6 +20,7 @@ export type MatchListItem = {
   has_additional_sets: boolean;
   additional_sets_count: number;
   statsCoverage: "full" | "playersOnly" | "none";
+  match_unavailable_stats: MatchUnavailableStatRow[];
   match_sets: {
     set_number: number;
     estonia_points: number;
@@ -90,7 +92,7 @@ async function fetchAllMatches(): Promise<MatchListItem[]> {
     const { data: page, error } = await supabase
       .from("matches")
       .select(
-        "match_id, match_date, opponent, opponent_en, competition, competition_en, city, city_en, notes, estonia_sets, opponent_sets, vm, am, mam, has_additional_sets, additional_sets_count, match_sets(set_number, estonia_points, opponent_points)",
+        "match_id, match_date, opponent, opponent_en, competition, competition_en, city, city_en, notes, estonia_sets, opponent_sets, vm, am, mam, has_additional_sets, additional_sets_count, match_sets(set_number, estonia_points, opponent_points), match_unavailable_stats(stat_field)",
       )
       .order("match_date", { ascending: false })
       .order("match_id", { ascending: false })

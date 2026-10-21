@@ -23,6 +23,9 @@ function MatchStatsPage() {
 
     const match = data.match;
     const players = data.players;
+    const unavailableStats = new Set<string>(
+        (match.match_unavailable_stats ?? []).map((row: { stat_field: string }) => row.stat_field),
+    );
 
     // determine available stats versions across players (e.g. 'ALL', 'AM')
     const availableStatVersions = new Set<string>();
@@ -232,7 +235,7 @@ function MatchStatsPage() {
             rows.forEach((r: any) => {
                 allFields.forEach((col) => {
                     const v = r[col.field as keyof typeof r];
-                    if (typeof v === "number") {
+                    if (typeof v === "number" && !unavailableStats.has(col.field)) {
                         if (
                             col.field !== "reception_positive_pct" &&
                             col.field !== "reception_excellent_pct" &&
@@ -257,13 +260,26 @@ function MatchStatsPage() {
             });
 
             combined.reception_positive_pct =
-                combined.reception_total > 0 ? (playerReceptionPositiveCount / combined.reception_total) * 100 : null;
+                !unavailableStats.has("reception_total") && !unavailableStats.has("reception_positive_pct") && combined.reception_total > 0
+                    ? (playerReceptionPositiveCount / combined.reception_total) * 100
+                    : null;
             combined.reception_excellent_pct =
-                combined.reception_total > 0 ? (playerReceptionExcellentCount / combined.reception_total) * 100 : null;
+                !unavailableStats.has("reception_total") && !unavailableStats.has("reception_excellent_pct") && combined.reception_total > 0
+                    ? (playerReceptionExcellentCount / combined.reception_total) * 100
+                    : null;
 
             // Derive attack percentages from raw totals.
-            combined.attack_efficiency = computeAttackEff(combined);
-            combined.attack_kill_pct = computeAttackKillPct(combined);
+            combined.attack_efficiency =
+                unavailableStats.has("attack_total") ||
+                    unavailableStats.has("attack_kills") ||
+                    unavailableStats.has("attack_blocked") ||
+                    unavailableStats.has("attack_errors")
+                    ? null
+                    : computeAttackEff(combined);
+            combined.attack_kill_pct =
+                unavailableStats.has("attack_total") || unavailableStats.has("attack_kills")
+                    ? null
+                    : computeAttackKillPct(combined);
 
             return combined;
         };
@@ -274,7 +290,7 @@ function MatchStatsPage() {
 
             allFields.forEach((col) => {
                 const value = stats[col.field as keyof typeof stats];
-                if (typeof value === "number" && value !== null) {
+                if (typeof value === "number" && value !== null && !unavailableStats.has(col.field)) {
                     if (
                         col.field !== "reception_positive_pct" &&
                         col.field !== "reception_excellent_pct" &&
@@ -304,6 +320,24 @@ function MatchStatsPage() {
     const { totals, receptionPositiveCount, receptionExcellentCount } = calculateTotals();
 
     const getStatValue = (fieldName: string): string => {
+        if (unavailableStats.has(fieldName)) return "";
+        if (
+            fieldName === "attack_efficiency" &&
+            ["attack_total", "attack_kills", "attack_blocked", "attack_errors"].some((field) =>
+                unavailableStats.has(field),
+            )
+        ) return "";
+        if (
+            fieldName === "attack_kill_pct" &&
+            ["attack_total", "attack_kills"].some((field) => unavailableStats.has(field))
+        ) return "";
+        if (
+            (fieldName === "reception_positive_pct" && unavailableStats.has("reception_positive_pct")) ||
+            (fieldName === "reception_excellent_pct" && unavailableStats.has("reception_excellent_pct")) ||
+            ((fieldName === "reception_positive_pct" || fieldName === "reception_excellent_pct") &&
+                unavailableStats.has("reception_total"))
+        ) return "";
+
         const value = totals[fieldName];
         if (value === undefined) return "-";
 
@@ -395,6 +429,12 @@ function MatchStatsPage() {
                                     </span>
                                 )}
                             </div>
+
+                            {match.match_unavailable_stats?.length > 0 && (
+                                <p className="mt-1 text-xs font-semibold text-amber-700">
+                                    {t("matches.partialStatisticsNotice")}
+                                </p>
+                            )}
 
                             {showStatsToggle && (
                                 <div className="mt-4 flex justify-center">
@@ -605,9 +645,13 @@ function MatchStatsPage() {
                                             >
                                                 {stats
                                                     ? col.field === "attack_efficiency"
-                                                        ? formatField("attack_efficiency", computeAttackEff(stats))
+                                                        ? ["attack_total", "attack_kills", "attack_blocked", "attack_errors"].some((field) => unavailableStats.has(field))
+                                                            ? ""
+                                                            : formatField("attack_efficiency", computeAttackEff(stats))
                                                         : col.field === "attack_kill_pct"
-                                                            ? formatField("attack_kill_pct", computeAttackKillPct(stats))
+                                                            ? ["attack_total", "attack_kills"].some((field) => unavailableStats.has(field))
+                                                                ? ""
+                                                                : formatField("attack_kill_pct", computeAttackKillPct(stats))
                                                             : formatField(col.field, stats[col.field as keyof typeof stats] as number | null)
                                                     : "-"}
                                             </td>

@@ -521,11 +521,13 @@ function MatchRow({
       : `/match/${match.match_id}`;
   const detailLine = match.notes;
   const statsIconClass =
-    match.statsCoverage === "full"
-      ? "text-emerald-600 hover:text-emerald-700"
-      : match.statsCoverage === "playersOnly"
-        ? "text-red-600 hover:text-red-700"
-        : "text-slate-500 hover:text-slate-500 opacity-70";
+    match.match_unavailable_stats.length > 0
+      ? "text-amber-600 hover:text-amber-700"
+      : match.statsCoverage === "full"
+        ? "text-emerald-600 hover:text-emerald-700"
+        : match.statsCoverage === "playersOnly"
+          ? "text-red-600 hover:text-red-700"
+          : "text-slate-500 hover:text-slate-500 opacity-70";
   const statsTitle =
     match.statsCoverage === "full"
       ? t("matches.stats_full")

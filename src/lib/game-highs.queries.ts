@@ -1,6 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import { getUnavailableStatSet, type MatchUnavailableStatRow } from "@/lib/match-unavailable-stats";
 
 export type GameHighRow = {
   appearanceId: number;
@@ -10,7 +11,7 @@ export type GameHighRow = {
   name: string;
   position: string | null;
   statsVersion: "ALL" | "AM" | null;
-  points: number;
+  points: number | null;
   plusMinus: number | null;
   breakPoints: number | null;
   serveTotal: number | null;
@@ -37,6 +38,7 @@ export type GameHighRow = {
   vm: boolean | null;
   am: boolean | null;
   mam: boolean | null;
+  unavailableStats: string[];
 };
 
 type GameHighAppearanceRow = {
@@ -113,6 +115,7 @@ type MatchRow = {
   vm: boolean | null;
   am: boolean | null;
   mam: boolean | null;
+  match_unavailable_stats: MatchUnavailableStatRow[] | null;
 };
 
 type MatchSetRow = {
@@ -211,7 +214,7 @@ async function fetchGameHighs(): Promise<GameHighRow[]> {
   const { data: matchesData, error: matchError } = await supabase
     .from("matches")
     .select(
-      "match_id, match_date, opponent, opponent_en, competition, competition_en, estonia_sets, opponent_sets, vm, am, mam",
+      "match_id, match_date, opponent, opponent_en, competition, competition_en, estonia_sets, opponent_sets, vm, am, mam, match_unavailable_stats(stat_field)",
     )
     .in("match_id", matchIds);
 
@@ -252,9 +255,7 @@ async function fetchGameHighs(): Promise<GameHighRow[]> {
     }
 
     for (const stats of statsRows) {
-      if (stats.points == null) {
-        continue;
-      }
+      const unavailableStats = getUnavailableStatSet(match.match_unavailable_stats);
 
       rows.push({
         appearanceId: item.appearance_id,
@@ -264,23 +265,38 @@ async function fetchGameHighs(): Promise<GameHighRow[]> {
         name: `${player.first_name} ${player.last_name}`,
         position: item.player_position_in_match ?? player.position ?? "Unknown",
         statsVersion: stats.stats_version,
-        points: stats.points,
-        plusMinus: stats.plus_minus,
-        breakPoints: stats.break_points,
-        serveTotal: stats.serve_total,
-        serveAces: stats.serve_aces,
-        serveErrors: stats.serve_errors,
-        receptionTotal: stats.reception_total,
-        receptionErrors: stats.reception_errors,
-        receptionPositivePct: stats.reception_positive_pct,
-        receptionExcellentPct: stats.reception_excellent_pct,
-        attackTotal: stats.attack_total,
-        attackErrors: stats.attack_errors,
-        attackBlocked: stats.attack_blocked,
-        attackKills: stats.attack_kills,
-        attackKillPct: deriveAttackKillPct(stats),
-        attackEfficiency: deriveAttackEfficiency(stats),
-        blockPoints: stats.block_points,
+        points: unavailableStats.has("points") ? null : stats.points,
+        plusMinus: unavailableStats.has("plus_minus") ? null : stats.plus_minus,
+        breakPoints: unavailableStats.has("break_points") ? null : stats.break_points,
+        serveTotal: unavailableStats.has("serve_total") ? null : stats.serve_total,
+        serveAces: unavailableStats.has("serve_aces") ? null : stats.serve_aces,
+        serveErrors: unavailableStats.has("serve_errors") ? null : stats.serve_errors,
+        receptionTotal: unavailableStats.has("reception_total") ? null : stats.reception_total,
+        receptionErrors: unavailableStats.has("reception_errors") ? null : stats.reception_errors,
+        receptionPositivePct:
+          unavailableStats.has("reception_total") || unavailableStats.has("reception_positive_pct")
+            ? null
+            : stats.reception_positive_pct,
+        receptionExcellentPct:
+          unavailableStats.has("reception_total") || unavailableStats.has("reception_excellent_pct")
+            ? null
+            : stats.reception_excellent_pct,
+        attackTotal: unavailableStats.has("attack_total") ? null : stats.attack_total,
+        attackErrors: unavailableStats.has("attack_errors") ? null : stats.attack_errors,
+        attackBlocked: unavailableStats.has("attack_blocked") ? null : stats.attack_blocked,
+        attackKills: unavailableStats.has("attack_kills") ? null : stats.attack_kills,
+        attackKillPct:
+          unavailableStats.has("attack_total") || unavailableStats.has("attack_kills")
+            ? null
+            : deriveAttackKillPct(stats),
+        attackEfficiency:
+          unavailableStats.has("attack_total") ||
+            unavailableStats.has("attack_kills") ||
+            unavailableStats.has("attack_blocked") ||
+            unavailableStats.has("attack_errors")
+            ? null
+            : deriveAttackEfficiency(stats),
+        blockPoints: unavailableStats.has("block_points") ? null : stats.block_points,
         opponent: match.opponent,
         opponentEn: match.opponent_en,
         competition: match.competition,
@@ -291,11 +307,12 @@ async function fetchGameHighs(): Promise<GameHighRow[]> {
         vm: match.vm,
         am: match.am,
         mam: match.mam,
+        unavailableStats: [...unavailableStats],
       });
     }
   }
 
-  return rows.sort((a, b) => b.points - a.points);
+  return rows.sort((a, b) => (b.points ?? 0) - (a.points ?? 0));
 }
 
 export const gameHighsOptions = () =>

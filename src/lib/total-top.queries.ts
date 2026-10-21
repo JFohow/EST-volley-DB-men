@@ -1,5 +1,10 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  getUnavailableStatSet,
+  type MatchUnavailableStatRow,
+  type UnavailableStatField,
+} from "@/lib/match-unavailable-stats";
 
 export type PlayerTotals = {
   appearances: number;
@@ -15,6 +20,13 @@ export type PlayerTotals = {
   serveTotal: number;
   serveAces: number;
   serveErrors: number;
+  serveAcePctTotal: number;
+  serveAcePctAces: number;
+  serveErrorPctTotal: number;
+  serveErrorPctErrors: number;
+  serveAceErrorRatioTotal: number;
+  serveAceErrorRatioAces: number;
+  serveAceErrorRatioErrors: number;
   receptionTotal: number;
   receptionErrors: number;
   receptionPositivePct: number;
@@ -55,6 +67,7 @@ export type TotalTopAppearance = {
   am: boolean | null;
   mam: boolean | null;
   onTheBench: boolean;
+  unavailableStats: UnavailableStatField[];
   statsRows: PlayerMatchStatsRow[];
 };
 
@@ -78,6 +91,7 @@ type AppearanceRow = {
     vm: boolean | null;
     am: boolean | null;
     mam: boolean | null;
+    match_unavailable_stats: MatchUnavailableStatRow[] | null;
   }
   | Array<{
     match_id: number;
@@ -91,6 +105,7 @@ type AppearanceRow = {
     vm: boolean | null;
     am: boolean | null;
     mam: boolean | null;
+    match_unavailable_stats: MatchUnavailableStatRow[] | null;
   }>
   | null;
   player_match_stats:
@@ -252,6 +267,13 @@ function createTotals(): PlayerTotals {
     serveTotal: 0,
     serveAces: 0,
     serveErrors: 0,
+    serveAcePctTotal: 0,
+    serveAcePctAces: 0,
+    serveErrorPctTotal: 0,
+    serveErrorPctErrors: 0,
+    serveAceErrorRatioTotal: 0,
+    serveAceErrorRatioAces: 0,
+    serveAceErrorRatioErrors: 0,
     receptionTotal: 0,
     receptionErrors: 0,
     receptionPositivePct: 0,
@@ -269,14 +291,30 @@ function createTotals(): PlayerTotals {
 type TotalsAccumulator = {
   totals: PlayerTotals;
   receptionPositiveCount: number;
+  receptionPositiveTotal: number;
   receptionExcellentCount: number;
+  receptionExcellentTotal: number;
+  attackKillPctTotal: number;
+  attackKillPctKills: number;
+  attackEfficiencyTotal: number;
+  attackEfficiencyKills: number;
+  attackEfficiencyBlocked: number;
+  attackEfficiencyErrors: number;
 };
 
 function createTotalsAccumulator(): TotalsAccumulator {
   return {
     totals: createTotals(),
     receptionPositiveCount: 0,
+    receptionPositiveTotal: 0,
     receptionExcellentCount: 0,
+    receptionExcellentTotal: 0,
+    attackKillPctTotal: 0,
+    attackKillPctKills: 0,
+    attackEfficiencyTotal: 0,
+    attackEfficiencyKills: 0,
+    attackEfficiencyBlocked: 0,
+    attackEfficiencyErrors: 0,
   };
 }
 
@@ -284,6 +322,7 @@ function updateTotals(
   accumulator: TotalsAccumulator,
   appearance: AppearanceRow,
   stats: PlayerMatchStatsRow | null,
+  unavailableStats: ReadonlySet<string>,
 ) {
   const totals = accumulator.totals;
 
@@ -303,59 +342,125 @@ function updateTotals(
     return;
   }
 
-  totals.points += stats.points ?? 0;
-  totals.blockPoints += stats.block_points ?? 0;
-  totals.plusMinus += stats.plus_minus ?? 0;
-  totals.serveTotal += stats.serve_total ?? 0;
-  totals.serveAces += stats.serve_aces ?? 0;
-  totals.serveErrors += stats.serve_errors ?? 0;
-  totals.receptionTotal += stats.reception_total ?? 0;
-  totals.receptionErrors += stats.reception_errors ?? 0;
+  if (!unavailableStats.has("points")) totals.points += stats.points ?? 0;
+  if (!unavailableStats.has("block_points")) totals.blockPoints += stats.block_points ?? 0;
+  if (!unavailableStats.has("plus_minus")) totals.plusMinus += stats.plus_minus ?? 0;
+  if (!unavailableStats.has("serve_total")) totals.serveTotal += stats.serve_total ?? 0;
+  if (!unavailableStats.has("serve_aces")) totals.serveAces += stats.serve_aces ?? 0;
+  if (!unavailableStats.has("serve_errors")) totals.serveErrors += stats.serve_errors ?? 0;
+
+  if (
+    !unavailableStats.has("serve_total") &&
+    !unavailableStats.has("serve_aces") &&
+    typeof stats.serve_total === "number" &&
+    typeof stats.serve_aces === "number"
+  ) {
+    totals.serveAcePctTotal += stats.serve_total;
+    totals.serveAcePctAces += stats.serve_aces;
+  }
+
+  if (
+    !unavailableStats.has("serve_total") &&
+    !unavailableStats.has("serve_errors") &&
+    typeof stats.serve_total === "number" &&
+    typeof stats.serve_errors === "number"
+  ) {
+    totals.serveErrorPctTotal += stats.serve_total;
+    totals.serveErrorPctErrors += stats.serve_errors;
+  }
+
+  if (
+    !unavailableStats.has("serve_total") &&
+    !unavailableStats.has("serve_aces") &&
+    !unavailableStats.has("serve_errors") &&
+    typeof stats.serve_total === "number" &&
+    typeof stats.serve_aces === "number" &&
+    typeof stats.serve_errors === "number"
+  ) {
+    totals.serveAceErrorRatioTotal += stats.serve_total;
+    totals.serveAceErrorRatioAces += stats.serve_aces;
+    totals.serveAceErrorRatioErrors += stats.serve_errors;
+  }
+  if (!unavailableStats.has("reception_total")) totals.receptionTotal += stats.reception_total ?? 0;
+  if (!unavailableStats.has("reception_errors")) totals.receptionErrors += stats.reception_errors ?? 0;
 
   const receptionTotal = stats.reception_total;
-  if (typeof receptionTotal === "number" && receptionTotal > 0) {
-    if (typeof stats.reception_positive_pct === "number") {
+  if (!unavailableStats.has("reception_total") && typeof receptionTotal === "number" && receptionTotal > 0) {
+    if (!unavailableStats.has("reception_positive_pct") && typeof stats.reception_positive_pct === "number") {
       accumulator.receptionPositiveCount += receptionTotal * (stats.reception_positive_pct / 100);
+      accumulator.receptionPositiveTotal += receptionTotal;
     }
 
-    if (typeof stats.reception_excellent_pct === "number") {
+    if (!unavailableStats.has("reception_excellent_pct") && typeof stats.reception_excellent_pct === "number") {
       accumulator.receptionExcellentCount += receptionTotal * (stats.reception_excellent_pct / 100);
+      accumulator.receptionExcellentTotal += receptionTotal;
     }
   }
 
-  totals.attackTotal += stats.attack_total ?? 0;
-  totals.attackErrors += stats.attack_errors ?? 0;
-  totals.attackBlocked += stats.attack_blocked ?? 0;
-  totals.attackKills += stats.attack_kills ?? 0;
-  totals.breakPoints += stats.break_points ?? 0;
+  if (!unavailableStats.has("attack_total")) totals.attackTotal += stats.attack_total ?? 0;
+  if (!unavailableStats.has("attack_errors")) totals.attackErrors += stats.attack_errors ?? 0;
+  if (!unavailableStats.has("attack_blocked")) totals.attackBlocked += stats.attack_blocked ?? 0;
+  if (!unavailableStats.has("attack_kills")) totals.attackKills += stats.attack_kills ?? 0;
+  if (!unavailableStats.has("break_points")) totals.breakPoints += stats.break_points ?? 0;
+
+  if (
+    !unavailableStats.has("attack_total") &&
+    !unavailableStats.has("attack_kills") &&
+    typeof stats.attack_total === "number" &&
+    typeof stats.attack_kills === "number"
+  ) {
+    accumulator.attackKillPctTotal += stats.attack_total;
+    accumulator.attackKillPctKills += stats.attack_kills;
+  }
+
+  if (
+    !unavailableStats.has("attack_total") &&
+    !unavailableStats.has("attack_kills") &&
+    !unavailableStats.has("attack_blocked") &&
+    !unavailableStats.has("attack_errors") &&
+    typeof stats.attack_total === "number" &&
+    typeof stats.attack_kills === "number" &&
+    typeof stats.attack_blocked === "number" &&
+    typeof stats.attack_errors === "number"
+  ) {
+    accumulator.attackEfficiencyTotal += stats.attack_total;
+    accumulator.attackEfficiencyKills += stats.attack_kills;
+    accumulator.attackEfficiencyBlocked += stats.attack_blocked;
+    accumulator.attackEfficiencyErrors += stats.attack_errors;
+  }
 }
 
 function finalizeReceptionPercentages(accumulator: TotalsAccumulator) {
-  if (!accumulator.totals.receptionTotal) {
+  if (!accumulator.receptionPositiveTotal) {
     accumulator.totals.receptionPositivePct = 0;
-    accumulator.totals.receptionExcellentPct = 0;
-    return;
+  } else {
+    accumulator.totals.receptionPositivePct =
+      (accumulator.receptionPositiveCount / accumulator.receptionPositiveTotal) * 100;
   }
 
-  accumulator.totals.receptionPositivePct =
-    (accumulator.receptionPositiveCount / accumulator.totals.receptionTotal) * 100;
-  accumulator.totals.receptionExcellentPct =
-    (accumulator.receptionExcellentCount / accumulator.totals.receptionTotal) * 100;
+  if (!accumulator.receptionExcellentTotal) {
+    accumulator.totals.receptionExcellentPct = 0;
+  } else {
+    accumulator.totals.receptionExcellentPct =
+      (accumulator.receptionExcellentCount / accumulator.receptionExcellentTotal) * 100;
+  }
 }
 
-function computeAttackKillPct(totals: PlayerTotals): number {
-  if (!totals.attackTotal) {
+function computeAttackKillPct(accumulator: TotalsAccumulator): number {
+  if (!accumulator.attackKillPctTotal) {
     return 0;
   }
-  return (totals.attackKills / totals.attackTotal) * 100;
+  return (accumulator.attackKillPctKills / accumulator.attackKillPctTotal) * 100;
 }
 
-function computeAttackEfficiency(totals: PlayerTotals): number {
-  if (!totals.attackTotal) {
+function computeAttackEfficiency(accumulator: TotalsAccumulator): number {
+  if (!accumulator.attackEfficiencyTotal) {
     return 0;
   }
   return (
-    ((totals.attackKills - totals.attackBlocked - totals.attackErrors) / totals.attackTotal) * 100
+    ((accumulator.attackEfficiencyKills - accumulator.attackEfficiencyBlocked - accumulator.attackEfficiencyErrors) /
+      accumulator.attackEfficiencyTotal) *
+    100
   );
 }
 
@@ -380,7 +485,7 @@ async function fetchTotalTop(): Promise<TotalTopRow[]> {
     const { data, error } = await supabase
       .from("appearances")
       .select(
-        `appearance_id, player_id, match_id, sets_played, sets_started, on_the_bench, matches(match_id, match_date, opponent, opponent_en, competition, competition_en, estonia_sets, opponent_sets, vm, am, mam), player_match_stats(points, block_points, plus_minus, serve_total, serve_aces, serve_errors, reception_total, reception_errors, reception_positive_pct, reception_excellent_pct, attack_total, attack_errors, attack_blocked, attack_kills, attack_kill_pct, attack_efficiency, break_points, stats_version, set1_position, set2_position, set3_position, set4_position, set5_position)`,
+        `appearance_id, player_id, match_id, sets_played, sets_started, on_the_bench, matches(match_id, match_date, opponent, opponent_en, competition, competition_en, estonia_sets, opponent_sets, vm, am, mam, match_unavailable_stats(stat_field)), player_match_stats(points, block_points, plus_minus, serve_total, serve_aces, serve_errors, reception_total, reception_errors, reception_positive_pct, reception_excellent_pct, attack_total, attack_errors, attack_blocked, attack_kills, attack_kill_pct, attack_efficiency, break_points, stats_version, set1_position, set2_position, set3_position, set4_position, set5_position)`,
       )
       .gt("appearance_id", lastAppearanceId)
       .order("appearance_id", { ascending: true })
@@ -425,6 +530,8 @@ async function fetchTotalTop(): Promise<TotalTopRow[]> {
       continue;
     }
 
+    const unavailableStats = getUnavailableStatSet(match.match_unavailable_stats);
+
     const isOfficial = match.am === true;
     const isCompetitive = match.vm === true;
     const isNonOfficial = match.mam === true;
@@ -437,18 +544,18 @@ async function fetchTotalTop(): Promise<TotalTopRow[]> {
     };
 
     if (isOfficial) {
-      updateTotals(totals.official, appearance, pickStatsRowForMode(statsRows, "am"));
+      updateTotals(totals.official, appearance, pickStatsRowForMode(statsRows, "am"), unavailableStats);
     }
 
     if (isCompetitive) {
-      updateTotals(totals.competitive, appearance, pickStatsRowForMode(statsRows, "am"));
+      updateTotals(totals.competitive, appearance, pickStatsRowForMode(statsRows, "am"), unavailableStats);
     }
 
     if (isNonOfficial) {
-      updateTotals(totals.nonOfficial, appearance, pickStatsRowForMode(statsRows, "am"));
+      updateTotals(totals.nonOfficial, appearance, pickStatsRowForMode(statsRows, "am"), unavailableStats);
     }
 
-    updateTotals(totals.all, appearance, pickStatsRowForMode(statsRows, "all"));
+    updateTotals(totals.all, appearance, pickStatsRowForMode(statsRows, "all"), unavailableStats);
 
     const playerAppearances = appearancesByPlayer.get(appearance.player_id) ?? [];
     playerAppearances.push({
@@ -466,6 +573,7 @@ async function fetchTotalTop(): Promise<TotalTopRow[]> {
       am: match.am,
       mam: match.mam,
       onTheBench: Boolean(appearance.on_the_bench),
+      unavailableStats: [...unavailableStats],
       statsRows,
     });
     appearancesByPlayer.set(appearance.player_id, playerAppearances);
@@ -488,15 +596,15 @@ async function fetchTotalTop(): Promise<TotalTopRow[]> {
     finalizeReceptionPercentages(totals.nonOfficial);
     finalizeReceptionPercentages(totals.all);
 
-    totals.official.totals.attackKillPct = computeAttackKillPct(totals.official.totals);
-    totals.competitive.totals.attackKillPct = computeAttackKillPct(totals.competitive.totals);
-    totals.nonOfficial.totals.attackKillPct = computeAttackKillPct(totals.nonOfficial.totals);
-    totals.all.totals.attackKillPct = computeAttackKillPct(totals.all.totals);
+    totals.official.totals.attackKillPct = computeAttackKillPct(totals.official);
+    totals.competitive.totals.attackKillPct = computeAttackKillPct(totals.competitive);
+    totals.nonOfficial.totals.attackKillPct = computeAttackKillPct(totals.nonOfficial);
+    totals.all.totals.attackKillPct = computeAttackKillPct(totals.all);
 
-    totals.official.totals.attackEfficiency = computeAttackEfficiency(totals.official.totals);
-    totals.competitive.totals.attackEfficiency = computeAttackEfficiency(totals.competitive.totals);
-    totals.nonOfficial.totals.attackEfficiency = computeAttackEfficiency(totals.nonOfficial.totals);
-    totals.all.totals.attackEfficiency = computeAttackEfficiency(totals.all.totals);
+    totals.official.totals.attackEfficiency = computeAttackEfficiency(totals.official);
+    totals.competitive.totals.attackEfficiency = computeAttackEfficiency(totals.competitive);
+    totals.nonOfficial.totals.attackEfficiency = computeAttackEfficiency(totals.nonOfficial);
+    totals.all.totals.attackEfficiency = computeAttackEfficiency(totals.all);
 
     return {
       playerId: player.player_id,

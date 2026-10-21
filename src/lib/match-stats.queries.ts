@@ -1,5 +1,10 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import {
+    getUnavailableStatSet,
+    maskUnavailableStatValues,
+    type UnavailableStatField,
+} from "@/lib/match-unavailable-stats";
 
 export type MatchDetails = Awaited<
     ReturnType<
@@ -14,6 +19,7 @@ export type PlayerMatchStats = {
     sets_played: number | null;
     on_the_bench: boolean;
     player_position_in_match: string | null;
+    unavailableStats: UnavailableStatField[];
     players: {
         player_id: number;
         first_name: string;
@@ -64,7 +70,8 @@ export function matchOptions(matchId: number) {
           *,
           match_sets (
             *
-          )
+                    ),
+                    match_unavailable_stats(stat_field)
         `)
                 .eq("match_id", matchId)
                 .single();
@@ -122,9 +129,26 @@ export function matchOptions(matchId: number) {
                 throw appearanceError;
             }
 
+            const unavailableStats = getUnavailableStatSet(match.match_unavailable_stats);
+            const playersWithMaskedStats = (appearances ?? []).map((appearance) => {
+                const statsRows = Array.isArray(appearance.player_match_stats)
+                    ? appearance.player_match_stats
+                    : appearance.player_match_stats
+                        ? [appearance.player_match_stats]
+                        : [];
+
+                return {
+                    ...appearance,
+                    unavailableStats: [...unavailableStats],
+                    player_match_stats: statsRows.map((stats) =>
+                        maskUnavailableStatValues(stats, unavailableStats),
+                    ),
+                };
+            });
+
             return {
                 match,
-                players: appearances || [],
+                players: playersWithMaskedStats,
             } as MatchDetailsWithPlayers;
         },
     });

@@ -196,8 +196,8 @@
     },
     "home": {
         "title": "Eesti meeste võrkpallikoondise",
-        "titleAccent": "andmebaas",
-        "subtitle": "Iga mäng. Iga geim. Iga esitus.\nEesti meeste võrkpallikoondise otsitav ajalooline arhiiv.",
+        "titleAccent": "statistiline andmebaas",
+        "subtitle": "Iga mäng ja iga geim, kui selle kohta statistikat leidub...",
         "totalMatches": "Mänge Kokku",
         "totalPlayers": "Mängijaid Kokku",
         "appearances": "Mänge",
@@ -213,6 +213,8 @@
         "matchResults": "Mänge lõptulemusega",
         "matchesWithPlayers": "Mänge algkoosseisudega",
         "fullStatistics": "Mänge täieliku statistikaga",
+        "partialStatistics": "Mänge osalise statistikaga",
+        "withoutStatistics": "Mänge ilma statistikata",
         "coverageSummary": "Detailstatistika: {{matchesWithStats}} / {{totalMatches}} mängu",
         "tipText": "ALL vs AM: Lisageimidega kohtumised on salvestatud kahes versioonis. Filtreeri AM järgi, et näha ainult ametlikke rahvusvahelisi tulemusi."
     },
@@ -220,6 +222,7 @@
         "title": "Mängud",
         "subtitle": "Kõik Eesti meeste võrkpallikoondise teadaolevad kohtumised.",
         "sourceLink": "Viide statistikale",
+        "partialStatisticsNotice": "NB! Statistika on osaline!",
         "competitiveMatches": "Võistlusmängud",
         "officialMatches": "Ametlikud mängud",
         "nonOfficialMatches": "Mitteametlikud mängud",

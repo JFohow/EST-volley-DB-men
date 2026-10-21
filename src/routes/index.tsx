@@ -18,7 +18,7 @@ const ADMIN_EMAILS = new Set(["karl_juhkami@hotmail.com", "mjuhkami@gmail.com"])
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Estonian Men's National Team Database" },
+      { title: "Estonian Men's National Volleyball Team Database" },
       {
         name: "description",
         content:
@@ -384,7 +384,6 @@ function HomeError({ error, reset }: { error: Error; reset: () => void }) {
     </div>
   );
 }
-
 function fmt(n: number) {
   return n.toLocaleString("en-US");
 }
@@ -406,6 +405,7 @@ function HomePage() {
   const { data: totalTopRows } = useSuspenseQuery(totalTopOptions());
   const { data: gameHighRows } = useSuspenseQuery(gameHighsOptions());
   const [activeLeaderIndex, setActiveLeaderIndex] = useState(0);
+  const [coverageMatchType, setCoverageMatchType] = useState<"official" | "competitive" | "all">("official");
   const [isAdmin, setIsAdmin] = useState(false);
   const [homeCardConfigs, setHomeCardConfigs] = useState<HomeCardMetricConfig[]>(() => loadHomeCardConfigs());
   const [isSavingImport, setIsSavingImport] = useState(false);
@@ -441,17 +441,7 @@ function HomePage() {
     vm: false,
     mam: false,
   });
-  const coveragePct =
-    data.statsCoverage.totalMatches > 0
-      ? Math.round((data.statsCoverage.matchesWithStats / data.statsCoverage.totalMatches) * 100)
-      : 0;
-
-  const playerCoveragePct =
-    data.playerCoverage.totalMatches > 0
-      ? Math.round(
-        (data.playerCoverage.matchesWithPlayers / data.playerCoverage.totalMatches) * 100,
-      )
-      : 0;
+  const coverageCounts = data.matchCoverage[coverageMatchType];
 
   const currentLanguage = i18n.language?.startsWith("et") ? "et" : "en";
   const homeCardConfigMap = useMemo(
@@ -985,32 +975,65 @@ function HomePage() {
         <div className="mx-auto max-w-7xl">
           <div className="grid gap-6 lg:grid-cols-3 lg:items-start lg:gap-8">
             <div className="lg:col-span-2">
-              <h1 className="mb-3 font-display text-3xl uppercase italic leading-tight sm:text-4xl sm:whitespace-nowrap md:text-5xl">
-                {t("home.title")} <span className="text-estonia-blue">{t("home.titleAccent")}</span>
+              <h1 className="mb-3 font-display text-3xl uppercase italic leading-tight sm:text-4xl md:text-5xl">
+                {t("home.title")}
+                <span className="block text-estonia-blue">{t("home.titleAccent")}</span>
               </h1>
               <p className="max-w-2xl whitespace-pre-line text-sm leading-relaxed text-white/70 sm:text-base">
                 {t("home.subtitle")}
               </p>
             </div>
 
-            <div className="w-full rounded-2xl border border-white/10 bg-white/10 p-5 backdrop-blur-sm">
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center justify-between gap-3 border-b border-white/15 pb-2">
-                  <span className="text-base font-semibold uppercase tracking-wider text-white/80">{t("common.matches")}</span>
-                  <span className="font-display text-3xl text-white">{fmt(data.officialMatches)}</span>
-                </div>
-                <div className="flex items-center justify-between gap-3 pt-1">
-                  <span className="text-base font-semibold uppercase tracking-wider text-white/80">{t("nav.players")}</span>
-                  <span className="font-display text-3xl text-white">{fmt(data.totalPlayers)}</span>
-                </div>
+            <div className="w-full rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm sm:p-5">
+              <div className="grid grid-cols-3 gap-1 rounded-md border border-white/15 p-1">
+                {([
+                  ["official", t("matches.officialMatches")],
+                  ["competitive", t("matches.competitiveMatches")],
+                  ["all", t("matches.allMatches")],
+                ] as const).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={coverageMatchType === value}
+                    onClick={() => setCoverageMatchType(value)}
+                    className={`min-h-9 rounded px-1 text-[9px] font-semibold uppercase leading-tight transition-colors sm:text-[10px] ${coverageMatchType === value
+                      ? "bg-white text-slate-900"
+                      : "text-white/70 hover:bg-white/10 hover:text-white"
+                      }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-3 flex items-center justify-between gap-2 border-b border-white/15 pb-2">
+                <span className="text-xs font-semibold uppercase text-white/70">
+                  {t("home.totalMatches")}
+                </span>
+                <span className="font-display text-3xl text-white">
+                  {fmt(coverageCounts.totalMatches)}
+                </span>
+              </div>
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                {([
+                  ["fullStatistics", coverageCounts.fullStatistics, "text-emerald-300"],
+                  ["partialStatistics", coverageCounts.partialStatistics, "text-amber-300"],
+                  ["withoutStatistics", coverageCounts.withoutStatistics, "text-white/70"],
+                ] as const).map(([labelKey, count, color]) => (
+                  <div key={labelKey} className="min-w-0 border-l-2 border-white/20 pl-2">
+                    <div className={`font-display text-2xl ${color}`}>{fmt(count)}</div>
+                    <div className="text-[9px] font-medium uppercase leading-tight text-white/65 sm:text-[10px]">
+                      {t(`home.${labelKey}`)}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
         </div>
-      </header>
+      </header >
 
       {/* Main */}
-      <main className="mx-auto -mt-8 max-w-7xl px-4 sm:-mt-12 sm:px-6">
+      < main className="mx-auto -mt-8 max-w-7xl px-4 sm:-mt-12 sm:px-6" >
         {isAdmin && (
           <>
             <section
@@ -1309,7 +1332,8 @@ function HomePage() {
               </div>
             </section>
           </>
-        )}
+        )
+        }
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8">
           {/* Recent Matches */}
@@ -1332,7 +1356,7 @@ function HomePage() {
           <aside className="space-y-8">
             <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
               {activeLeader ? (
-                <div className="overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-b from-slate-50 to-white">
+                <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
                   <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2">
                     <button
                       type="button"
@@ -1356,49 +1380,48 @@ function HomePage() {
                       &gt;
                     </button>
                   </div>
-                  <div className="px-3 py-3">
-                    <div className="grid grid-cols-[110px_minmax(0,1fr)] items-stretch gap-3">
-                      <div className="overflow-hidden rounded-xl border border-estonia-blue/20 bg-estonia-dark">
-                        {activeLeader.kind === "totalTop" && activeLeader.row.photoUrl ? (
-                          <img
-                            src={activeLeader.row.photoUrl}
-                            alt={activeLeader.row.name}
-                            className="h-full min-h-[170px] w-full object-cover object-center"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <div className="grid h-full min-h-[170px] w-full place-items-center bg-estonia-dark font-display text-3xl text-white">
-                            {activeLeader.row.name.split(" ")[0]?.[0] ?? "?"}
-                            {activeLeader.row.name.split(" ").slice(-1)[0]?.[0] ?? "?"}
-                          </div>
+                  <div className="px-4 py-5 sm:px-5">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="min-w-0">
+                        <h3 className="break-words text-base font-bold uppercase leading-tight text-slate-900 sm:text-lg">
+                          {activeLeader.row.name}
+                        </h3>
+                        {activeLeader.kind === "totalTop" && activeLeader.row.position && (
+                          <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                            {activeLeader.row.position}
+                          </p>
                         )}
                       </div>
+                      <div className="shrink-0 font-display text-4xl leading-none text-estonia-dark sm:text-5xl">
+                        {formatLeaderValue(activeLeader.value, activeLeader.isPercent)}
+                      </div>
+                    </div>
 
-                      <div className="flex min-h-[170px] min-w-0 flex-col justify-between text-left">
-                        <div className="pt-1">
-                          <h3 className="break-words text-base font-bold uppercase leading-tight text-slate-900 sm:text-lg">
-                            {activeLeader.row.name}
-                          </h3>
-                          {activeLeader.kind === "gameHigh" && (
-                            <div className="mt-2 space-y-1 text-[11px] uppercase tracking-[0.18em] text-slate-500">
-                              <p>{activeLeader.opponent}</p>
-                              <p>{activeLeader.matchDate}</p>
-                            </div>
-                          )}
+                    {activeLeader.kind === "gameHigh" && (
+                      <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-2 border-t border-slate-200 pt-3 text-[10px] uppercase tracking-[0.12em]">
+                        <div className="min-w-0">
+                          <p className="text-slate-400">{t("matches.opponent")}</p>
+                          <a
+                            href={activeLeader.matchHref}
+                            className="mt-0.5 block truncate font-semibold text-slate-700 hover:text-estonia-blue"
+                          >
+                            {activeLeader.opponent}
+                          </a>
                         </div>
-
-                        {activeLeader.kind === "gameHigh" && (
-                          <div className="pt-2 text-left text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">
+                        <div className="text-right">
+                          <p className="text-slate-400">{t("matches.date")}</p>
+                          <p className="mt-0.5 font-semibold text-slate-700">
+                            {activeLeader.matchDate}
+                          </p>
+                        </div>
+                        <div className="col-span-2 min-w-0">
+                          <p className="text-slate-400">{t("matches.competition")}</p>
+                          <p className="mt-0.5 truncate font-semibold text-slate-700">
                             {activeLeader.competition}
-                          </div>
-                        )}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                  <div className="border-t border-slate-200 bg-slate-50 px-4 py-4 text-center">
-                    <div className="font-display text-3xl text-estonia-dark sm:text-4xl">
-                      {formatLeaderValue(activeLeader.value, activeLeader.isPercent)}
-                    </div>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -1406,38 +1429,10 @@ function HomePage() {
               )}
             </section>
 
-            <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-              <div className="bg-slate-900 px-4 py-2.5 font-display text-xs uppercase tracking-[0.22em] text-white">
-                {t("home.coverageStatus")}
-              </div>
-              <div className="space-y-3 p-3 sm:p-4">
-                <CoverageBar
-                  label={t("home.matchResults")}
-                  pct={data.totalMatches > 0 ? 100 : 0}
-                  color="green"
-                />
-                <CoverageBar
-                  label={t("home.matchesWithPlayers")}
-                  pct={playerCoveragePct}
-                  color={playerCoveragePct >= 80 ? "green" : "amber"}
-                />
-                <CoverageBar
-                  label={t("home.fullStatistics")}
-                  pct={coveragePct}
-                  color={coveragePct >= 80 ? "green" : "amber"}
-                />
-                <p className="pt-1 text-[10px] leading-snug text-slate-400">
-                  {t("home.coverageSummary", {
-                    matchesWithStats: data.statsCoverage.matchesWithStats.toLocaleString(),
-                    totalMatches: data.statsCoverage.totalMatches.toLocaleString(),
-                  })}
-                </p>
-              </div>
-            </section>
           </aside>
         </div>
-      </main>
-    </div>
+      </main >
+    </div >
   );
 }
 
@@ -1540,29 +1535,5 @@ function EmptyMatches() {
         will appear here automatically.
       </p>
     </div>
-  );
-}
-
-function CoverageBar({
-  label,
-  pct,
-  color,
-}: {
-  label: string;
-  pct: number;
-  color: "green" | "amber";
-}) {
-  const barColor = color === "green" ? "bg-green-500" : "bg-amber-500";
-  const textColor = color === "green" ? "text-green-600" : "text-amber-600";
-  return (
-    <>
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-medium">{label}</span>
-        <span className={`text-sm font-bold ${textColor}`}>{pct}%</span>
-      </div>
-      <div className="h-1.5 w-full rounded-full bg-slate-100">
-        <div className={`h-full rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
-      </div>
-    </>
   );
 }

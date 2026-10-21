@@ -16,6 +16,7 @@ import {
     type StatisticsField,
     type StatisticsMode,
 } from "@/lib/statistics.queries";
+import { getUnavailableStatSet } from "@/lib/match-unavailable-stats";
 import { useTranslation } from "react-i18next";
 
 type SortField = StatisticsField | "name" | "sets" | "setsStarted";
@@ -309,6 +310,9 @@ function StatisticsPage() {
             const row = entry.row;
             row[mode].appearances += 1;
             const stats = pickAppearanceStats(appearance.player_match_stats, mode);
+            const unavailableStats = getUnavailableStatSet(
+                firstRelation(appearance.matches)?.match_unavailable_stats,
+            );
             const setsFromPositions = stats
                 ? countSetsFromPositions(stats as Record<string, unknown>)
                 : 0;
@@ -328,14 +332,14 @@ function StatisticsPage() {
 
             if (!stats) return;
 
-            addStats(row[mode], stats);
+            addStats(row[mode], stats, unavailableStats);
             row[mode].sets += setsFromPositions;
 
             if (setsFromPositions > 0) {
                 entry.perGameGroup.appearances += 1;
                 entry.perGameGroup.sets += setsFromPositions;
                 entry.perGameGroup.setsStarted += appearanceSetsStarted;
-                addStats(entry.perGameGroup, stats);
+                addStats(entry.perGameGroup, stats, unavailableStats);
             }
         });
 
@@ -537,7 +541,7 @@ function StatisticsPage() {
                 </div>
             </div>
 
-            <h2 className="mb-4 text-center text-sm italic text-slate-600">
+            <h2 className="mb-4 text-center font-display text-2xl uppercase italic text-estonia-dark">
                 {displayMode === "total"
                     ? (currentLanguage === "et" ? "Total Statistics" : "Total Statistics")
                     : (currentLanguage === "et" ? "Per Game Statistics" : "Per Game Statistics")}

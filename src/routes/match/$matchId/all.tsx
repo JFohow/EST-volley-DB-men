@@ -22,6 +22,9 @@ function MatchStatsAllPage() {
 
     const match = data.match;
     const players = data.players;
+    const unavailableStats = new Set<string>(
+        (match.match_unavailable_stats ?? []).map((row: { stat_field: string }) => row.stat_field),
+    );
     const currentLanguage = i18n.language?.startsWith("et") ? "et" : "en";
 
     const opponent = currentLanguage === "et" ? match.opponent : match.opponent_en ?? match.opponent;
@@ -175,7 +178,7 @@ function MatchStatsAllPage() {
 
             allFields.forEach((col) => {
                 const value = stats[col.field as keyof typeof stats];
-                if (typeof value === "number" && value !== null) {
+                if (typeof value === "number" && value !== null && !unavailableStats.has(col.field)) {
                     if (
                         col.field !== "reception_positive_pct" &&
                         col.field !== "reception_excellent_pct" &&
@@ -205,6 +208,24 @@ function MatchStatsAllPage() {
     const { totals, counts, receptionPositiveCount, receptionExcellentCount } = calculateTotals();
 
     const getStatValue = (fieldName: string): string => {
+        if (unavailableStats.has(fieldName)) return "";
+        if (
+            fieldName === "attack_kill_pct" &&
+            ["attack_total", "attack_kills"].some((field) => unavailableStats.has(field))
+        ) return "";
+        if (
+            fieldName === "attack_efficiency" &&
+            ["attack_total", "attack_kills", "attack_blocked", "attack_errors"].some((field) =>
+                unavailableStats.has(field),
+            )
+        ) return "";
+        if (
+            (fieldName === "reception_positive_pct" && unavailableStats.has("reception_positive_pct")) ||
+            (fieldName === "reception_excellent_pct" && unavailableStats.has("reception_excellent_pct")) ||
+            ((fieldName === "reception_positive_pct" || fieldName === "reception_excellent_pct") &&
+                unavailableStats.has("reception_total"))
+        ) return "";
+
         const value = totals[fieldName];
         if (value === undefined) return "-";
 
@@ -256,6 +277,12 @@ function MatchStatsAllPage() {
                                 <div className="mt-2 text-sm font-mono text-slate-700">
                                     {officialSetScores}
                                 </div>
+                            )}
+
+                            {match.match_unavailable_stats?.length > 0 && (
+                                <p className="mt-1 text-xs font-semibold text-amber-700">
+                                    {t("matches.partialStatisticsNotice")}
+                                </p>
                             )}
 
                             {additionalSetScores && (

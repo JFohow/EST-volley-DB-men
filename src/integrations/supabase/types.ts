@@ -127,6 +127,29 @@ export type Database = {
           },
         ]
       }
+      match_unavailable_stats: {
+        Row: {
+          match_id: number
+          stat_field: string
+        }
+        Insert: {
+          match_id: number
+          stat_field: string
+        }
+        Update: {
+          match_id?: number
+          stat_field?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_unavailable_stats_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["match_id"]
+          },
+        ]
+      }
       matches: {
         Row: {
           additional_sets_count: number
@@ -216,6 +239,11 @@ export type Database = {
           serve_aces: number | null
           serve_errors: number | null
           serve_total: number | null
+          set1_position: string | null
+          set2_position: string | null
+          set3_position: string | null
+          set4_position: string | null
+          set5_position: string | null
           stat_id: number
           stats_version: Database["public"]["Enums"]["stats_version"]
         }
@@ -238,6 +266,11 @@ export type Database = {
           serve_aces?: number | null
           serve_errors?: number | null
           serve_total?: number | null
+          set1_position?: string | null
+          set2_position?: string | null
+          set3_position?: string | null
+          set4_position?: string | null
+          set5_position?: string | null
           stat_id?: number
           stats_version?: Database["public"]["Enums"]["stats_version"]
         }
@@ -260,6 +293,11 @@ export type Database = {
           serve_aces?: number | null
           serve_errors?: number | null
           serve_total?: number | null
+          set1_position?: string | null
+          set2_position?: string | null
+          set3_position?: string | null
+          set4_position?: string | null
+          set5_position?: string | null
           stat_id?: number
           stats_version?: Database["public"]["Enums"]["stats_version"]
         }

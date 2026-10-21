@@ -491,7 +491,13 @@ function GameHighsPage() {
       const ranked = [...playerFilteredRows]
         .filter((row) => {
           if (metric === "bestAceErrorRatio") {
-            return (row.serveAces ?? 0) > 0 && (row.serveTotal ?? 0) >= 5;
+            return (
+              !row.unavailableStats.includes("serve_aces") &&
+              !row.unavailableStats.includes("serve_errors") &&
+              !row.unavailableStats.includes("serve_total") &&
+              (row.serveAces ?? 0) > 0 &&
+              (row.serveTotal ?? 0) >= 5
+            );
           }
 
           const value = getCategoryValue(row, metric);
@@ -687,6 +693,7 @@ function GameHighsPage() {
       attackBlocked: number;
       attackKills: number;
       blockPoints: number;
+      unavailableStats: Set<string>;
     };
 
     const teamByMatch = new Map<number, TeamMatchTotals>();
@@ -718,6 +725,7 @@ function GameHighsPage() {
         attackBlocked: 0,
         attackKills: 0,
         blockPoints: 0,
+        unavailableStats: new Set(row.unavailableStats),
       };
 
       current.points += row.points ?? 0;
@@ -765,17 +773,33 @@ function GameHighsPage() {
           ? (match.receptionExcellentCount / match.receptionTotal) * 100
           : null;
       const attackKillPct =
-        match.attackTotal > 0 ? (match.attackKills / match.attackTotal) * 100 : null;
+        !match.unavailableStats.has("attack_total") &&
+          !match.unavailableStats.has("attack_kills") &&
+          match.attackTotal > 0
+          ? (match.attackKills / match.attackTotal) * 100
+          : null;
       const attackEfficiency =
-        match.attackTotal > 0
+        !match.unavailableStats.has("attack_total") &&
+          !match.unavailableStats.has("attack_kills") &&
+          !match.unavailableStats.has("attack_blocked") &&
+          !match.unavailableStats.has("attack_errors") &&
+          match.attackTotal > 0
           ? ((match.attackKills - match.attackBlocked - match.attackErrors) / match.attackTotal) *
           100
           : null;
 
       return {
         ...match,
-        receptionPositivePct,
-        receptionExcellentPct,
+        receptionPositivePct:
+          match.unavailableStats.has("reception_total") ||
+            match.unavailableStats.has("reception_positive_pct")
+            ? null
+            : receptionPositivePct,
+        receptionExcellentPct:
+          match.unavailableStats.has("reception_total") ||
+            match.unavailableStats.has("reception_excellent_pct")
+            ? null
+            : receptionExcellentPct,
         attackKillPct,
         attackEfficiency,
       };
@@ -921,7 +945,13 @@ function GameHighsPage() {
       const ranked = [...teamMatches]
         .filter((match) => {
           if (metric.key === "bestAceErrorRatio") {
-            return match.serveAces > 0 && match.serveTotal >= 5;
+            return (
+              !match.unavailableStats.has("serve_aces") &&
+              !match.unavailableStats.has("serve_errors") &&
+              !match.unavailableStats.has("serve_total") &&
+              match.serveAces > 0 &&
+              match.serveTotal >= 5
+            );
           }
 
           if (
@@ -932,8 +962,33 @@ function GameHighsPage() {
           }
 
           if (metric.key === "attackKillPct" || metric.key === "attackEfficiency") {
-            return match.attackTotal >= 10;
+            return (
+              !match.unavailableStats.has("attack_total") &&
+              !match.unavailableStats.has("attack_kills") &&
+              (metric.key !== "attackEfficiency" ||
+                (!match.unavailableStats.has("attack_blocked") &&
+                  !match.unavailableStats.has("attack_errors"))) &&
+              match.attackTotal >= 10
+            );
           }
+
+          const unavailableFieldByMetric: Record<string, string> = {
+            points: "points",
+            breakPoints: "break_points",
+            plusMinus: "plus_minus",
+            blockPoints: "block_points",
+            serveTotal: "serve_total",
+            serveAces: "serve_aces",
+            serveErrors: "serve_errors",
+            receptionTotal: "reception_total",
+            receptionErrors: "reception_errors",
+            attackTotal: "attack_total",
+            attackErrors: "attack_errors",
+            attackBlocked: "attack_blocked",
+            attackKills: "attack_kills",
+          };
+          const unavailableField = unavailableFieldByMetric[metric.key];
+          if (unavailableField && match.unavailableStats.has(unavailableField)) return false;
 
           const value = match[metric.key as keyof typeof match] as number | null | undefined;
           return value != null;

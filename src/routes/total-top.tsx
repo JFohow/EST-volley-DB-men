@@ -87,21 +87,21 @@ function TotalTopError({ error, reset }: { error: Error; reset: () => void }) {
 function getStatValue(group: PlayerTotals, stat: TotalTopStatKey) {
     if (stat === "serveErrorsLeast") return group.serveErrors;
     if (stat === "serveErrorPct") {
-        if (group.serveTotal <= 0) return null;
-        return (group.serveErrors / group.serveTotal) * 100;
+        if (group.serveErrorPctTotal <= 0) return null;
+        return (group.serveErrorPctErrors / group.serveErrorPctTotal) * 100;
     }
     if (stat === "serveErrorPctLeast") {
-        if (group.serveTotal <= 0) return null;
-        return (group.serveErrors / group.serveTotal) * 100;
+        if (group.serveErrorPctTotal <= 0) return null;
+        return (group.serveErrorPctErrors / group.serveErrorPctTotal) * 100;
     }
     if (stat === "serveAcePct") {
-        if (group.serveTotal <= 0) return null;
-        return (group.serveAces / group.serveTotal) * 100;
+        if (group.serveAcePctTotal <= 0) return null;
+        return (group.serveAcePctAces / group.serveAcePctTotal) * 100;
     }
     if (stat === "serveAceErrorRatio") {
-        if (group.serveTotal < 5 || group.serveAces <= 0) return null;
-        if (group.serveErrors <= 0) return Number.POSITIVE_INFINITY;
-        return group.serveAces / group.serveErrors;
+        if (group.serveAceErrorRatioTotal < 5 || group.serveAceErrorRatioAces <= 0) return null;
+        if (group.serveAceErrorRatioErrors <= 0) return Number.POSITIVE_INFINITY;
+        return group.serveAceErrorRatioAces / group.serveAceErrorRatioErrors;
     }
     if (stat === "receptionPositivePctWorst") return group.receptionPositivePct;
     if (stat === "receptionExcellentPctWorst") return group.receptionExcellentPct;
@@ -185,6 +185,13 @@ function createEmptyTotals(): PlayerTotals {
         serveTotal: 0,
         serveAces: 0,
         serveErrors: 0,
+        serveAcePctTotal: 0,
+        serveAcePctAces: 0,
+        serveErrorPctTotal: 0,
+        serveErrorPctErrors: 0,
+        serveAceErrorRatioTotal: 0,
+        serveAceErrorRatioAces: 0,
+        serveAceErrorRatioErrors: 0,
         receptionTotal: 0,
         receptionErrors: 0,
         receptionPositivePct: 0,
@@ -514,8 +521,10 @@ function TotalTopPage() {
                 qualifiedReceptionTotalForExcellent: number;
                 qualifiedAttackTotal: number;
                 qualifiedAttackKills: number;
-                qualifiedAttackBlocked: number;
-                qualifiedAttackErrors: number;
+                qualifiedAttackEfficiencyTotal: number;
+                qualifiedAttackEfficiencyKills: number;
+                qualifiedAttackEfficiencyBlocked: number;
+                qualifiedAttackEfficiencyErrors: number;
             }
         >();
 
@@ -543,8 +552,10 @@ function TotalTopPage() {
                 qualifiedReceptionTotalForExcellent: 0,
                 qualifiedAttackTotal: 0,
                 qualifiedAttackKills: 0,
-                qualifiedAttackBlocked: 0,
-                qualifiedAttackErrors: 0,
+                qualifiedAttackEfficiencyTotal: 0,
+                qualifiedAttackEfficiencyKills: 0,
+                qualifiedAttackEfficiencyBlocked: 0,
+                qualifiedAttackEfficiencyErrors: 0,
             };
 
             bucket.totals.appearances += 1;
@@ -564,19 +575,44 @@ function TotalTopPage() {
                 bucket.totals.bench += 1;
             }
 
-            bucket.totals.points += Number(stats.points ?? 0);
-            bucket.totals.blockPoints += Number(stats.block_points ?? 0);
-            bucket.totals.plusMinus += Number(stats.plus_minus ?? 0);
-            bucket.totals.serveTotal += Number(stats.serve_total ?? 0);
-            bucket.totals.serveAces += Number(stats.serve_aces ?? 0);
-            bucket.totals.serveErrors += Number(stats.serve_errors ?? 0);
-            bucket.totals.receptionTotal += Number(stats.reception_total ?? 0);
-            bucket.totals.receptionErrors += Number(stats.reception_errors ?? 0);
-            bucket.totals.attackTotal += Number(stats.attack_total ?? 0);
-            bucket.totals.attackErrors += Number(stats.attack_errors ?? 0);
-            bucket.totals.attackBlocked += Number(stats.attack_blocked ?? 0);
-            bucket.totals.attackKills += Number(stats.attack_kills ?? 0);
-            bucket.totals.breakPoints += Number(stats.break_points ?? 0);
+            const unavailableStats = new Set<string>(appearance.unavailableStats);
+            const addKnownStat = (field: string, value: unknown, total: number) =>
+                unavailableStats.has(field) ? total : total + Number(value ?? 0);
+
+            bucket.totals.points = addKnownStat("points", stats.points, bucket.totals.points);
+            bucket.totals.blockPoints = addKnownStat("block_points", stats.block_points, bucket.totals.blockPoints);
+            bucket.totals.plusMinus = addKnownStat("plus_minus", stats.plus_minus, bucket.totals.plusMinus);
+            bucket.totals.serveTotal = addKnownStat("serve_total", stats.serve_total, bucket.totals.serveTotal);
+            bucket.totals.serveAces = addKnownStat("serve_aces", stats.serve_aces, bucket.totals.serveAces);
+            bucket.totals.serveErrors = addKnownStat("serve_errors", stats.serve_errors, bucket.totals.serveErrors);
+            bucket.totals.receptionTotal = addKnownStat("reception_total", stats.reception_total, bucket.totals.receptionTotal);
+            bucket.totals.receptionErrors = addKnownStat("reception_errors", stats.reception_errors, bucket.totals.receptionErrors);
+            bucket.totals.attackTotal = addKnownStat("attack_total", stats.attack_total, bucket.totals.attackTotal);
+            bucket.totals.attackErrors = addKnownStat("attack_errors", stats.attack_errors, bucket.totals.attackErrors);
+            bucket.totals.attackBlocked = addKnownStat("attack_blocked", stats.attack_blocked, bucket.totals.attackBlocked);
+            bucket.totals.attackKills = addKnownStat("attack_kills", stats.attack_kills, bucket.totals.attackKills);
+            bucket.totals.breakPoints = addKnownStat("break_points", stats.break_points, bucket.totals.breakPoints);
+
+            const serveTotal = Number(stats.serve_total ?? 0);
+            const serveAces = Number(stats.serve_aces ?? 0);
+            const serveErrors = Number(stats.serve_errors ?? 0);
+            if (!unavailableStats.has("serve_total") && !unavailableStats.has("serve_aces")) {
+                bucket.totals.serveAcePctTotal += serveTotal;
+                bucket.totals.serveAcePctAces += serveAces;
+            }
+            if (!unavailableStats.has("serve_total") && !unavailableStats.has("serve_errors")) {
+                bucket.totals.serveErrorPctTotal += serveTotal;
+                bucket.totals.serveErrorPctErrors += serveErrors;
+            }
+            if (
+                !unavailableStats.has("serve_total") &&
+                !unavailableStats.has("serve_aces") &&
+                !unavailableStats.has("serve_errors")
+            ) {
+                bucket.totals.serveAceErrorRatioTotal += serveTotal;
+                bucket.totals.serveAceErrorRatioAces += serveAces;
+                bucket.totals.serveAceErrorRatioErrors += serveErrors;
+            }
 
             const receptionTotal = Number(stats.reception_total ?? 0);
             const positivePct =
@@ -584,22 +620,46 @@ function TotalTopPage() {
             const excellentPct =
                 typeof stats.reception_excellent_pct === "number" ? stats.reception_excellent_pct : null;
 
-            if (receptionTotal >= 10 && positivePct !== null) {
+            if (
+                receptionTotal >= 10 &&
+                positivePct !== null &&
+                !unavailableStats.has("reception_total") &&
+                !unavailableStats.has("reception_positive_pct")
+            ) {
                 bucket.receptionPositiveCount += receptionTotal * (positivePct / 100);
                 bucket.qualifiedReceptionTotalForPositive += receptionTotal;
             }
 
-            if (receptionTotal >= 10 && excellentPct !== null) {
+            if (
+                receptionTotal >= 10 &&
+                excellentPct !== null &&
+                !unavailableStats.has("reception_total") &&
+                !unavailableStats.has("reception_excellent_pct")
+            ) {
                 bucket.receptionExcellentCount += receptionTotal * (excellentPct / 100);
                 bucket.qualifiedReceptionTotalForExcellent += receptionTotal;
             }
 
             const attackTotal = Number(stats.attack_total ?? 0);
-            if (attackTotal >= 10) {
+            if (
+                attackTotal >= 10 &&
+                !unavailableStats.has("attack_total") &&
+                !unavailableStats.has("attack_kills")
+            ) {
                 bucket.qualifiedAttackTotal += attackTotal;
                 bucket.qualifiedAttackKills += Number(stats.attack_kills ?? 0);
-                bucket.qualifiedAttackBlocked += Number(stats.attack_blocked ?? 0);
-                bucket.qualifiedAttackErrors += Number(stats.attack_errors ?? 0);
+            }
+            if (
+                attackTotal >= 10 &&
+                !unavailableStats.has("attack_total") &&
+                !unavailableStats.has("attack_kills") &&
+                !unavailableStats.has("attack_blocked") &&
+                !unavailableStats.has("attack_errors")
+            ) {
+                bucket.qualifiedAttackEfficiencyTotal += attackTotal;
+                bucket.qualifiedAttackEfficiencyKills += Number(stats.attack_kills ?? 0);
+                bucket.qualifiedAttackEfficiencyBlocked += Number(stats.attack_blocked ?? 0);
+                bucket.qualifiedAttackEfficiencyErrors += Number(stats.attack_errors ?? 0);
             }
 
             groupedTotals.set(playerId, bucket);
@@ -621,8 +681,10 @@ function TotalTopPage() {
                     qualifiedReceptionTotalForExcellent: 0,
                     qualifiedAttackTotal: 0,
                     qualifiedAttackKills: 0,
-                    qualifiedAttackBlocked: 0,
-                    qualifiedAttackErrors: 0,
+                    qualifiedAttackEfficiencyTotal: 0,
+                    qualifiedAttackEfficiencyKills: 0,
+                    qualifiedAttackEfficiencyBlocked: 0,
+                    qualifiedAttackEfficiencyErrors: 0,
                 };
 
                 if (bucket.qualifiedReceptionTotalForPositive > 0) {
@@ -638,11 +700,13 @@ function TotalTopPage() {
                 if (bucket.qualifiedAttackTotal > 0) {
                     bucket.totals.attackKillPct =
                         (bucket.qualifiedAttackKills / bucket.qualifiedAttackTotal) * 100;
+                }
+                if (bucket.qualifiedAttackEfficiencyTotal > 0) {
                     bucket.totals.attackEfficiency =
-                        ((bucket.qualifiedAttackKills -
-                            bucket.qualifiedAttackBlocked -
-                            bucket.qualifiedAttackErrors) /
-                            bucket.qualifiedAttackTotal) *
+                        ((bucket.qualifiedAttackEfficiencyKills -
+                            bucket.qualifiedAttackEfficiencyBlocked -
+                            bucket.qualifiedAttackEfficiencyErrors) /
+                            bucket.qualifiedAttackEfficiencyTotal) *
                         100;
                 }
 
@@ -652,6 +716,7 @@ function TotalTopPage() {
                     qualifiedReceptionTotalForPositive: bucket.qualifiedReceptionTotalForPositive,
                     qualifiedReceptionTotalForExcellent: bucket.qualifiedReceptionTotalForExcellent,
                     qualifiedAttackTotal: bucket.qualifiedAttackTotal,
+                    qualifiedAttackEfficiencyTotal: bucket.qualifiedAttackEfficiencyTotal,
                 };
             })
             .filter((row) => (hasActiveDetailFilters ? row.filteredTotals.appearances > 0 : true));
@@ -697,6 +762,7 @@ function TotalTopPage() {
                 qualifiedReceptionTotalForPositive: number;
                 qualifiedReceptionTotalForExcellent: number;
                 qualifiedAttackTotal: number;
+                qualifiedAttackEfficiencyTotal: number;
             },
             metric: TotalTopStatKey,
             mode: SortMode,
@@ -704,24 +770,24 @@ function TotalTopPage() {
             const totals = row.filteredTotals;
 
             if (metric === "serveErrorsLeast") {
-                if (totals.serveTotal < 10) return null;
+                if (totals.serveErrorPctTotal < 10) return null;
                 return mode === "perGame"
                     ? getPerGameValue(totals, "serveErrors")
                     : getStatValue(totals, "serveErrors");
             }
 
             if (metric === "serveErrorPct") {
-                if (totals.serveTotal <= 0) return null;
+                if (totals.serveErrorPctTotal <= 0) return null;
                 return getStatValue(totals, "serveErrorPct");
             }
 
             if (metric === "serveErrorPctLeast") {
-                if (totals.serveTotal <= 0) return null;
+                if (totals.serveErrorPctTotal <= 0) return null;
                 return getStatValue(totals, "serveErrorPctLeast");
             }
 
             if (metric === "serveAcePct") {
-                if (totals.serveTotal <= 0) return null;
+                if (totals.serveAcePctTotal <= 0) return null;
                 return getStatValue(totals, "serveAcePct");
             }
 
@@ -739,11 +805,13 @@ function TotalTopPage() {
 
             if (
                 metric === "attackKillPct" ||
-                metric === "attackKillPctWorst" ||
-                metric === "attackEfficiency" ||
-                metric === "attackEfficiencyWorst"
+                metric === "attackKillPctWorst"
             ) {
                 if (row.qualifiedAttackTotal < 10) return null;
+            }
+
+            if (metric === "attackEfficiency" || metric === "attackEfficiencyWorst") {
+                if (row.qualifiedAttackEfficiencyTotal < 10) return null;
             }
 
             return mode === "perGame"
@@ -758,7 +826,7 @@ function TotalTopPage() {
                     const value = getMetricValue(row, metric, displayMode);
                     const valueLabel =
                         metric === "serveAceErrorRatio"
-                            ? `${totals.serveAces} : ${totals.serveErrors}`
+                            ? `${totals.serveAceErrorRatioAces} : ${totals.serveAceErrorRatioErrors}`
                             : formatMetricValue(metric, value, displayMode);
 
                     return {

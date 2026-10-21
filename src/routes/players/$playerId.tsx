@@ -17,6 +17,7 @@ type RawMatchRecord = {
     vm: boolean | null;
     am: boolean | null;
     mam: boolean | null;
+    match_unavailable_stats: { stat_field: string }[] | null;
 };
 
 type MatchRecord = RawMatchRecord & {
@@ -170,22 +171,6 @@ function PlayerPage() {
 
         const eff = ((attackExc - attackBlk - attackErr) / attackTot) * 100;
         return eff;
-    };
-
-    const computeAttackKillPctFromTotals = (totals: Record<string, number>) => {
-        const attackTot = totals["attack_total"] ?? 0;
-        if (!attackTot) return null;
-        const attackExc = totals["attack_kills"] ?? 0;
-        return (attackExc / attackTot) * 100;
-    };
-
-    const computeAttackEffFromTotals = (totals: Record<string, number>) => {
-        const attackTot = totals["attack_total"] ?? 0;
-        if (!attackTot) return null;
-        const attackExc = totals["attack_kills"] ?? 0;
-        const attackBlk = totals["attack_blocked"] ?? 0;
-        const attackErr = totals["attack_errors"] ?? 0;
-        return ((attackExc - attackBlk - attackErr) / attackTot) * 100;
     };
 
     const pickStatsRowForMode = (rows: PlayerAppearance["player_match_stats"]) => {
@@ -399,6 +384,14 @@ function PlayerPage() {
         const counts: Record<string, number> = {};
         let receptionPositiveCount = 0;
         let receptionExcellentCount = 0;
+        let receptionPositiveTotal = 0;
+        let receptionExcellentTotal = 0;
+        let attackKillPctTotal = 0;
+        let attackKillPctKills = 0;
+        let attackEfficiencyTotal = 0;
+        let attackEfficiencyKills = 0;
+        let attackEfficiencyBlocked = 0;
+        let attackEfficiencyErrors = 0;
 
         statColumns.forEach((column) => {
             totals[column.field] = 0;
@@ -408,14 +401,19 @@ function PlayerPage() {
         filteredAppearances.forEach((a) => {
             const stats = pickStatsRowForMode(a.player_match_stats);
             if (!stats) return;
+            const rawMatch = Array.isArray(a.matches) ? a.matches[0] : a.matches;
+            const unavailableStats = new Set(rawMatch?.match_unavailable_stats?.map((row) => row.stat_field) ?? []);
 
             statColumns.forEach((column) => {
-                let value: any = null;
-                if (column.field === "attack_efficiency") {
-                    value = computeAttackEff(stats);
-                } else {
-                    value = stats[column.field as keyof typeof stats];
-                }
+                if (
+                    column.field === "attack_efficiency" ||
+                    column.field === "attack_kill_pct" ||
+                    column.field === "reception_positive_pct" ||
+                    column.field === "reception_excellent_pct" ||
+                    unavailableStats.has(column.field)
+                ) return;
+
+                const value = stats[column.field as keyof typeof stats];
 
                 if (typeof value === "number") {
                     totals[column.field] += value;
@@ -424,14 +422,42 @@ function PlayerPage() {
             });
 
             const receptionTotal = stats.reception_total;
-            if (typeof receptionTotal === "number" && receptionTotal > 0) {
-                if (typeof stats.reception_positive_pct === "number") {
+            if (!unavailableStats.has("reception_total") && typeof receptionTotal === "number" && receptionTotal > 0) {
+                if (!unavailableStats.has("reception_positive_pct") && typeof stats.reception_positive_pct === "number") {
                     receptionPositiveCount += receptionTotal * (stats.reception_positive_pct / 100);
+                    receptionPositiveTotal += receptionTotal;
                 }
 
-                if (typeof stats.reception_excellent_pct === "number") {
+                if (!unavailableStats.has("reception_excellent_pct") && typeof stats.reception_excellent_pct === "number") {
                     receptionExcellentCount += receptionTotal * (stats.reception_excellent_pct / 100);
+                    receptionExcellentTotal += receptionTotal;
                 }
+            }
+
+            if (
+                !unavailableStats.has("attack_total") &&
+                !unavailableStats.has("attack_kills") &&
+                typeof stats.attack_total === "number" &&
+                typeof stats.attack_kills === "number"
+            ) {
+                attackKillPctTotal += stats.attack_total;
+                attackKillPctKills += stats.attack_kills;
+            }
+
+            if (
+                !unavailableStats.has("attack_total") &&
+                !unavailableStats.has("attack_kills") &&
+                !unavailableStats.has("attack_blocked") &&
+                !unavailableStats.has("attack_errors") &&
+                typeof stats.attack_total === "number" &&
+                typeof stats.attack_kills === "number" &&
+                typeof stats.attack_blocked === "number" &&
+                typeof stats.attack_errors === "number"
+            ) {
+                attackEfficiencyTotal += stats.attack_total;
+                attackEfficiencyKills += stats.attack_kills;
+                attackEfficiencyBlocked += stats.attack_blocked;
+                attackEfficiencyErrors += stats.attack_errors;
             }
         });
 
@@ -442,16 +468,22 @@ function PlayerPage() {
         });
 
         // Always derive attack percentages from attack totals, never from stored pct sums/averages.
-        averages["attack_kill_pct"] = computeAttackKillPctFromTotals(totals);
-        averages["attack_efficiency"] = computeAttackEffFromTotals(totals);
+        averages["attack_kill_pct"] =
+            attackKillPctTotal > 0 ? (attackKillPctKills / attackKillPctTotal) * 100 : null;
+        averages["attack_efficiency"] =
+            attackEfficiencyTotal > 0
+                ? ((attackEfficiencyKills - attackEfficiencyBlocked - attackEfficiencyErrors) /
+                    attackEfficiencyTotal) *
+                100
+                : null;
 
         const weightedReceptionPositivePct =
-            totals["reception_total"] > 0
-                ? (receptionPositiveCount / totals["reception_total"]) * 100
+            receptionPositiveTotal > 0
+                ? (receptionPositiveCount / receptionPositiveTotal) * 100
                 : null;
         const weightedReceptionExcellentPct =
-            totals["reception_total"] > 0
-                ? (receptionExcellentCount / totals["reception_total"]) * 100
+            receptionExcellentTotal > 0
+                ? (receptionExcellentCount / receptionExcellentTotal) * 100
                 : null;
 
         averages["reception_positive_pct"] = weightedReceptionPositivePct;

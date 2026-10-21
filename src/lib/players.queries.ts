@@ -1,5 +1,9 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import {
+    getUnavailableStatSet,
+    maskUnavailableStatValues,
+} from "@/lib/match-unavailable-stats";
 
 export type PlayerListItem = {
     player_id: number;
@@ -478,6 +482,7 @@ export async function fetchPlayer(playerId: number) {
         vm,
         am,
         mam
+        ,match_unavailable_stats(stat_field)
       ),
       player_match_stats(
                 *
@@ -497,14 +502,24 @@ export async function fetchPlayer(playerId: number) {
 
             if (rows.length === 0) return null;
 
-            return (
+            const stats = (
                 rows.find((row: any) => row?.stats_version === "ALL") ??
                 rows.find((row: any) => row?.stats_version === "AM") ??
                 rows[0] ??
                 null
             );
+            if (!stats) return null;
+
+            const match = Array.isArray(a.matches) ? a.matches[0] : a.matches;
+            return {
+                stats,
+                unavailableStats: getUnavailableStatSet(match?.match_unavailable_stats),
+            };
         })
-        .filter(Boolean) as MatchStatRow[];
+        .filter(Boolean) as {
+            stats: MatchStatRow;
+            unavailableStats: ReadonlySet<string>;
+        }[];
 
     const totals: Record<string, number> = {};
     const averages: Record<string, number | null> = {};
@@ -513,9 +528,9 @@ export async function fetchPlayer(playerId: number) {
         let sum = 0;
         let count = 0;
 
-        for (const stats of rawStats) {
-            const value = stats[key];
-            if (typeof value === "number") {
+        for (const row of rawStats) {
+            const value = row.stats[key];
+            if (typeof value === "number" && !row.unavailableStats.has(key)) {
                 sum += value;
                 count += 1;
             }
@@ -527,36 +542,77 @@ export async function fetchPlayer(playerId: number) {
 
     // Reconstruct positive/excellent reception counts per match, then compute weighted percentages.
     let receptionTotal = 0;
+    let receptionExcellentTotal = 0;
     let receptionPositiveCount = 0;
     let receptionExcellentCount = 0;
+    let attackKillPctTotal = 0;
+    let attackKillPctKills = 0;
+    let attackEfficiencyTotal = 0;
+    let attackEfficiencyKills = 0;
+    let attackEfficiencyBlocked = 0;
+    let attackEfficiencyErrors = 0;
 
-    for (const stats of rawStats) {
+    for (const { stats, unavailableStats } of rawStats) {
         const total = stats.reception_total;
-        if (typeof total !== "number" || total <= 0) {
-            continue;
-        }
-
-        receptionTotal += total;
-
-        if (typeof stats.reception_positive_pct === "number") {
+        if (
+            !unavailableStats.has("reception_total") &&
+            typeof total === "number" &&
+            total > 0 &&
+            !unavailableStats.has("reception_positive_pct") &&
+            typeof stats.reception_positive_pct === "number"
+        ) {
+            receptionTotal += total;
             receptionPositiveCount += total * (stats.reception_positive_pct / 100);
         }
 
-        if (typeof stats.reception_excellent_pct === "number") {
+        if (
+            !unavailableStats.has("reception_total") &&
+            typeof total === "number" &&
+            total > 0 &&
+            !unavailableStats.has("reception_excellent_pct") &&
+            typeof stats.reception_excellent_pct === "number"
+        ) {
+            receptionExcellentTotal += total;
             receptionExcellentCount += total * (stats.reception_excellent_pct / 100);
+        }
+
+        if (
+            !unavailableStats.has("attack_total") &&
+            !unavailableStats.has("attack_kills") &&
+            typeof stats.attack_total === "number" &&
+            typeof stats.attack_kills === "number"
+        ) {
+            attackKillPctTotal += stats.attack_total;
+            attackKillPctKills += stats.attack_kills;
+        }
+
+        if (
+            !unavailableStats.has("attack_total") &&
+            !unavailableStats.has("attack_kills") &&
+            !unavailableStats.has("attack_blocked") &&
+            !unavailableStats.has("attack_errors") &&
+            typeof stats.attack_total === "number" &&
+            typeof stats.attack_kills === "number" &&
+            typeof stats.attack_blocked === "number" &&
+            typeof stats.attack_errors === "number"
+        ) {
+            attackEfficiencyTotal += stats.attack_total;
+            attackEfficiencyKills += stats.attack_kills;
+            attackEfficiencyBlocked += stats.attack_blocked;
+            attackEfficiencyErrors += stats.attack_errors;
         }
     }
 
     const weightedReceptionPositivePct =
         receptionTotal > 0 ? (receptionPositiveCount / receptionTotal) * 100 : null;
     const weightedReceptionExcellentPct =
-        receptionTotal > 0 ? (receptionExcellentCount / receptionTotal) * 100 : null;
+        receptionExcellentTotal > 0 ? (receptionExcellentCount / receptionExcellentTotal) * 100 : null;
     const derivedAttackKillPct =
-        (totals.attack_total ?? 0) > 0 ? ((totals.attack_kills ?? 0) / (totals.attack_total ?? 0)) * 100 : null;
+        attackKillPctTotal > 0 ? (attackKillPctKills / attackKillPctTotal) * 100 : null;
     const derivedAttackEfficiency =
-        (totals.attack_total ?? 0) > 0
-            ? (((totals.attack_kills ?? 0) - (totals.attack_blocked ?? 0) - (totals.attack_errors ?? 0)) /
-                (totals.attack_total ?? 0)) *
+        attackEfficiencyTotal > 0
+            ? ((attackEfficiencyKills - attackEfficiencyBlocked - attackEfficiencyErrors) /
+                attackEfficiencyTotal) *
             100
             : null;
 
@@ -575,13 +631,30 @@ export async function fetchPlayer(playerId: number) {
         averages,
     };
 
+    const appearancesWithMaskedStats = (appearances ?? []).map((appearance) => {
+        const match = Array.isArray(appearance.matches) ? appearance.matches[0] : appearance.matches;
+        const unavailableStats = getUnavailableStatSet(match?.match_unavailable_stats);
+        const statsRows = Array.isArray(appearance.player_match_stats)
+            ? appearance.player_match_stats
+            : appearance.player_match_stats
+                ? [appearance.player_match_stats]
+                : [];
+
+        return {
+            ...appearance,
+            player_match_stats: statsRows.map((stats) =>
+                maskUnavailableStatValues(stats, unavailableStats),
+            ),
+        };
+    });
+
     return {
         player: {
             ...player,
             position_name: positionDetails?.position_name ?? null,
             position_name_ee: positionDetails?.position_name_ee ?? null,
         },
-        appearances: appearances ?? [],
+        appearances: appearancesWithMaskedStats,
         statsSummary,
     };
 }

@@ -1,5 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { MatchUnavailableStatRow } from "@/lib/match-unavailable-stats";
 
 export const statisticsFields = [
     "points",
@@ -41,7 +42,15 @@ export type StatisticsGroup = {
     totals: TotalsRecord;
     counts: CountsRecord;
     receptionPositiveCount: number;
+    receptionPositiveTotal: number;
     receptionExcellentCount: number;
+    receptionExcellentTotal: number;
+    attackKillPctTotal: number;
+    attackKillPctKills: number;
+    attackEfficiencyTotal: number;
+    attackEfficiencyKills: number;
+    attackEfficiencyBlocked: number;
+    attackEfficiencyErrors: number;
 };
 
 export type PlayerStatisticsRow = {
@@ -73,6 +82,7 @@ export type StatisticsMatchRow = {
     vm: boolean | null;
     am: boolean | null;
     mam: boolean | null;
+    match_unavailable_stats: MatchUnavailableStatRow[] | null;
 };
 
 export type AppearanceStatsRow = {
@@ -123,14 +133,26 @@ export function createGroup(): StatisticsGroup {
         totals,
         counts,
         receptionPositiveCount: 0,
+        receptionPositiveTotal: 0,
         receptionExcellentCount: 0,
+        receptionExcellentTotal: 0,
+        attackKillPctTotal: 0,
+        attackKillPctKills: 0,
+        attackEfficiencyTotal: 0,
+        attackEfficiencyKills: 0,
+        attackEfficiencyBlocked: 0,
+        attackEfficiencyErrors: 0,
     };
 }
 
-export function addStats(group: StatisticsGroup, stats: AppearanceStatsRow) {
+export function addStats(
+    group: StatisticsGroup,
+    stats: AppearanceStatsRow,
+    unavailableStats: ReadonlySet<string> = new Set(),
+) {
     for (const field of statisticsFields) {
         const value = stats[field];
-        if (typeof value !== "number") continue;
+        if (typeof value !== "number" || unavailableStats.has(field)) continue;
 
         if (
             field === "attack_kill_pct" ||
@@ -148,14 +170,42 @@ export function addStats(group: StatisticsGroup, stats: AppearanceStatsRow) {
     }
 
     const receptionTotal = stats.reception_total;
-    if (typeof receptionTotal === "number" && receptionTotal > 0) {
-        if (typeof stats.reception_positive_pct === "number") {
+    if (!unavailableStats.has("reception_total") && typeof receptionTotal === "number" && receptionTotal > 0) {
+        if (!unavailableStats.has("reception_positive_pct") && typeof stats.reception_positive_pct === "number") {
             group.receptionPositiveCount += receptionTotal * (stats.reception_positive_pct / 100);
+            group.receptionPositiveTotal += receptionTotal;
         }
 
-        if (typeof stats.reception_excellent_pct === "number") {
+        if (!unavailableStats.has("reception_excellent_pct") && typeof stats.reception_excellent_pct === "number") {
             group.receptionExcellentCount += receptionTotal * (stats.reception_excellent_pct / 100);
+            group.receptionExcellentTotal += receptionTotal;
         }
+    }
+
+    if (
+        !unavailableStats.has("attack_total") &&
+        !unavailableStats.has("attack_kills") &&
+        typeof stats.attack_total === "number" &&
+        typeof stats.attack_kills === "number"
+    ) {
+        group.attackKillPctTotal += stats.attack_total;
+        group.attackKillPctKills += stats.attack_kills;
+    }
+
+    if (
+        !unavailableStats.has("attack_total") &&
+        !unavailableStats.has("attack_kills") &&
+        !unavailableStats.has("attack_blocked") &&
+        !unavailableStats.has("attack_errors") &&
+        typeof stats.attack_total === "number" &&
+        typeof stats.attack_kills === "number" &&
+        typeof stats.attack_blocked === "number" &&
+        typeof stats.attack_errors === "number"
+    ) {
+        group.attackEfficiencyTotal += stats.attack_total;
+        group.attackEfficiencyKills += stats.attack_kills;
+        group.attackEfficiencyBlocked += stats.attack_blocked;
+        group.attackEfficiencyErrors += stats.attack_errors;
     }
 }
 
@@ -164,17 +214,20 @@ function isPercentageField(field: StatisticsField) {
 }
 
 function deriveAttackKillPct(group: StatisticsGroup): number {
-    const attackTotal = group.totals.attack_total;
+    const attackTotal = group.attackKillPctTotal;
     if (!attackTotal) return 0;
-    return (group.totals.attack_kills / attackTotal) * 100;
+    return (group.attackKillPctKills / attackTotal) * 100;
 }
 
 function deriveAttackEfficiency(group: StatisticsGroup): number {
-    const attackTotal = group.totals.attack_total;
+    const attackTotal = group.attackEfficiencyTotal;
     if (!attackTotal) return 0;
-    return ((group.totals.attack_kills - group.totals.attack_blocked - group.totals.attack_errors) / attackTotal) * 100;
+    return (
+        ((group.attackEfficiencyKills - group.attackEfficiencyBlocked - group.attackEfficiencyErrors) /
+            attackTotal) *
+        100
+    );
 }
-
 async function fetchStatisticsData(): Promise<StatisticsDataset> {
     const playersResponse = await supabase
         .from("players")
@@ -196,7 +249,7 @@ async function fetchStatisticsData(): Promise<StatisticsDataset> {
         const { data, error } = await supabase
             .from("appearances")
             .select(
-                `appearance_id, player_id, sets_played, sets_started, matches(match_id, match_date, opponent, opponent_en, competition, competition_en, estonia_sets, opponent_sets, vm, am, mam), player_match_stats!inner(points, block_points, plus_minus, serve_total, serve_aces, serve_errors, reception_total, reception_errors, reception_positive_pct, reception_excellent_pct, attack_total, attack_errors, attack_blocked, attack_kills, attack_kill_pct, attack_efficiency, break_points, stats_version, set1_position, set2_position, set3_position, set4_position, set5_position)`
+                `appearance_id, player_id, sets_played, sets_started, matches(match_id, match_date, opponent, opponent_en, competition, competition_en, estonia_sets, opponent_sets, vm, am, mam, match_unavailable_stats(stat_field)), player_match_stats!inner(points, block_points, plus_minus, serve_total, serve_aces, serve_errors, reception_total, reception_errors, reception_positive_pct, reception_excellent_pct, attack_total, attack_errors, attack_blocked, attack_kills, attack_kill_pct, attack_efficiency, break_points, stats_version, set1_position, set2_position, set3_position, set4_position, set5_position)`,
             )
             .gt("appearance_id", lastAppearanceId)
             .order("appearance_id", { ascending: true })
@@ -204,7 +257,7 @@ async function fetchStatisticsData(): Promise<StatisticsDataset> {
 
         if (error) throw error;
 
-        const chunk = (data ?? []) as StatisticsAppearanceRow[];
+        const chunk = (data ?? []) as unknown as StatisticsAppearanceRow[];
         if (chunk.length === 0) break;
 
         allAppearanceRows.push(...chunk);
@@ -221,12 +274,9 @@ async function fetchStatisticsData(): Promise<StatisticsDataset> {
         );
     }
 
-    const players = (playersResponse.data ?? []) as PlayerRow[];
-    const appearances = allAppearanceRows;
-
     return {
-        players,
-        appearances,
+        players: (playersResponse.data ?? []) as PlayerRow[],
+        appearances: allAppearanceRows,
     };
 }
 
