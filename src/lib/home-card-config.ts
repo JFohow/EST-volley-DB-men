@@ -1,110 +1,76 @@
+import { queryOptions } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+
 export type HomeCardMetricConfig = {
     id: string;
     group: "totalTop" | "gameHigh";
-    label: string;
     enabled: boolean;
 };
 
-const STORAGE_KEY = "estonia-home-card-config-v1";
+export const homeCardConfigQueryKey = ["home-card-configs"] as const;
 
 const defaultConfigs: HomeCardMetricConfig[] = [
-    { id: "totalTop:appearances", group: "totalTop", label: "Most appearances", enabled: true },
-    { id: "totalTop:sets", group: "totalTop", label: "Most sets played", enabled: true },
-    { id: "totalTop:points", group: "totalTop", label: "Most points", enabled: true },
-    { id: "totalTop:plusMinus", group: "totalTop", label: "Best plus-minus", enabled: true },
-    { id: "totalTop:serveTotal", group: "totalTop", label: "Most serves", enabled: true },
-    { id: "totalTop:serveAces", group: "totalTop", label: "Most serve aces", enabled: true },
-    { id: "totalTop:receptionTotal", group: "totalTop", label: "Most receptions", enabled: true },
-    { id: "totalTop:receptionPositivePct", group: "totalTop", label: "Best reception %", enabled: true },
-    { id: "totalTop:receptionExcellentPct", group: "totalTop", label: "Best ideal reception %", enabled: true },
-    { id: "totalTop:attackTotal", group: "totalTop", label: "Most attacks", enabled: true },
-    { id: "totalTop:attackKills", group: "totalTop", label: "Most successful attacks", enabled: true },
-    { id: "totalTop:attackKillPct", group: "totalTop", label: "Best attack %", enabled: true },
-    { id: "totalTop:attackEfficiency", group: "totalTop", label: "Best attack efficiency", enabled: true },
-    { id: "totalTop:blockPoints", group: "totalTop", label: "Most block points", enabled: true },
-
-    { id: "gameHigh:pointsPerGame", group: "gameHigh", label: "Most points in a match", enabled: true },
-    { id: "gameHigh:plusMinusBest", group: "gameHigh", label: "Best plus-minus in a match", enabled: true },
-    { id: "gameHigh:serveTotal", group: "gameHigh", label: "Most serves in a match", enabled: true },
-    { id: "gameHigh:serveAces", group: "gameHigh", label: "Most aces in a match", enabled: true },
-    { id: "gameHigh:receptionTotal", group: "gameHigh", label: "Most receptions in a match", enabled: true },
-    { id: "gameHigh:receptionPositivePctBest", group: "gameHigh", label: "Best reception % in a match", enabled: true },
-    { id: "gameHigh:receptionExcellentPctBest", group: "gameHigh", label: "Best ideal reception % in a match", enabled: true },
-    { id: "gameHigh:attackTotal", group: "gameHigh", label: "Most attacks in a match", enabled: true },
-    { id: "gameHigh:attackKills", group: "gameHigh", label: "Most successful attacks in a match", enabled: true },
-    { id: "gameHigh:attackKillPctBest", group: "gameHigh", label: "Best attack % in a match", enabled: true },
-    { id: "gameHigh:attackEfficiencyBest", group: "gameHigh", label: "Best attack efficiency in a match", enabled: true },
-    { id: "gameHigh:blockPoints", group: "gameHigh", label: "Most blocks in a match", enabled: true },
+    { id: "totalTop:appearances", group: "totalTop", enabled: true },
+    { id: "totalTop:sets", group: "totalTop", enabled: true },
+    { id: "totalTop:points", group: "totalTop", enabled: true },
+    { id: "totalTop:breakPoints", group: "totalTop", enabled: false },
+    { id: "totalTop:plusMinus", group: "totalTop", enabled: true },
+    { id: "totalTop:serveTotal", group: "totalTop", enabled: true },
+    { id: "totalTop:serveAces", group: "totalTop", enabled: true },
+    { id: "totalTop:serveErrors", group: "totalTop", enabled: false },
+    { id: "totalTop:receptionTotal", group: "totalTop", enabled: true },
+    { id: "totalTop:receptionErrors", group: "totalTop", enabled: false },
+    { id: "totalTop:receptionPositivePct", group: "totalTop", enabled: true },
+    { id: "totalTop:receptionExcellentPct", group: "totalTop", enabled: true },
+    { id: "totalTop:attackTotal", group: "totalTop", enabled: true },
+    { id: "totalTop:attackErrors", group: "totalTop", enabled: false },
+    { id: "totalTop:attackBlocked", group: "totalTop", enabled: false },
+    { id: "totalTop:attackKills", group: "totalTop", enabled: true },
+    { id: "totalTop:attackKillPct", group: "totalTop", enabled: true },
+    { id: "totalTop:attackEfficiency", group: "totalTop", enabled: true },
+    { id: "totalTop:blockPoints", group: "totalTop", enabled: true },
+    { id: "gameHigh:pointsPerGame", group: "gameHigh", enabled: true },
+    { id: "gameHigh:plusMinusBest", group: "gameHigh", enabled: true },
+    { id: "gameHigh:plusMinusWorst", group: "gameHigh", enabled: false },
+    { id: "gameHigh:serveTotal", group: "gameHigh", enabled: false },
+    { id: "gameHigh:serveAces", group: "gameHigh", enabled: true },
+    { id: "gameHigh:serveErrorsMost", group: "gameHigh", enabled: false },
+    { id: "gameHigh:serveErrorsLeast", group: "gameHigh", enabled: false },
+    { id: "gameHigh:receptionTotal", group: "gameHigh", enabled: true },
+    { id: "gameHigh:receptionErrors", group: "gameHigh", enabled: false },
+    { id: "gameHigh:receptionPositivePctBest", group: "gameHigh", enabled: true },
+    { id: "gameHigh:receptionPositivePctWorst", group: "gameHigh", enabled: false },
+    { id: "gameHigh:receptionExcellentPctBest", group: "gameHigh", enabled: true },
+    { id: "gameHigh:receptionExcellentPctWorst", group: "gameHigh", enabled: false },
+    { id: "gameHigh:attackTotal", group: "gameHigh", enabled: true },
+    { id: "gameHigh:attackErrors", group: "gameHigh", enabled: false },
+    { id: "gameHigh:attackBlocked", group: "gameHigh", enabled: false },
+    { id: "gameHigh:attackKills", group: "gameHigh", enabled: true },
+    { id: "gameHigh:attackKillPctBest", group: "gameHigh", enabled: true },
+    { id: "gameHigh:attackKillPctWorst", group: "gameHigh", enabled: false },
+    { id: "gameHigh:attackEfficiencyBest", group: "gameHigh", enabled: true },
+    { id: "gameHigh:attackEfficiencyWorst", group: "gameHigh", enabled: false },
+    { id: "gameHigh:blockPoints", group: "gameHigh", enabled: true },
 ];
 
 export function getDefaultHomeCardConfigs(): HomeCardMetricConfig[] {
     return defaultConfigs.map((item) => ({ ...item }));
 }
 
-export function loadHomeCardConfigs(): HomeCardMetricConfig[] {
-    if (typeof window === "undefined") {
-        return getDefaultHomeCardConfigs();
-    }
+export const homeCardConfigOptions = () =>
+    queryOptions({
+        queryKey: homeCardConfigQueryKey,
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from("home_card_configs")
+                .select("metric_id, enabled");
 
-    try {
-        const raw = window.localStorage.getItem(STORAGE_KEY);
-        if (!raw) {
-            return getDefaultHomeCardConfigs();
-        }
+            if (error) throw error;
 
-        const parsed = JSON.parse(raw) as Array<Partial<HomeCardMetricConfig>>;
-        if (!Array.isArray(parsed)) {
-            return getDefaultHomeCardConfigs();
-        }
-
-        const byId = new Map(getDefaultHomeCardConfigs().map((item) => [item.id, item]));
-
-        for (const item of parsed) {
-            const id = typeof item.id === "string" ? item.id : "";
-            const defaultItem = byId.get(id);
-            if (!defaultItem) continue;
-
-            defaultItem.enabled = Boolean(item.enabled ?? defaultItem.enabled);
-            const label = typeof item.label === "string" ? item.label.trim() : "";
-            if (label) {
-                defaultItem.label = label;
-            }
-        }
-
-        return Array.from(byId.values());
-    } catch {
-        return getDefaultHomeCardConfigs();
-    }
-}
-
-export function saveHomeCardConfigs(configs: HomeCardMetricConfig[]) {
-    if (typeof window === "undefined") {
-        return;
-    }
-
-    const normalized = configs.map((item) => ({
-        id: item.id,
-        group: item.group,
-        label: item.label,
-        enabled: item.enabled,
-    }));
-
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
-}
-
-export function isHomeCardMetricEnabled(metricId: string) {
-    return loadHomeCardConfigs().some((item) => item.id === metricId && item.enabled);
-}
-
-export function getConfiguredHomeCardLabel(metricId: string, fallbackLabel: string) {
-    const config = loadHomeCardConfigs().find((item) => item.id === metricId);
-    if (!config) {
-        return fallbackLabel;
-    }
-
-    if (!config.enabled) {
-        return "";
-    }
-
-    return config.label.trim() || fallbackLabel;
-}
+            const enabledById = new Map((data ?? []).map((row) => [row.metric_id, row.enabled]));
+            return getDefaultHomeCardConfigs().map((config) => ({
+                ...config,
+                enabled: enabledById.get(config.id) ?? config.enabled,
+            }));
+        },
+    });

@@ -176,8 +176,8 @@ function MatchStatsPage() {
 
     const serveColumns = [
         { field: "serve_total", label: "Tot" },
-        { field: "serve_aces", label: "Ace" },
         { field: "serve_errors", label: "Err" },
+        { field: "serve_aces", label: "Ace" },
     ];
 
     const receptionColumns = [

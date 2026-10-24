@@ -14,6 +14,21 @@ export type Database = {
   }
   public: {
     Tables: {
+      home_card_configs: {
+        Row: {
+          enabled: boolean
+          metric_id: string
+        }
+        Insert: {
+          enabled?: boolean
+          metric_id: string
+        }
+        Update: {
+          enabled?: boolean
+          metric_id?: string
+        }
+        Relationships: []
+      }
       appearances: {
         Row: {
           appearance_id: number

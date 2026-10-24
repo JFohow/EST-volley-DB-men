@@ -1,5 +1,5 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { useSuspenseQuery, useQueryErrorResetBoundary } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQuery, useQueryErrorResetBoundary } from "@tanstack/react-query";
 import { homeSummaryOptions, type RecentMatch } from "@/lib/home.queries";
 import { gameHighsOptions, type GameHighRow } from "@/lib/game-highs.queries";
 import { totalTopOptions, type TotalTopRow } from "@/lib/total-top.queries";
@@ -7,9 +7,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  getConfiguredHomeCardLabel,
-  loadHomeCardConfigs,
-  saveHomeCardConfigs,
+  homeCardConfigOptions,
+  homeCardConfigQueryKey,
   type HomeCardMetricConfig,
 } from "@/lib/home-card-config";
 
@@ -31,6 +30,8 @@ export const Route = createFileRoute("/")({
       context.queryClient.ensureQueryData(homeSummaryOptions()),
       context.queryClient.ensureQueryData(totalTopOptions()),
       context.queryClient.ensureQueryData(gameHighsOptions()),
+      context.queryClient.ensureQueryData(homeCardConfigOptions()),
+      context.queryClient.ensureQueryData(homeCardConfigOptions()),
     ]),
   component: HomePage,
   errorComponent: HomeError,
@@ -404,10 +405,15 @@ function HomePage() {
   const { data } = useSuspenseQuery(homeSummaryOptions());
   const { data: totalTopRows } = useSuspenseQuery(totalTopOptions());
   const { data: gameHighRows } = useSuspenseQuery(gameHighsOptions());
+  const { data: homeCardConfigs } = useSuspenseQuery(homeCardConfigOptions());
+  const queryClient = useQueryClient();
   const [activeLeaderIndex, setActiveLeaderIndex] = useState(0);
-  const [coverageMatchType, setCoverageMatchType] = useState<"official" | "competitive" | "all">("official");
+  const [coverageMatchType, setCoverageMatchType] = useState<
+    "official" | "competitive" | "nonCompetitive" | "all"
+  >("official");
   const [isAdmin, setIsAdmin] = useState(false);
-  const [homeCardConfigs, setHomeCardConfigs] = useState<HomeCardMetricConfig[]>(() => loadHomeCardConfigs());
+  const [savingHomeCardId, setSavingHomeCardId] = useState<string | null>(null);
+  const [homeCardConfigStatus, setHomeCardConfigStatus] = useState("");
   const [isSavingImport, setIsSavingImport] = useState(false);
   const [importStatus, setImportStatus] = useState<string>("");
   const [createdMatchId, setCreatedMatchId] = useState<number | null>(null);
@@ -448,10 +454,12 @@ function HomePage() {
     () => new Map(homeCardConfigs.map((config) => [config.id, config])),
     [homeCardConfigs],
   );
-
-  useEffect(() => {
-    saveHomeCardConfigs(homeCardConfigs);
-  }, [homeCardConfigs]);
+  const homeCardLabelMap = useMemo(() => {
+    const labels = new Map<string, string>();
+    topStatFields.forEach((field) => labels.set(`totalTop:${field.key}`, t(field.labelKey)));
+    gameHighFields.forEach((field) => labels.set(`gameHigh:${field.key}`, t(field.labelKey)));
+    return labels;
+  }, [t]);
 
   const topLeaders = useMemo<TopLeaderCard[]>(() => {
     return topStatFields
@@ -521,7 +529,7 @@ function HomePage() {
     const cards: RotatingLeaderCard[] = [
       ...topLeaders.map((leader) => ({
         kind: "totalTop" as const,
-        title: getConfiguredHomeCardLabel(leader.configId, leader.statLabel),
+        title: leader.statLabel,
         configId: leader.configId,
         row: leader.row,
         value: leader.value,
@@ -533,7 +541,6 @@ function HomePage() {
       })),
       ...gameHighLeaders.map((leader) => ({
         ...leader,
-        title: getConfiguredHomeCardLabel(leader.configId, leader.title),
       })),
     ];
 
@@ -570,10 +577,27 @@ function HomePage() {
     rotatingLeaders.length > 0 ? rotatingLeaders[activeLeaderIndex % rotatingLeaders.length] : null;
   const canManuallyCycleLeaders = rotatingLeaders.length > 1;
 
-  function updateHomeCardConfig(id: string, updater: (config: HomeCardMetricConfig) => HomeCardMetricConfig) {
-    setHomeCardConfigs((current) =>
-      current.map((config) => (config.id === id ? updater(config) : config)),
+  async function updateHomeCardConfig(config: HomeCardMetricConfig) {
+    if (!isAdmin || savingHomeCardId) return;
+
+    const enabled = !config.enabled;
+    setSavingHomeCardId(config.id);
+    setHomeCardConfigStatus("");
+
+    const { error } = await supabase
+      .from("home_card_configs")
+      .upsert({ metric_id: config.id, enabled }, { onConflict: "metric_id" });
+
+    if (error) {
+      setHomeCardConfigStatus(error.message);
+      setSavingHomeCardId(null);
+      return;
+    }
+
+    queryClient.setQueryData<HomeCardMetricConfig[]>(homeCardConfigQueryKey, (current) =>
+      (current ?? []).map((item) => item.id === config.id ? { ...item, enabled } : item),
     );
+    setSavingHomeCardId(null);
   }
 
   useEffect(() => {
@@ -973,8 +997,8 @@ function HomePage() {
       {/* Hero Metrics */}
       <header className="bg-estonia-dark px-4 pt-10 pb-16 text-white sm:px-6 sm:pt-12 sm:pb-24">
         <div className="mx-auto max-w-7xl">
-          <div className="grid gap-6 lg:grid-cols-3 lg:items-start lg:gap-8">
-            <div className="lg:col-span-2">
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(500px,0.9fr)] lg:items-start lg:gap-8">
+            <div>
               <h1 className="mb-3 font-display text-3xl uppercase italic leading-tight sm:text-4xl md:text-5xl">
                 {t("home.title")}
                 <span className="block text-estonia-blue">{t("home.titleAccent")}</span>
@@ -985,10 +1009,11 @@ function HomePage() {
             </div>
 
             <div className="w-full rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm sm:p-5">
-              <div className="grid grid-cols-3 gap-1 rounded-md border border-white/15 p-1">
+              <div className="grid grid-cols-4 gap-1 rounded-md border border-white/15 p-1">
                 {([
                   ["official", t("matches.officialMatches")],
                   ["competitive", t("matches.competitiveMatches")],
+                  ["nonCompetitive", t("matches.nonOfficialMatches")],
                   ["all", t("matches.allMatches")],
                 ] as const).map(([value, label]) => (
                   <button
@@ -996,7 +1021,7 @@ function HomePage() {
                     type="button"
                     aria-pressed={coverageMatchType === value}
                     onClick={() => setCoverageMatchType(value)}
-                    className={`min-h-9 rounded px-1 text-[9px] font-semibold uppercase leading-tight transition-colors sm:text-[10px] ${coverageMatchType === value
+                    className={`min-h-11 rounded px-1 text-[9px] font-semibold uppercase leading-tight transition-colors sm:px-2 sm:text-[10px] ${coverageMatchType === value
                       ? "bg-white text-slate-900"
                       : "text-white/70 hover:bg-white/10 hover:text-white"
                       }`}
@@ -1005,24 +1030,30 @@ function HomePage() {
                   </button>
                 ))}
               </div>
-              <div className="mt-3 flex items-center justify-between gap-2 border-b border-white/15 pb-2">
-                <span className="text-xs font-semibold uppercase text-white/70">
-                  {t("home.totalMatches")}
-                </span>
-                <span className="font-display text-3xl text-white">
+              <div className="mt-3 flex justify-center border-b border-white/15 pb-3">
+                <span className="font-display text-4xl text-white">
                   {fmt(coverageCounts.totalMatches)}
                 </span>
               </div>
-              <div className="mt-3 grid grid-cols-3 gap-2">
+              <div className="mt-3 grid grid-cols-3 gap-3">
                 {([
                   ["fullStatistics", coverageCounts.fullStatistics, "text-emerald-300"],
                   ["partialStatistics", coverageCounts.partialStatistics, "text-amber-300"],
                   ["withoutStatistics", coverageCounts.withoutStatistics, "text-white/70"],
                 ] as const).map(([labelKey, count, color]) => (
-                  <div key={labelKey} className="min-w-0 border-l-2 border-white/20 pl-2">
+                  <div key={labelKey} className="flex min-w-0 flex-col items-center text-center">
                     <div className={`font-display text-2xl ${color}`}>{fmt(count)}</div>
                     <div className="text-[9px] font-medium uppercase leading-tight text-white/65 sm:text-[10px]">
-                      {t(`home.${labelKey}`)}
+                      <span className="block">
+                        {labelKey === "withoutStatistics"
+                          ? t("home.matchesWithout")
+                          : t("home.matchesWith")}
+                      </span>
+                      <span className="block">
+                        {labelKey === "withoutStatistics"
+                          ? t("home.anyStatistics")
+                          : t(`home.${labelKey}`)}
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -1046,43 +1077,35 @@ function HomePage() {
               <h2 className="font-display text-2xl uppercase italic text-slate-900">
                 Configure rotating stat cards
               </h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Toggle metrics on or off and rename them to match the wording you want on the home page.
-              </p>
-
               <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {homeCardConfigs.map((config) => (
                   <div
                     key={config.id}
-                    className="rounded-xl border border-slate-200 bg-slate-50 p-3"
+                    className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3"
                   >
-                    <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-700">
-                      <input
-                        type="checkbox"
-                        checked={config.enabled}
-                        onChange={() =>
-                          updateHomeCardConfig(config.id, (item) => ({
-                            ...item,
-                            enabled: !item.enabled,
-                          }))
-                        }
-                      />
-                      {config.group === "totalTop" ? "Career" : "Match"}
-                    </label>
                     <input
-                      type="text"
-                      value={config.label}
-                      onChange={(event) =>
-                        updateHomeCardConfig(config.id, (item) => ({
-                          ...item,
-                          label: event.target.value,
-                        }))
-                      }
-                      className="mt-2 h-9 w-full rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-900 outline-none focus:border-estonia-blue"
+                      type="checkbox"
+                      checked={config.enabled}
+                      disabled={savingHomeCardId !== null}
+                      onChange={() => void updateHomeCardConfig(config)}
+                      className="mt-0.5 h-4 w-4 shrink-0 accent-estonia-blue"
                     />
+                    <div className="min-w-0">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                        {config.group === "totalTop" ? t("nav.totalTop") : t("nav.gameHighs")}
+                      </div>
+                      <div className="mt-0.5 text-sm font-medium leading-snug text-slate-800">
+                        {homeCardLabelMap.get(config.id) ?? config.id}
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
+              {homeCardConfigStatus && (
+                <p role="status" className="mt-3 text-sm text-red-700">
+                  {homeCardConfigStatus}
+                </p>
+              )}
             </section>
 
             <section

@@ -27,8 +27,8 @@ const columns: Array<{ field: StatisticsField; label: string }> = [
     { field: "break_points", label: "BP" },
     { field: "plus_minus", label: "W-P" },
     { field: "serve_total", label: "Tot" },
-    { field: "serve_aces", label: "Ace" },
     { field: "serve_errors", label: "Err" },
+    { field: "serve_aces", label: "Ace" },
     { field: "reception_total", label: "Tot" },
     { field: "reception_errors", label: "Err" },
     { field: "reception_positive_pct", label: "Pos%" },
@@ -619,7 +619,7 @@ function StatisticsPage() {
                             {columns.map((column) => (
                                 <th
                                     key={`${column.field}-${column.label}`}
-                                    className={`whitespace-nowrap px-2 py-3 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-slate-600 ${column.field === "plus_minus" || column.field === "serve_errors" || column.field === "reception_excellent_pct" || column.field === "attack_efficiency"
+                                    className={`whitespace-nowrap px-2 py-3 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-slate-600 ${column.field === "plus_minus" || column.field === "serve_aces" || column.field === "reception_excellent_pct" || column.field === "attack_efficiency"
                                         ? "border-r-2 border-slate-300"
                                         : "border-r border-slate-200"
                                         }`}
@@ -697,7 +697,7 @@ function PlayerStatisticsTableRow({
             {columns.map((column) => (
                 <td
                     key={`${column.field}-${column.label}`}
-                    className={`whitespace-nowrap px-2 py-3 text-center text-sm text-slate-700 ${column.field === "plus_minus" || column.field === "serve_errors" || column.field === "reception_excellent_pct" || column.field === "attack_efficiency"
+                    className={`whitespace-nowrap px-2 py-3 text-center text-sm text-slate-700 ${column.field === "plus_minus" || column.field === "serve_aces" || column.field === "reception_excellent_pct" || column.field === "attack_efficiency"
                         ? "border-r-2 border-slate-300"
                         : "border-r border-slate-200"
                         }`}

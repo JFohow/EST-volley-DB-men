@@ -41,6 +41,7 @@ export type HomeSummary = {
   matchCoverage: {
     official: MatchCoverageCounts;
     competitive: MatchCoverageCounts;
+    nonCompetitive: MatchCoverageCounts;
     all: MatchCoverageCounts;
   };
 };
@@ -56,6 +57,7 @@ type MatchFlagRow = {
   match_id: number;
   am: boolean | null;
   vm: boolean | null;
+  mam: boolean | null;
   match_unavailable_stats: { stat_field: string }[] | null;
 };
 
@@ -66,7 +68,7 @@ async function fetchAllMatchFlags() {
   for (let from = 0; ; from += PAGE_SIZE) {
     const { data, error } = await supabase
       .from("matches")
-      .select("match_id, am, vm, match_unavailable_stats(stat_field)")
+      .select("match_id, am, vm, mam, match_unavailable_stats(stat_field)")
       .order("match_id", { ascending: true })
       .range(from, from + PAGE_SIZE - 1);
     if (error) throw error;
@@ -163,6 +165,7 @@ async function fetchHomeSummary(): Promise<HomeSummary> {
   const matchCoverage = {
     official: getMatchCoverageCounts(matchList.filter((match) => match.am === true)),
     competitive: getMatchCoverageCounts(matchList.filter((match) => match.vm === true)),
+    nonCompetitive: getMatchCoverageCounts(matchList.filter((match) => match.mam === true)),
     all: getMatchCoverageCounts(matchList),
   };
 

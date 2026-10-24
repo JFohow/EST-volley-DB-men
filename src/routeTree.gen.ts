@@ -9,56 +9,26 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as TriviaRouteImport } from './routes/trivia'
-import { Route as TotalTopRouteImport } from './routes/total-top'
-import { Route as StatisticsRouteImport } from './routes/statistics'
-import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
-import { Route as MatchesRouteImport } from './routes/matches'
-import { Route as GameHighsRouteImport } from './routes/game-highs'
-import { Route as CoachesRouteImport } from './routes/coaches'
-import { Route as AddRouteImport } from './routes/add'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as PlayersIndexRouteImport } from './routes/players/index'
-import { Route as StatsMatchIdRouteImport } from './routes/stats/$matchId'
-import { Route as PlayersPlayerIdRouteImport } from './routes/players/$playerId'
-import { Route as MatchMatchIdRouteImport } from './routes/match/$matchId'
+import { Route as AddRouteImport } from './routes/add'
+import { Route as CoachesRouteImport } from './routes/coaches'
+import { Route as GameHighsRouteImport } from './routes/game-highs'
+import { Route as MatchesRouteImport } from './routes/matches'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as StatisticsRouteImport } from './routes/statistics'
+import { Route as TotalTopRouteImport } from './routes/total-top'
+import { Route as TriviaRouteImport } from './routes/trivia'
 import { Route as CoachesCoachIdRouteImport } from './routes/coaches/$coachId'
-import { Route as StatsMatchIdAllRouteImport } from './routes/stats/$matchId/all'
+import { Route as MatchMatchIdRouteImport } from './routes/match/$matchId'
+import { Route as PlayersIndexRouteImport } from './routes/players/index'
+import { Route as PlayersPlayerIdRouteImport } from './routes/players/$playerId'
+import { Route as StatsMatchIdRouteImport } from './routes/stats/$matchId'
 import { Route as MatchMatchIdAllRouteImport } from './routes/match/$matchId/all'
+import { Route as StatsMatchIdAllRouteImport } from './routes/stats/$matchId/all'
 
-const TriviaRoute = TriviaRouteImport.update({
-  id: '/trivia',
-  path: '/trivia',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TotalTopRoute = TotalTopRouteImport.update({
-  id: '/total-top',
-  path: '/total-top',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const StatisticsRoute = StatisticsRouteImport.update({
-  id: '/statistics',
-  path: '/statistics',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
-  id: '/sitemap.xml',
-  path: '/sitemap.xml',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MatchesRoute = MatchesRouteImport.update({
-  id: '/matches',
-  path: '/matches',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const GameHighsRoute = GameHighsRouteImport.update({
-  id: '/game-highs',
-  path: '/game-highs',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CoachesRoute = CoachesRouteImport.update({
-  id: '/coaches',
-  path: '/coaches',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AddRoute = AddRouteImport.update({
@@ -66,29 +36,39 @@ const AddRoute = AddRouteImport.update({
   path: '/add',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const CoachesRoute = CoachesRouteImport.update({
+  id: '/coaches',
+  path: '/coaches',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PlayersIndexRoute = PlayersIndexRouteImport.update({
-  id: '/players/',
-  path: '/players/',
+const GameHighsRoute = GameHighsRouteImport.update({
+  id: '/game-highs',
+  path: '/game-highs',
   getParentRoute: () => rootRouteImport,
 } as any)
-const StatsMatchIdRoute = StatsMatchIdRouteImport.update({
-  id: '/stats/$matchId',
-  path: '/stats/$matchId',
+const MatchesRoute = MatchesRouteImport.update({
+  id: '/matches',
+  path: '/matches',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PlayersPlayerIdRoute = PlayersPlayerIdRouteImport.update({
-  id: '/players/$playerId',
-  path: '/players/$playerId',
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MatchMatchIdRoute = MatchMatchIdRouteImport.update({
-  id: '/match/$matchId',
-  path: '/match/$matchId',
+const StatisticsRoute = StatisticsRouteImport.update({
+  id: '/statistics',
+  path: '/statistics',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TotalTopRoute = TotalTopRouteImport.update({
+  id: '/total-top',
+  path: '/total-top',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TriviaRoute = TriviaRouteImport.update({
+  id: '/trivia',
+  path: '/trivia',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CoachesCoachIdRoute = CoachesCoachIdRouteImport.update({
@@ -96,15 +76,35 @@ const CoachesCoachIdRoute = CoachesCoachIdRouteImport.update({
   path: '/$coachId',
   getParentRoute: () => CoachesRoute,
 } as any)
-const StatsMatchIdAllRoute = StatsMatchIdAllRouteImport.update({
-  id: '/all',
-  path: '/all',
-  getParentRoute: () => StatsMatchIdRoute,
+const MatchMatchIdRoute = MatchMatchIdRouteImport.update({
+  id: '/match/$matchId',
+  path: '/match/$matchId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlayersIndexRoute = PlayersIndexRouteImport.update({
+  id: '/players/',
+  path: '/players/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlayersPlayerIdRoute = PlayersPlayerIdRouteImport.update({
+  id: '/players/$playerId',
+  path: '/players/$playerId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StatsMatchIdRoute = StatsMatchIdRouteImport.update({
+  id: '/stats/$matchId',
+  path: '/stats/$matchId',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const MatchMatchIdAllRoute = MatchMatchIdAllRouteImport.update({
   id: '/all',
   path: '/all',
   getParentRoute: () => MatchMatchIdRoute,
+} as any)
+const StatsMatchIdAllRoute = StatsMatchIdAllRouteImport.update({
+  id: '/all',
+  path: '/all',
+  getParentRoute: () => StatsMatchIdRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -237,53 +237,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/trivia': {
-      id: '/trivia'
-      path: '/trivia'
-      fullPath: '/trivia'
-      preLoaderRoute: typeof TriviaRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/total-top': {
-      id: '/total-top'
-      path: '/total-top'
-      fullPath: '/total-top'
-      preLoaderRoute: typeof TotalTopRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/statistics': {
-      id: '/statistics'
-      path: '/statistics'
-      fullPath: '/statistics'
-      preLoaderRoute: typeof StatisticsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sitemap.xml': {
-      id: '/sitemap.xml'
-      path: '/sitemap.xml'
-      fullPath: '/sitemap.xml'
-      preLoaderRoute: typeof SitemapDotxmlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/matches': {
-      id: '/matches'
-      path: '/matches'
-      fullPath: '/matches'
-      preLoaderRoute: typeof MatchesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/game-highs': {
-      id: '/game-highs'
-      path: '/game-highs'
-      fullPath: '/game-highs'
-      preLoaderRoute: typeof GameHighsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/coaches': {
-      id: '/coaches'
-      path: '/coaches'
-      fullPath: '/coaches'
-      preLoaderRoute: typeof CoachesRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/add': {
@@ -293,39 +251,53 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AddRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/coaches': {
+      id: '/coaches'
+      path: '/coaches'
+      fullPath: '/coaches'
+      preLoaderRoute: typeof CoachesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/players/': {
-      id: '/players/'
-      path: '/players'
-      fullPath: '/players/'
-      preLoaderRoute: typeof PlayersIndexRouteImport
+    '/game-highs': {
+      id: '/game-highs'
+      path: '/game-highs'
+      fullPath: '/game-highs'
+      preLoaderRoute: typeof GameHighsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/stats/$matchId': {
-      id: '/stats/$matchId'
-      path: '/stats/$matchId'
-      fullPath: '/stats/$matchId'
-      preLoaderRoute: typeof StatsMatchIdRouteImport
+    '/matches': {
+      id: '/matches'
+      path: '/matches'
+      fullPath: '/matches'
+      preLoaderRoute: typeof MatchesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/players/$playerId': {
-      id: '/players/$playerId'
-      path: '/players/$playerId'
-      fullPath: '/players/$playerId'
-      preLoaderRoute: typeof PlayersPlayerIdRouteImport
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/match/$matchId': {
-      id: '/match/$matchId'
-      path: '/match/$matchId'
-      fullPath: '/match/$matchId'
-      preLoaderRoute: typeof MatchMatchIdRouteImport
+    '/statistics': {
+      id: '/statistics'
+      path: '/statistics'
+      fullPath: '/statistics'
+      preLoaderRoute: typeof StatisticsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/total-top': {
+      id: '/total-top'
+      path: '/total-top'
+      fullPath: '/total-top'
+      preLoaderRoute: typeof TotalTopRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/trivia': {
+      id: '/trivia'
+      path: '/trivia'
+      fullPath: '/trivia'
+      preLoaderRoute: typeof TriviaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/coaches/$coachId': {
@@ -335,12 +307,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CoachesCoachIdRouteImport
       parentRoute: typeof CoachesRoute
     }
-    '/stats/$matchId/all': {
-      id: '/stats/$matchId/all'
-      path: '/all'
-      fullPath: '/stats/$matchId/all'
-      preLoaderRoute: typeof StatsMatchIdAllRouteImport
-      parentRoute: typeof StatsMatchIdRoute
+    '/match/$matchId': {
+      id: '/match/$matchId'
+      path: '/match/$matchId'
+      fullPath: '/match/$matchId'
+      preLoaderRoute: typeof MatchMatchIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/players/': {
+      id: '/players/'
+      path: '/players'
+      fullPath: '/players/'
+      preLoaderRoute: typeof PlayersIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/players/$playerId': {
+      id: '/players/$playerId'
+      path: '/players/$playerId'
+      fullPath: '/players/$playerId'
+      preLoaderRoute: typeof PlayersPlayerIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/stats/$matchId': {
+      id: '/stats/$matchId'
+      path: '/stats/$matchId'
+      fullPath: '/stats/$matchId'
+      preLoaderRoute: typeof StatsMatchIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/match/$matchId/all': {
       id: '/match/$matchId/all'
@@ -348,6 +341,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/match/$matchId/all'
       preLoaderRoute: typeof MatchMatchIdAllRouteImport
       parentRoute: typeof MatchMatchIdRoute
+    }
+    '/stats/$matchId/all': {
+      id: '/stats/$matchId/all'
+      path: '/all'
+      fullPath: '/stats/$matchId/all'
+      preLoaderRoute: typeof StatsMatchIdAllRouteImport
+      parentRoute: typeof StatsMatchIdRoute
     }
   }
 }

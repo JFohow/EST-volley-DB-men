@@ -20,6 +20,7 @@ export type MatchListItem = {
   has_additional_sets: boolean;
   additional_sets_count: number;
   statsCoverage: "full" | "playersOnly" | "none";
+  statisticsCoverage: "full" | "partial" | "none";
   match_unavailable_stats: MatchUnavailableStatRow[];
   match_sets: {
     set_number: number;
@@ -87,7 +88,7 @@ function hasFullStats(stats: MatchCoverageStatRow): boolean {
 }
 
 async function fetchAllMatches(): Promise<MatchListItem[]> {
-  const data: Omit<MatchListItem, "statsCoverage">[] = [];
+  const data: Omit<MatchListItem, "statsCoverage" | "statisticsCoverage">[] = [];
   for (let from = 0; ; from += 1000) {
     const { data: page, error } = await supabase
       .from("matches")
@@ -98,7 +99,9 @@ async function fetchAllMatches(): Promise<MatchListItem[]> {
       .order("match_id", { ascending: false })
       .range(from, from + 999);
     if (error) throw error;
-    data.push(...((page ?? []) as unknown as Omit<MatchListItem, "statsCoverage">[]));
+    data.push(
+      ...((page ?? []) as unknown as Omit<MatchListItem, "statsCoverage" | "statisticsCoverage">[]),
+    );
     if ((page ?? []).length < 1000) break;
   }
 
@@ -149,17 +152,21 @@ async function fetchAllMatches(): Promise<MatchListItem[]> {
     lastAppearanceId = maxAppearanceId;
   }
 
-  return ((data ?? []) as Omit<MatchListItem, "statsCoverage">[]).map((match) => {
+  return ((data ?? []) as Omit<MatchListItem, "statsCoverage" | "statisticsCoverage">[]).map((match) => {
     const coverage = coverageByMatch.get(match.match_id);
     const statsCoverage = coverage?.hasFullStats
       ? "full"
       : coverage?.hasAppearances
         ? "playersOnly"
         : "none";
+    const statisticsCoverage = coverage?.hasFullStats
+      ? (match.match_unavailable_stats.length > 0 ? "partial" : "full")
+      : "none";
 
     return {
       ...match,
       statsCoverage,
+      statisticsCoverage,
     };
   });
 }

@@ -4,6 +4,7 @@ import { allMatchesOptions, type MatchListItem } from "@/lib/matches.queries";
 import { useTranslation } from "react-i18next";
 import { FileText } from "lucide-react";
 import MultiSelect from "@/components/ui/multi-select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createFileRoute, useRouter, Outlet } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/matches")({
@@ -68,6 +69,9 @@ function MatchesPage() {
   const [matchType, setMatchType] = useState<"ALL" | "OFFICIAL" | "COMPETITIVE" | "NON_OFFICIAL">(
     "OFFICIAL",
   );
+  const [statisticsCoverageFilter, setStatisticsCoverageFilter] = useState<
+    "all" | "full" | "partial" | "none"
+  >("all");
   const [selectedYear, setSelectedYear] = useState<string[]>(["all"]);
   const [selectedCompetition, setSelectedCompetition] = useState<string[]>(["all"]);
   const [selectedOpponent, setSelectedOpponent] = useState<string[]>(["all"]);
@@ -75,12 +79,21 @@ function MatchesPage() {
 
   const matchTypeFilteredRows = useMemo(() => {
     return matches.filter((m) => {
-      if (matchType === "OFFICIAL") return m.am === true;
-      if (matchType === "COMPETITIVE") return m.vm === true;
-      if (matchType === "NON_OFFICIAL") return m.mam === true;
-      return true;
+      const matchesType =
+        matchType === "OFFICIAL"
+          ? m.am === true
+          : matchType === "COMPETITIVE"
+            ? m.vm === true
+            : matchType === "NON_OFFICIAL"
+              ? m.mam === true
+              : true;
+      const matchesCoverage =
+        statisticsCoverageFilter === "all" ||
+        m.statisticsCoverage === statisticsCoverageFilter;
+
+      return matchesType && matchesCoverage;
     });
-  }, [matches, matchType]);
+  }, [matches, matchType, statisticsCoverageFilter]);
 
   const yearOptions = useMemo(() => {
     const values = new Set<string>();
@@ -266,21 +279,7 @@ function MatchesPage() {
       <div className="text-slate-900">
         <header className="bg-estonia-dark px-6 py-10 text-white">
           <div className="mx-auto max-w-7xl">
-            <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
-                <p className="mt-2 max-w-3xl text-sm leading-relaxed text-white/75 sm:text-base">
-                  {t("common.databaseExplanation")}
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
-                <p className="mt-2 text-sm leading-relaxed text-white/75">
-                  {t("matches.additionalSetsInfo")}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-8 grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-3">
               <StatGroup
                 title={t("matches.competitiveMatches")}
                 total={vmMatches.length}
@@ -302,29 +301,34 @@ function MatchesPage() {
                 losses={allLosses}
               />
             </div>
+            <p className="mt-4 max-w-5xl text-xs leading-relaxed text-white/55">
+              {t("common.databaseExplanation")} {t("matches.additionalSetsInfo")}
+            </p>
           </div>
         </header>
 
         <main className="mx-auto w-full max-w-[1400px] px-6 py-10">
           <section className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="flex flex-wrap items-center gap-3">
-              <Segmented
-                value={matchType}
-                onChange={(v) => setMatchType(v as typeof matchType)}
-                options={[
-                  { value: "OFFICIAL", label: t("matches.officialMatches") },
-                  { value: "COMPETITIVE", label: t("matches.competitiveMatches") },
-                  { value: "NON_OFFICIAL", label: t("matches.nonOfficialMatches") },
-                  { value: "ALL", label: t("matches.allMatches") },
-                ]}
-              />
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="min-w-0 flex-1">
+                <Segmented
+                  value={matchType}
+                  onChange={(v) => setMatchType(v as typeof matchType)}
+                  options={[
+                    { value: "OFFICIAL", label: t("matches.officialMatches") },
+                    { value: "COMPETITIVE", label: t("matches.competitiveMatches") },
+                    { value: "NON_OFFICIAL", label: t("matches.nonOfficialMatches") },
+                    { value: "ALL", label: t("matches.allMatches") },
+                  ]}
+                />
+              </div>
 
-              <div className="ml-auto text-xs uppercase tracking-widest text-slate-400">
+              <div className="shrink-0 text-right text-xs uppercase tracking-widest text-slate-400">
                 {filtered.length} match{filtered.length === 1 ? "" : "es"}
               </div>
             </div>
 
-            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <MultiSelect
                 options={yearOptions.map((y) => ({ value: y, label: y }))}
                 value={selectedYear}
@@ -354,6 +358,23 @@ function MatchesPage() {
                 placeholder={t("matches.filters.allOpponents")}
                 className="w-full"
               />
+
+              <Select
+                value={statisticsCoverageFilter}
+                onValueChange={(value) =>
+                  setStatisticsCoverageFilter(value as typeof statisticsCoverageFilter)
+                }
+              >
+                <SelectTrigger className="w-full" aria-label={t("matches.filters.statisticsCoverage")}>
+                  <SelectValue placeholder={t("matches.filters.allStatistics")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("matches.filters.allStatistics")}</SelectItem>
+                  <SelectItem value="full">{t("matches.filters.fullStatistics")}</SelectItem>
+                  <SelectItem value="partial">{t("matches.filters.partialStatistics")}</SelectItem>
+                  <SelectItem value="none">{t("matches.filters.withoutStatistics")}</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </section>
 
@@ -464,18 +485,14 @@ function Segmented({
   options: { value: string; label: string }[];
 }) {
   return (
-    <div className="inline-flex overflow-hidden rounded-md border border-slate-200 bg-white text-xs font-semibold uppercase tracking-[0.14em]">
-      {options.map((o) => {
+    <div className="grid w-full grid-cols-2 overflow-hidden rounded-md border border-slate-200 bg-white text-xs font-semibold uppercase tracking-[0.12em] sm:grid-cols-4">
+      {options.map((o, index) => {
         const active = o.value === value;
         return (
           <button
             key={o.value}
             onClick={() => onChange(o.value)}
-            className={
-              active
-                ? "bg-estonia-dark px-4 py-2.5 text-white"
-                : "px-4 py-2.5 text-slate-500 hover:bg-slate-50"
-            }
+            className={`min-h-11 min-w-0 px-2 py-2 text-center text-[10px] leading-tight transition-colors sm:px-3 sm:text-xs ${index % 2 === 0 ? "border-r border-slate-200" : ""} ${index < 2 ? "border-b border-slate-200 sm:border-b-0" : ""} ${index < 3 ? "sm:border-r" : ""} ${active ? "bg-estonia-dark text-white" : "text-slate-600 hover:bg-slate-50"}`}
           >
             {o.label}
           </button>
