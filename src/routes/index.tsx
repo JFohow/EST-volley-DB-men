@@ -31,7 +31,6 @@ export const Route = createFileRoute("/")({
       context.queryClient.ensureQueryData(totalTopOptions()),
       context.queryClient.ensureQueryData(gameHighsOptions()),
       context.queryClient.ensureQueryData(homeCardConfigOptions()),
-      context.queryClient.ensureQueryData(homeCardConfigOptions()),
     ]),
   component: HomePage,
   errorComponent: HomeError,

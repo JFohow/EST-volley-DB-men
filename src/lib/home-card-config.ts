@@ -65,7 +65,12 @@ export const homeCardConfigOptions = () =>
                 .from("home_card_configs")
                 .select("metric_id, enabled");
 
-            if (error) throw error;
+            if (error) {
+                if (error.code === "PGRST205" || error.code === "42P01") {
+                    return getDefaultHomeCardConfigs();
+                }
+                throw error;
+            }
 
             const enabledById = new Map((data ?? []).map((row) => [row.metric_id, row.enabled]));
             return getDefaultHomeCardConfigs().map((config) => ({

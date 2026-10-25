@@ -33,6 +33,7 @@ export type GameHighRow = {
   competition: string | null;
   competitionEn: string | null;
   maxEstoniaSetPoints: number | null;
+  maxSetOpponentPoints: number | null;
   matchDate: string;
   score: string;
   vm: boolean | null;
@@ -121,6 +122,7 @@ type MatchRow = {
 type MatchSetRow = {
   match_id: number;
   estonia_points: number;
+  opponent_points: number;
 };
 
 function normalizeRelation<T>(value: T | T[] | null): T | null {
@@ -147,19 +149,15 @@ function deriveAttackEfficiency(stats: {
   attack_blocked: number | null;
   attack_errors: number | null;
 }): number | null {
-  if (
-    stats.attack_total == null ||
-    stats.attack_total === 0 ||
-    stats.attack_kills == null ||
-    stats.attack_blocked == null ||
-    stats.attack_errors == null
-  ) {
+  if (stats.attack_total == null || stats.attack_total === 0) {
     return null;
   }
 
-  return (
-    ((stats.attack_kills - stats.attack_blocked - stats.attack_errors) / stats.attack_total) * 100
-  );
+  const kills = stats.attack_kills ?? 0;
+  const blocked = stats.attack_blocked ?? 0;
+  const errors = stats.attack_errors ?? 0;
+
+  return ((kills - blocked - errors) / stats.attack_total) * 100;
 }
 
 async function fetchGameHighs(): Promise<GameHighRow[]> {
@@ -169,7 +167,10 @@ async function fetchGameHighs(): Promise<GameHighRow[]> {
 
   const { count: totalAppearanceCount, error: totalAppearanceCountError } = await supabase
     .from("appearances")
-    .select("appearance_id, player_match_stats!inner(stats_version)", { count: "exact", head: true });
+    .select("appearance_id, player_match_stats!inner(stats_version)", {
+      count: "exact",
+      head: true,
+    });
 
   if (totalAppearanceCountError) {
     throw totalAppearanceCountError;
@@ -222,16 +223,19 @@ async function fetchGameHighs(): Promise<GameHighRow[]> {
 
   const { data: matchSetsData, error: matchSetsError } = await supabase
     .from("match_sets")
-    .select("match_id, estonia_points")
+    .select("match_id, estonia_points, opponent_points")
     .in("match_id", matchIds);
 
   if (matchSetsError) throw matchSetsError;
 
-  const maxSetPointsByMatch = new Map<number, number>();
+  const maxSetByMatch = new Map<number, { estonia: number; opponent: number }>();
   for (const setRow of (matchSetsData ?? []) as MatchSetRow[]) {
-    const current = maxSetPointsByMatch.get(setRow.match_id);
-    if (current == null || setRow.estonia_points > current) {
-      maxSetPointsByMatch.set(setRow.match_id, setRow.estonia_points);
+    const current = maxSetByMatch.get(setRow.match_id);
+    if (current == null || setRow.estonia_points > current.estonia) {
+      maxSetByMatch.set(setRow.match_id, {
+        estonia: setRow.estonia_points,
+        opponent: setRow.opponent_points,
+      });
     }
   }
 
@@ -301,7 +305,8 @@ async function fetchGameHighs(): Promise<GameHighRow[]> {
         opponentEn: match.opponent_en,
         competition: match.competition,
         competitionEn: match.competition_en,
-        maxEstoniaSetPoints: maxSetPointsByMatch.get(item.match_id) ?? null,
+        maxEstoniaSetPoints: maxSetByMatch.get(item.match_id)?.estonia ?? null,
+        maxSetOpponentPoints: maxSetByMatch.get(item.match_id)?.opponent ?? null,
         matchDate: match.match_date,
         score: `${match.estonia_sets}-${match.opponent_sets}`,
         vm: match.vm,
