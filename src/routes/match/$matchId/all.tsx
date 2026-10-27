@@ -1,13 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { matchOptions } from "@/lib/match-stats.queries";
 import { useTranslation } from "react-i18next";
 
 export const Route = createFileRoute("/match/$matchId/all")({
     loader: ({ context, params }) =>
-        context.queryClient.ensureQueryData(
-            matchOptions(Number(params.matchId))
-        ),
+        context.queryClient.ensureQueryData(matchOptions(Number(params.matchId))),
 
     component: MatchStatsAllPage,
 });
@@ -16,9 +14,7 @@ function MatchStatsAllPage() {
     const { matchId } = Route.useParams();
     const { t, i18n } = useTranslation();
 
-    const { data } = useSuspenseQuery(
-        matchOptions(Number(matchId))
-    );
+    const { data } = useSuspenseQuery(matchOptions(Number(matchId)));
 
     const match = data.match;
     const players = data.players;
@@ -27,11 +23,16 @@ function MatchStatsAllPage() {
     );
     const currentLanguage = i18n.language?.startsWith("et") ? "et" : "en";
 
-    const opponent = currentLanguage === "et" ? match.opponent : match.opponent_en ?? match.opponent;
-    const competition = currentLanguage === "et" ? match.competition : match.competition_en ?? match.competition;
+    const opponent =
+        currentLanguage === "et" ? match.opponent : (match.opponent_en ?? match.opponent);
+    const competition =
+        currentLanguage === "et" ? match.competition : (match.competition_en ?? match.competition);
     const city = match.city_en ?? match.city;
     const estoniaLabel = t("common.estonia");
-    const sourceUrl = typeof match.source_row === "string" && match.source_row.trim() ? match.source_row.trim() : null;
+    const sourceUrl =
+        typeof match.source_row === "string" && match.source_row.trim()
+            ? match.source_row.trim()
+            : null;
 
     const getCountryFlag = (country: string | null | undefined) => {
         const normalized = (country ?? "").trim().toLowerCase();
@@ -70,13 +71,25 @@ function MatchStatsAllPage() {
     };
 
     const officialSetScores = (match.match_sets ?? [])
-        .filter((set: { set_number: number; estonia_points: number; opponent_points: number }) => set.set_number <= 5)
-        .map((set: { estonia_points: number; opponent_points: number }) => `${set.estonia_points}:${set.opponent_points}`)
+        .filter(
+            (set: { set_number: number; estonia_points: number; opponent_points: number }) =>
+                set.set_number <= 5,
+        )
+        .map(
+            (set: { estonia_points: number; opponent_points: number }) =>
+                `${set.estonia_points}:${set.opponent_points}`,
+        )
         .join(" • ");
 
     const additionalSetScores = (match.match_sets ?? [])
-        .filter((set: { set_number: number; estonia_points: number; opponent_points: number }) => set.set_number > 5)
-        .map((set: { estonia_points: number; opponent_points: number }) => `${set.estonia_points}:${set.opponent_points}`)
+        .filter(
+            (set: { set_number: number; estonia_points: number; opponent_points: number }) =>
+                set.set_number > 5,
+        )
+        .map(
+            (set: { estonia_points: number; opponent_points: number }) =>
+                `${set.estonia_points}:${set.opponent_points}`,
+        )
         .join(" • ");
 
     const formatStat = (value: number | null): string => {
@@ -156,16 +169,20 @@ function MatchStatsAllPage() {
         { field: "attack_efficiency", label: "Eff%" },
     ];
 
-    const blockColumns = [
-        { field: "block_points", label: "PTS" },
-    ];
+    const blockColumns = [{ field: "block_points", label: "PTS" }];
 
     const calculateTotals = () => {
         const totals: Record<string, number> = {};
         const counts: Record<string, number> = {};
         let receptionPositiveCount = 0;
         let receptionExcellentCount = 0;
-        const allFields = [...statColumns, ...serveColumns, ...receptionColumns, ...attackColumns, ...blockColumns];
+        const allFields = [
+            ...statColumns,
+            ...serveColumns,
+            ...receptionColumns,
+            ...attackColumns,
+            ...blockColumns,
+        ];
 
         allFields.forEach((col) => {
             totals[col.field] = 0;
@@ -212,19 +229,23 @@ function MatchStatsAllPage() {
         if (
             fieldName === "attack_kill_pct" &&
             ["attack_total", "attack_kills"].some((field) => unavailableStats.has(field))
-        ) return "";
+        )
+            return "";
         if (
             fieldName === "attack_efficiency" &&
             ["attack_total", "attack_kills", "attack_blocked", "attack_errors"].some((field) =>
                 unavailableStats.has(field),
             )
-        ) return "";
+        )
+            return "";
         if (
             (fieldName === "reception_positive_pct" && unavailableStats.has("reception_positive_pct")) ||
-            (fieldName === "reception_excellent_pct" && unavailableStats.has("reception_excellent_pct")) ||
+            (fieldName === "reception_excellent_pct" &&
+                unavailableStats.has("reception_excellent_pct")) ||
             ((fieldName === "reception_positive_pct" || fieldName === "reception_excellent_pct") &&
                 unavailableStats.has("reception_total"))
-        ) return "";
+        )
+            return "";
 
         const value = totals[fieldName];
         if (value === undefined) return "-";
@@ -236,7 +257,11 @@ function MatchStatsAllPage() {
 
         if (fieldName === "attack_efficiency") {
             if (!totals.attack_total) return "";
-            return formatPercent(((totals.attack_kills - totals.attack_blocked - totals.attack_errors) / totals.attack_total) * 100);
+            return formatPercent(
+                ((totals.attack_kills - totals.attack_blocked - totals.attack_errors) /
+                    totals.attack_total) *
+                100,
+            );
         }
 
         if (fieldName === "reception_positive_pct") {
@@ -257,7 +282,6 @@ function MatchStatsAllPage() {
         return formatStat(value);
     };
 
-
     return (
         <div className="text-slate-900">
             <div className="mx-auto max-w-7xl px-6 py-10">
@@ -265,7 +289,9 @@ function MatchStatsAllPage() {
                     <div className="flex items-center justify-between gap-6">
                         <div className="flex-shrink-0">
                             <div className="text-[5rem] leading-none">{getCountryFlag("Estonia")}</div>
-                            <p className="mt-2 text-center text-base font-semibold text-slate-700">{estoniaLabel}</p>
+                            <p className="mt-2 text-center text-base font-semibold text-slate-700">
+                                {estoniaLabel}
+                            </p>
                         </div>
 
                         <div className="flex-1 text-center">
@@ -274,9 +300,7 @@ function MatchStatsAllPage() {
                             </h1>
 
                             {officialSetScores && (
-                                <div className="mt-2 text-sm font-mono text-slate-700">
-                                    {officialSetScores}
-                                </div>
+                                <div className="mt-2 text-sm font-mono text-slate-700">{officialSetScores}</div>
                             )}
 
                             {match.match_unavailable_stats?.length > 0 && (
@@ -286,9 +310,7 @@ function MatchStatsAllPage() {
                             )}
 
                             {additionalSetScores && (
-                                <div className="mt-1 text-xs italic text-amber-600">
-                                    + {additionalSetScores}
-                                </div>
+                                <div className="mt-1 text-xs italic text-amber-600">+ {additionalSetScores}</div>
                             )}
 
                             <p className="mt-4 text-sm font-semibold text-slate-700">
@@ -299,23 +321,15 @@ function MatchStatsAllPage() {
                                 })}
                             </p>
 
-                            <p className="mt-2 text-sm text-slate-600">
-                                {competition}
-                            </p>
+                            <p className="mt-2 text-sm text-slate-600">{competition}</p>
 
-                            {city && (
-                                <p className="text-sm text-slate-500">
-                                    📍 {city}
-                                </p>
-                            )}
+                            {city && <p className="text-sm text-slate-500">📍 {city}</p>}
 
                             {officialSetScores && (
-                                <div className="mt-4 text-sm font-mono text-slate-700">
-                                    {officialSetScores}
-                                </div>
+                                <div className="mt-4 text-sm font-mono text-slate-700">{officialSetScores}</div>
                             )}
 
-                            {(
+                            {
                                 <div className="mt-3 text-xs">
                                     {sourceUrl ? (
                                         <a
@@ -333,12 +347,10 @@ function MatchStatsAllPage() {
                                         </span>
                                     )}
                                 </div>
-                            )}
+                            }
 
                             {additionalSetScores && (
-                                <div className="mt-2 text-xs italic text-amber-600">
-                                    + {additionalSetScores}
-                                </div>
+                                <div className="mt-2 text-xs italic text-amber-600">+ {additionalSetScores}</div>
                             )}
                         </div>
 
@@ -361,22 +373,40 @@ function MatchStatsAllPage() {
                                 <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-600 border-r-2 border-slate-300">
                                     Player
                                 </th>
-                                <th colSpan={5} className="border-r-2 border-slate-300 px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                <th
+                                    colSpan={5}
+                                    className="border-r-2 border-slate-300 px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                                >
                                     Sets
                                 </th>
-                                <th colSpan={3} className="border-r-2 border-slate-300 px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                <th
+                                    colSpan={3}
+                                    className="border-r-2 border-slate-300 px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                                >
                                     Points
                                 </th>
-                                <th colSpan={3} className="border-r-2 border-slate-300 px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                <th
+                                    colSpan={3}
+                                    className="border-r-2 border-slate-300 px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                                >
                                     Serve
                                 </th>
-                                <th colSpan={4} className="border-r-2 border-slate-300 px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                <th
+                                    colSpan={4}
+                                    className="border-r-2 border-slate-300 px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                                >
                                     Reception
                                 </th>
-                                <th colSpan={6} className="border-r-2 border-slate-300 px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                <th
+                                    colSpan={6}
+                                    className="border-r-2 border-slate-300 px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                                >
                                     Attack
                                 </th>
-                                <th colSpan={1} className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                <th
+                                    colSpan={1}
+                                    className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                                >
                                     Block
                                 </th>
                             </tr>
@@ -440,19 +470,32 @@ function MatchStatsAllPage() {
                                 const stats = player.player_match_stats?.[0];
 
                                 return (
-                                    <tr key={player.appearance_id} className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}>
+                                    <tr
+                                        key={player.appearance_id}
+                                        className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}
+                                    >
                                         <td className="border-r border-slate-200 px-4 py-3 text-center font-bold text-slate-900">
                                             {player.shirt_number || "—"}
                                         </td>
                                         <td className="border-r-2 border-slate-300 px-4 py-3 text-left text-sm font-medium text-slate-900">
-                                            {Array.isArray(player.players) ? `${player.players[0]?.first_name} ${player.players[0]?.last_name}` : `${player.players?.first_name} ${player.players?.last_name}`}
+                                            <Link
+                                                to="/players/$playerId"
+                                                params={{ playerId: String(player.player_id) }}
+                                                className="hover:text-estonia-blue hover:underline"
+                                            >
+                                                {Array.isArray(player.players)
+                                                    ? `${player.players[0]?.first_name} ${player.players[0]?.last_name}`
+                                                    : `${player.players?.first_name} ${player.players?.last_name}`}
+                                            </Link>
                                         </td>
                                         {setColumns.map((set, idx) => (
                                             <td
                                                 key={`set-${set}`}
                                                 className={`px-2 py-3 text-center text-sm text-slate-700 ${idx === setColumns.length - 1 ? "border-r-2 border-slate-300" : "border-r border-slate-200"}`}
                                             >
-                                                {((player as unknown) as Record<string, string | null | undefined>)[`set${set}_position`] ?? ""}
+                                                {(player as unknown as Record<string, string | null | undefined>)[
+                                                    `set${set}_position`
+                                                ] ?? ""}
                                             </td>
                                         ))}
                                         {statColumns.map((col, idx) => (
@@ -460,7 +503,9 @@ function MatchStatsAllPage() {
                                                 key={col.field}
                                                 className={`px-2 py-3 text-center text-sm text-slate-700 ${idx === statColumns.length - 1 ? "border-r-2 border-slate-300" : "border-r border-slate-200"}`}
                                             >
-                                                {stats ? formatStat(stats[col.field as keyof typeof stats] as number | null) : "-"}
+                                                {stats
+                                                    ? formatStat(stats[col.field as keyof typeof stats] as number | null)
+                                                    : "-"}
                                             </td>
                                         ))}
                                         {serveColumns.map((col) => (
@@ -468,7 +513,9 @@ function MatchStatsAllPage() {
                                                 key={col.field}
                                                 className="px-2 py-3 text-center text-sm text-slate-700 border-r-2 border-slate-300"
                                             >
-                                                {stats ? formatStat(stats[col.field as keyof typeof stats] as number | null) : "-"}
+                                                {stats
+                                                    ? formatStat(stats[col.field as keyof typeof stats] as number | null)
+                                                    : "-"}
                                             </td>
                                         ))}
                                         {receptionColumns.map((col) => (
@@ -476,7 +523,9 @@ function MatchStatsAllPage() {
                                                 key={col.field}
                                                 className="px-2 py-3 text-center text-sm text-slate-700 border-r-2 border-slate-300"
                                             >
-                                                {stats ? formatStat(stats[col.field as keyof typeof stats] as number | null) : "-"}
+                                                {stats
+                                                    ? formatStat(stats[col.field as keyof typeof stats] as number | null)
+                                                    : "-"}
                                             </td>
                                         ))}
                                         {attackColumns.map((col) => (
@@ -489,18 +538,22 @@ function MatchStatsAllPage() {
                                                         ? formatPercent(computeAttackKillPct(stats as Record<string, unknown>))
                                                         : col.field === "attack_efficiency"
                                                             ? formatPercent(computeAttackEff(stats as Record<string, unknown>))
-                                                            : col.field === "reception_positive_pct" || col.field === "reception_excellent_pct"
-                                                                ? formatPercent(stats[col.field as keyof typeof stats] as number | null)
-                                                                : formatStat(stats[col.field as keyof typeof stats] as number | null)
+                                                            : col.field === "reception_positive_pct" ||
+                                                                col.field === "reception_excellent_pct"
+                                                                ? formatPercent(
+                                                                    stats[col.field as keyof typeof stats] as number | null,
+                                                                )
+                                                                : formatStat(
+                                                                    stats[col.field as keyof typeof stats] as number | null,
+                                                                )
                                                     : "-"}
                                             </td>
                                         ))}
                                         {blockColumns.map((col) => (
-                                            <td
-                                                key={col.field}
-                                                className="px-2 py-3 text-center text-sm text-slate-700"
-                                            >
-                                                {stats ? formatStat(stats[col.field as keyof typeof stats] as number | null) : "-"}
+                                            <td key={col.field} className="px-2 py-3 text-center text-sm text-slate-700">
+                                                {stats
+                                                    ? formatStat(stats[col.field as keyof typeof stats] as number | null)
+                                                    : "-"}
                                             </td>
                                         ))}
                                     </tr>

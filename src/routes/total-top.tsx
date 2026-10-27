@@ -11,6 +11,11 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import MultiSelect from "@/components/ui/multi-select";
+import {
+    addStatCoverage,
+    createStatCoverage,
+    type UnavailableStatField,
+} from "@/lib/match-unavailable-stats";
 import { useTranslation } from "react-i18next";
 
 const positionOrder = ["SET", "OPP", "OH", "MB", "LIB"];
@@ -99,9 +104,8 @@ function getStatValue(group: PlayerTotals, stat: TotalTopStatKey) {
         return (group.serveAcePctAces / group.serveAcePctTotal) * 100;
     }
     if (stat === "serveAceErrorRatio") {
-        if (group.serveAceErrorRatioTotal < 5 || group.serveAceErrorRatioAces <= 0) return null;
-        if (group.serveAceErrorRatioErrors <= 0) return Number.POSITIVE_INFINITY;
-        return group.serveAceErrorRatioAces / group.serveAceErrorRatioErrors;
+        if (group.serveAces <= 0) return null;
+        return group.serveErrors / group.serveAces;
     }
     if (stat === "receptionPositivePctWorst") return group.receptionPositivePct;
     if (stat === "receptionExcellentPctWorst") return group.receptionExcellentPct;
@@ -156,7 +160,11 @@ function isPercentageMetric(stat: TotalTopStatKey): boolean {
     );
 }
 
-function formatMetricValue(stat: TotalTopStatKey, value: number | null | undefined, mode: SortMode) {
+function formatMetricValue(
+    stat: TotalTopStatKey,
+    value: number | null | undefined,
+    mode: SortMode,
+) {
     if (value == null) {
         return "—";
     }
@@ -168,6 +176,140 @@ function formatMetricValue(stat: TotalTopStatKey, value: number | null | undefin
         : normalized.toFixed(decimals);
 
     return isPercentageMetric(stat) ? `${valueLabel}%` : valueLabel;
+}
+
+type ServeColumnKey = "serveTotal" | "serveAces" | "serveAcePct" | "serveErrors" | "serveErrorPct";
+type ServeDetails = Record<ServeColumnKey, string>;
+
+const serveColumnLabels: Record<ServeColumnKey, string> = {
+    serveTotal: "S TOT",
+    serveErrors: "S ERR TOT",
+    serveErrorPct: "S ERR %",
+    serveAces: "S ACE TOT",
+    serveAcePct: "S ACE %",
+};
+
+const serveColumnOrder: ServeColumnKey[] = [
+    "serveTotal",
+    "serveErrors",
+    "serveErrorPct",
+    "serveAces",
+    "serveAcePct",
+];
+
+const serveBoldColumn: Partial<Record<TotalTopStatKey, ServeColumnKey>> = {
+    serveTotal: "serveTotal",
+    serveAces: "serveAces",
+    serveAcePct: "serveAcePct",
+    serveErrors: "serveErrors",
+    serveErrorsLeast: "serveErrors",
+    serveErrorPct: "serveErrorPct",
+    serveErrorPctLeast: "serveErrorPct",
+};
+
+const serveTiebreakDirection: Partial<Record<TotalTopStatKey, "asc" | "desc">> = {
+    serveAces: "asc",
+    serveAcePct: "asc",
+    serveErrors: "asc",
+    serveErrorPct: "asc",
+    serveErrorsLeast: "desc",
+    serveErrorPctLeast: "desc",
+};
+
+const serveTiebreakNotes: Partial<Record<TotalTopStatKey, { en: string; et: string }>> = {
+    serveAces: {
+        en: "Ties broken by S TOT: fewer serves ranks higher.",
+        et: "Võrdse tulemuse korral loeb S TOT: vähem servi on parem.",
+    },
+    serveAcePct: {
+        en: "Ties broken by S TOT: fewer serves ranks higher.",
+        et: "Võrdse tulemuse korral loeb S TOT: vähem servi on parem.",
+    },
+    serveErrors: {
+        en: "Ties broken by S TOT: fewer serves ranks higher.",
+        et: "Võrdse tulemuse korral loeb S TOT: vähem servi on parem.",
+    },
+    serveErrorPct: {
+        en: "Ties broken by S TOT: fewer serves ranks higher.",
+        et: "Võrdse tulemuse korral loeb S TOT: vähem servi on parem.",
+    },
+    serveErrorsLeast: {
+        en: "Ties broken by S TOT: more serves ranks higher.",
+        et: "Võrdse tulemuse korral loeb S TOT: rohkem servi on parem.",
+    },
+    serveErrorPctLeast: {
+        en: "Ties broken by S TOT: more serves ranks higher.",
+        et: "Võrdse tulemuse korral loeb S TOT: rohkem servi on parem.",
+    },
+};
+
+function getServeColumns(_metric: TotalTopStatKey): ServeColumnKey[] {
+    return serveColumnOrder;
+}
+
+// The ratio has no bold serve column, so its value stays visible.
+function showValueColumn(metric: TotalTopStatKey): boolean {
+    return !serveMetrics.has(metric) || metric === "serveAceErrorRatio";
+}
+
+const serveMetrics = new Set<TotalTopStatKey>([
+    "serveTotal",
+    "serveAces",
+    "serveAcePct",
+    "serveErrors",
+    "serveErrorPct",
+    "serveErrorsLeast",
+    "serveErrorPctLeast",
+    "serveAceErrorRatio",
+]);
+
+const statFieldsByMetric: Partial<Record<TotalTopStatKey, UnavailableStatField[]>> = {
+    points: ["points"],
+    blockPoints: ["block_points"],
+    plusMinus: ["plus_minus"],
+    breakPoints: ["break_points"],
+    serveTotal: ["serve_total"],
+    serveAces: ["serve_aces"],
+    serveAcePct: ["serve_total", "serve_aces"],
+    serveErrors: ["serve_errors"],
+    serveErrorsLeast: ["serve_errors"],
+    serveErrorPct: ["serve_total", "serve_errors"],
+    serveErrorPctLeast: ["serve_total", "serve_errors"],
+    serveAceErrorRatio: ["serve_total", "serve_aces", "serve_errors"],
+    receptionTotal: ["reception_total"],
+    receptionErrors: ["reception_errors"],
+    receptionPositivePct: ["reception_total", "reception_positive_pct"],
+    receptionPositivePctWorst: ["reception_total", "reception_positive_pct"],
+    receptionExcellentPct: ["reception_total", "reception_excellent_pct"],
+    receptionExcellentPctWorst: ["reception_total", "reception_excellent_pct"],
+    attackTotal: ["attack_total"],
+    attackErrors: ["attack_errors"],
+    attackBlocked: ["attack_blocked"],
+    attackKills: ["attack_kills"],
+    attackKillPct: ["attack_total", "attack_kills"],
+    attackKillPctWorst: ["attack_total", "attack_kills"],
+    attackEfficiency: ["attack_total", "attack_kills", "attack_blocked", "attack_errors"],
+    attackEfficiencyWorst: ["attack_total", "attack_kills", "attack_blocked", "attack_errors"],
+};
+
+function hasStatCoverage(totals: PlayerTotals, metric: TotalTopStatKey): boolean {
+    const fields = statFieldsByMetric[metric];
+    return !fields || fields.every((field) => totals.coverage[field] > 0);
+}
+
+function getServeDetails(totals: PlayerTotals, mode: SortMode): ServeDetails {
+    const count = (stat: "serveTotal" | "serveAces" | "serveErrors") =>
+        mode === "perGame" ? getPerGameValue(totals, stat) : getStatValue(totals, stat);
+    const detail = (metric: TotalTopStatKey, value: number | null | undefined) =>
+        formatMetricValue(metric, hasStatCoverage(totals, metric) ? value : null, mode);
+
+    return {
+        serveTotal: detail("serveTotal", count("serveTotal")),
+        serveAces: detail("serveAces", count("serveAces")),
+        serveAcePct: detail("serveAcePct", getStatValue(totals, "serveAcePct")),
+        serveErrors: detail("serveErrors", count("serveErrors")),
+        serveErrorPct: detail("serveErrorPct", getStatValue(totals, "serveErrorPct")),
+    };
 }
 
 function createEmptyTotals(): PlayerTotals {
@@ -203,15 +345,17 @@ function createEmptyTotals(): PlayerTotals {
         attackKillPct: 0,
         attackEfficiency: 0,
         breakPoints: 0,
+        coverage: createStatCoverage(),
     };
 }
 
 function getSetSlotSummary(
     stats: Record<string, unknown> | null,
     totalSetsInMatch: number,
+    hasPositionInfo: boolean,
 ): { setsPlayed: number; setsBench: number; matchNotPlayed: number } {
     const boundedSetCount = Math.min(Math.max(totalSetsInMatch, 0), 6);
-    if (!stats || boundedSetCount === 0) {
+    if (!stats || boundedSetCount === 0 || !hasPositionInfo) {
         return { setsPlayed: 0, setsBench: 0, matchNotPlayed: 0 };
     }
 
@@ -224,7 +368,9 @@ function getSetSlotSummary(
         stats["set6_position"],
     ].slice(0, boundedSetCount);
 
-    const setsPlayed = slots.filter((value) => typeof value === "string" && value.trim() !== "").length;
+    const setsPlayed = slots.filter(
+        (value) => typeof value === "string" && value.trim() !== "",
+    ).length;
     const setsBench = boundedSetCount - setsPlayed;
 
     return {
@@ -528,35 +674,47 @@ function TotalTopPage() {
             }
         >();
 
+        const createGroupedBucket = () => ({
+            totals: createEmptyTotals(),
+            receptionPositiveCount: 0,
+            receptionExcellentCount: 0,
+            qualifiedReceptionTotalForPositive: 0,
+            qualifiedReceptionTotalForExcellent: 0,
+            qualifiedAttackTotal: 0,
+            qualifiedAttackKills: 0,
+            qualifiedAttackEfficiencyTotal: 0,
+            qualifiedAttackEfficiencyKills: 0,
+            qualifiedAttackEfficiencyBlocked: 0,
+            qualifiedAttackEfficiencyErrors: 0,
+        });
+
         filteredEntries.forEach(({ playerId, appearance }) => {
             const stats = pickStatsRowForType(appearance.statsRows, matchType) as Record<
                 string,
                 number | string | null
             > | null;
             if (!stats) {
+                // The player is in the appearance list, so it counts toward appearances
+                // even when no stats row exists for this match type.
+                if (displayMode !== "perGame") {
+                    const bucket = groupedTotals.get(playerId) ?? createGroupedBucket();
+                    bucket.totals.appearances += 1;
+                    groupedTotals.set(playerId, bucket);
+                }
                 return;
             }
 
-            const totalSetsInMatch = Math.min(Math.max(appearance.estoniaSets + appearance.opponentSets, 0), 6);
-            const setSummary = getSetSlotSummary(stats, totalSetsInMatch);
+            const totalSetsInMatch = Math.min(
+                Math.max(appearance.estoniaSets + appearance.opponentSets, 0),
+                6,
+            );
+            const setSummary = getSetSlotSummary(stats, totalSetsInMatch, appearance.hasPositionInfo);
 
             if (displayMode === "perGame" && setSummary.setsPlayed === 0) {
                 return;
             }
 
-            const bucket = groupedTotals.get(playerId) ?? {
-                totals: createEmptyTotals(),
-                receptionPositiveCount: 0,
-                receptionExcellentCount: 0,
-                qualifiedReceptionTotalForPositive: 0,
-                qualifiedReceptionTotalForExcellent: 0,
-                qualifiedAttackTotal: 0,
-                qualifiedAttackKills: 0,
-                qualifiedAttackEfficiencyTotal: 0,
-                qualifiedAttackEfficiencyKills: 0,
-                qualifiedAttackEfficiencyBlocked: 0,
-                qualifiedAttackEfficiencyErrors: 0,
-            };
+            const bucket = groupedTotals.get(playerId) ?? createGroupedBucket();
 
             bucket.totals.appearances += 1;
             bucket.totals.sets += setSummary.setsPlayed;
@@ -575,23 +733,72 @@ function TotalTopPage() {
                 bucket.totals.bench += 1;
             }
 
+            addStatCoverage(bucket.totals.coverage, stats, new Set(appearance.unavailableStats));
             const unavailableStats = new Set<string>(appearance.unavailableStats);
             const addKnownStat = (field: string, value: unknown, total: number) =>
                 unavailableStats.has(field) ? total : total + Number(value ?? 0);
 
             bucket.totals.points = addKnownStat("points", stats.points, bucket.totals.points);
-            bucket.totals.blockPoints = addKnownStat("block_points", stats.block_points, bucket.totals.blockPoints);
-            bucket.totals.plusMinus = addKnownStat("plus_minus", stats.plus_minus, bucket.totals.plusMinus);
-            bucket.totals.serveTotal = addKnownStat("serve_total", stats.serve_total, bucket.totals.serveTotal);
-            bucket.totals.serveAces = addKnownStat("serve_aces", stats.serve_aces, bucket.totals.serveAces);
-            bucket.totals.serveErrors = addKnownStat("serve_errors", stats.serve_errors, bucket.totals.serveErrors);
-            bucket.totals.receptionTotal = addKnownStat("reception_total", stats.reception_total, bucket.totals.receptionTotal);
-            bucket.totals.receptionErrors = addKnownStat("reception_errors", stats.reception_errors, bucket.totals.receptionErrors);
-            bucket.totals.attackTotal = addKnownStat("attack_total", stats.attack_total, bucket.totals.attackTotal);
-            bucket.totals.attackErrors = addKnownStat("attack_errors", stats.attack_errors, bucket.totals.attackErrors);
-            bucket.totals.attackBlocked = addKnownStat("attack_blocked", stats.attack_blocked, bucket.totals.attackBlocked);
-            bucket.totals.attackKills = addKnownStat("attack_kills", stats.attack_kills, bucket.totals.attackKills);
-            bucket.totals.breakPoints = addKnownStat("break_points", stats.break_points, bucket.totals.breakPoints);
+            bucket.totals.blockPoints = addKnownStat(
+                "block_points",
+                stats.block_points,
+                bucket.totals.blockPoints,
+            );
+            bucket.totals.plusMinus = addKnownStat(
+                "plus_minus",
+                stats.plus_minus,
+                bucket.totals.plusMinus,
+            );
+            bucket.totals.serveTotal = addKnownStat(
+                "serve_total",
+                stats.serve_total,
+                bucket.totals.serveTotal,
+            );
+            bucket.totals.serveAces = addKnownStat(
+                "serve_aces",
+                stats.serve_aces,
+                bucket.totals.serveAces,
+            );
+            bucket.totals.serveErrors = addKnownStat(
+                "serve_errors",
+                stats.serve_errors,
+                bucket.totals.serveErrors,
+            );
+            bucket.totals.receptionTotal = addKnownStat(
+                "reception_total",
+                stats.reception_total,
+                bucket.totals.receptionTotal,
+            );
+            bucket.totals.receptionErrors = addKnownStat(
+                "reception_errors",
+                stats.reception_errors,
+                bucket.totals.receptionErrors,
+            );
+            bucket.totals.attackTotal = addKnownStat(
+                "attack_total",
+                stats.attack_total,
+                bucket.totals.attackTotal,
+            );
+            bucket.totals.attackErrors = addKnownStat(
+                "attack_errors",
+                stats.attack_errors,
+                bucket.totals.attackErrors,
+            );
+            bucket.totals.attackBlocked = addKnownStat(
+                "attack_blocked",
+                stats.attack_blocked,
+                bucket.totals.attackBlocked,
+            );
+            bucket.totals.attackKills = addKnownStat(
+                "attack_kills",
+                stats.attack_kills,
+                bucket.totals.attackKills,
+            );
+            bucket.totals.breakPoints = addKnownStat(
+                "break_points",
+                stats.break_points,
+                bucket.totals.breakPoints,
+            );
 
             const serveTotal = Number(stats.serve_total ?? 0);
             const serveAces = Number(stats.serve_aces ?? 0);
@@ -748,6 +955,7 @@ function TotalTopPage() {
             .flatMap((group) => group.categories)
             .filter((metric) => !(displayMode === "perGame" && perGameHiddenMetrics.has(metric)));
         const ascendingMetrics = new Set<TotalTopStatKey>([
+            "serveAceErrorRatio",
             "serveErrorsLeast",
             "serveErrorPctLeast",
             "receptionPositivePctWorst",
@@ -768,6 +976,8 @@ function TotalTopPage() {
             mode: SortMode,
         ): number | null => {
             const totals = row.filteredTotals;
+
+            if (!hasStatCoverage(totals, metric)) return null;
 
             if (metric === "serveErrorsLeast") {
                 if (totals.serveErrorPctTotal < 10) return null;
@@ -803,10 +1013,7 @@ function TotalTopPage() {
                 if (row.qualifiedReceptionTotalForExcellent < 10) return null;
             }
 
-            if (
-                metric === "attackKillPct" ||
-                metric === "attackKillPctWorst"
-            ) {
+            if (metric === "attackKillPct" || metric === "attackKillPctWorst") {
                 if (row.qualifiedAttackTotal < 10) return null;
             }
 
@@ -814,9 +1021,7 @@ function TotalTopPage() {
                 if (row.qualifiedAttackEfficiencyTotal < 10) return null;
             }
 
-            return mode === "perGame"
-                ? getPerGameValue(totals, metric)
-                : getStatValue(totals, metric);
+            return mode === "perGame" ? getPerGameValue(totals, metric) : getStatValue(totals, metric);
         };
 
         return orderedMetrics.map((metric) => {
@@ -824,10 +1029,7 @@ function TotalTopPage() {
                 .map((row) => {
                     const totals = row.filteredTotals;
                     const value = getMetricValue(row, metric, displayMode);
-                    const valueLabel =
-                        metric === "serveAceErrorRatio"
-                            ? `${totals.serveAceErrorRatioAces} : ${totals.serveAceErrorRatioErrors}`
-                            : formatMetricValue(metric, value, displayMode);
+                    const valueLabel = formatMetricValue(metric, value, displayMode);
 
                     return {
                         playerId: row.playerId,
@@ -836,6 +1038,8 @@ function TotalTopPage() {
                         rawValue: value,
                         valueLabel,
                         playerHref: `/players/${row.playerId}`,
+                        serveDetails: serveMetrics.has(metric) ? getServeDetails(totals, displayMode) : null,
+                        tiebreakValue: serveTiebreakDirection[metric] ? totals.serveTotal : null,
                     };
                 })
                 .filter((item) => item.rawValue != null)
@@ -848,17 +1052,27 @@ function TotalTopPage() {
                         return (b.rawValue ?? 0) - (a.rawValue ?? 0);
                     }
 
+                    const tiebreakDirection = serveTiebreakDirection[metric];
+                    if (tiebreakDirection && a.tiebreakValue !== b.tiebreakValue) {
+                        const diff = (a.tiebreakValue ?? 0) - (b.tiebreakValue ?? 0);
+                        return tiebreakDirection === "asc" ? diff : -diff;
+                    }
+
                     return a.name.localeCompare(b.name);
                 });
 
-            let previousValue: number | null = null;
+            let previous: { value: number; tiebreak: number | null } | null = null;
             let previousRank = 0;
             const topTen = ranked.slice(0, 10).map((item, index) => {
                 const currentValue = item.rawValue ?? 0;
 
-                if (previousValue === null || currentValue !== previousValue) {
+                if (
+                    !previous ||
+                    currentValue !== previous.value ||
+                    item.tiebreakValue !== previous.tiebreak
+                ) {
                     previousRank = index + 1;
-                    previousValue = currentValue;
+                    previous = { value: currentValue, tiebreak: item.tiebreakValue };
                 }
 
                 return {
@@ -878,7 +1092,14 @@ function TotalTopPage() {
 
     useEffect(() => {
         setExpandedMetric(null);
-    }, [selectedPosition, matchType, selectedYear, selectedCompetition, selectedOpponent, displayMode]);
+    }, [
+        selectedPosition,
+        matchType,
+        selectedYear,
+        selectedCompetition,
+        selectedOpponent,
+        displayMode,
+    ]);
 
     const metricToneClass: Record<TotalTopStatKey, string> = {
         appearances: "bg-slate-50/60",
@@ -922,8 +1143,8 @@ function TotalTopPage() {
                         type="button"
                         onClick={() => setDisplayMode("total")}
                         className={`h-10 w-full rounded-md border px-3 text-xs font-semibold uppercase tracking-[0.14em] transition ${displayMode === "total"
-                            ? "border-estonia-blue bg-estonia-blue text-white"
-                            : "border-white/30 bg-white/10 text-white/90 hover:bg-white/20"
+                                ? "border-estonia-blue bg-estonia-blue text-white"
+                                : "border-white/30 bg-white/10 text-white/90 hover:bg-white/20"
                             }`}
                     >
                         {t("totalTop.table.totals")}
@@ -932,8 +1153,8 @@ function TotalTopPage() {
                         type="button"
                         onClick={() => setDisplayMode("perGame")}
                         className={`h-10 w-full rounded-md border px-3 text-xs font-semibold uppercase tracking-[0.14em] transition ${displayMode === "perGame"
-                            ? "border-estonia-blue bg-estonia-blue text-white"
-                            : "border-white/30 bg-white/10 text-white/90 hover:bg-white/20"
+                                ? "border-estonia-blue bg-estonia-blue text-white"
+                                : "border-white/30 bg-white/10 text-white/90 hover:bg-white/20"
                             }`}
                     >
                         {t("totalTop.table.perGame")}
@@ -957,8 +1178,8 @@ function TotalTopPage() {
                                     type="button"
                                     onClick={() => setMatchType(option.value as MatchType)}
                                     className={`h-10 w-full rounded-md border px-3 text-xs font-semibold uppercase tracking-[0.16em] transition ${matchType === option.value
-                                        ? "border-estonia-blue bg-estonia-blue text-white"
-                                        : "border-white/30 bg-white/10 text-white/90 hover:bg-white/20"
+                                            ? "border-estonia-blue bg-estonia-blue text-white"
+                                            : "border-white/30 bg-white/10 text-white/90 hover:bg-white/20"
                                         }`}
                                 >
                                     {option.label}
@@ -978,8 +1199,8 @@ function TotalTopPage() {
                                     type="button"
                                     onClick={() => setSelectedPosition(position)}
                                     className={`h-10 w-full rounded-md border px-3 text-xs font-semibold uppercase tracking-[0.16em] transition ${selectedPosition === position
-                                        ? "border-estonia-blue bg-estonia-blue text-white"
-                                        : "border-white/30 bg-white/10 text-white/90 hover:bg-white/20"
+                                            ? "border-estonia-blue bg-estonia-blue text-white"
+                                            : "border-white/30 bg-white/10 text-white/90 hover:bg-white/20"
                                         }`}
                                 >
                                     {position === "ALL" ? "ALL" : position}
@@ -1048,7 +1269,8 @@ function TotalTopPage() {
 
             {displayMode === "perGame" ? (
                 <p className="mb-4 text-center text-sm italic text-slate-600">
-                    Calculations are done base off matches, where player actually played, not sat on the bench.
+                    Calculations are done base off matches, where player actually played, not sat on the
+                    bench.
                 </p>
             ) : null}
 
@@ -1060,9 +1282,7 @@ function TotalTopPage() {
                                 <TableHead className="sticky top-0 z-20 bg-slate-50 p-3 text-left">
                                     Category
                                 </TableHead>
-                                <TableHead className="sticky top-0 z-20 bg-slate-50 p-3 text-left">
-                                    Best
-                                </TableHead>
+                                <TableHead className="sticky top-0 z-20 bg-slate-50 p-3 text-left">Best</TableHead>
                                 <TableHead className="sticky top-0 z-20 bg-slate-50 p-3 text-center">
                                     {t("gameHighs.table.value")}
                                 </TableHead>
@@ -1131,9 +1351,7 @@ function TotalTopPage() {
                                                 <button
                                                     type="button"
                                                     onClick={() =>
-                                                        setExpandedMetric((current) =>
-                                                            current === row.key ? null : row.key,
-                                                        )
+                                                        setExpandedMetric((current) => (current === row.key ? null : row.key))
                                                     }
                                                     className="inline-flex h-9 w-9 items-center justify-center rounded-full border-2 border-slate-500 bg-white text-base font-bold text-slate-900 shadow-sm transition hover:border-estonia-blue hover:text-estonia-blue"
                                                     aria-label={
@@ -1164,7 +1382,9 @@ function TotalTopPage() {
                                                     </p>
                                                 </div>
                                                 <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-                                                    <table className="min-w-[620px] w-full border-collapse">
+                                                    <table
+                                                        className={`w-full border-collapse ${serveMetrics.has(row.key) ? "min-w-[960px]" : "min-w-[620px]"}`}
+                                                    >
                                                         <thead className="bg-slate-50">
                                                             <tr>
                                                                 <th className="px-2 py-2 text-left text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
@@ -1176,14 +1396,28 @@ function TotalTopPage() {
                                                                 <th className="px-2 py-2 text-center text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
                                                                     {t("gameHighs.table.position")}
                                                                 </th>
-                                                                <th className="px-2 py-2 text-center text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
-                                                                    {t("gameHighs.table.value")}
-                                                                </th>
+                                                                {showValueColumn(row.key) && (
+                                                                    <th className="px-2 py-2 text-center text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                                                                        {t("gameHighs.table.value")}
+                                                                    </th>
+                                                                )}
+                                                                {serveMetrics.has(row.key) &&
+                                                                    getServeColumns(row.key).map((column) => (
+                                                                        <th
+                                                                            key={column}
+                                                                            className="px-2 py-2 text-center text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500"
+                                                                        >
+                                                                            {serveColumnLabels[column]}
+                                                                        </th>
+                                                                    ))}
                                                             </tr>
                                                         </thead>
                                                         <tbody>
                                                             {row.topTen.map((item, index) => (
-                                                                <tr key={`${row.key}-${index}`} className="border-t border-slate-100">
+                                                                <tr
+                                                                    key={`${row.key}-${index}`}
+                                                                    className="border-t border-slate-100"
+                                                                >
                                                                     <td className="px-2 py-2 text-sm text-slate-600">
                                                                         {item.rankLabel}
                                                                     </td>
@@ -1198,13 +1432,39 @@ function TotalTopPage() {
                                                                     <td className="px-2 py-2 text-center text-sm text-slate-700">
                                                                         {item.position}
                                                                     </td>
-                                                                    <td className="px-2 py-2 text-center text-sm font-semibold text-estonia-dark">
-                                                                        {item.valueLabel}
-                                                                    </td>
+                                                                    {showValueColumn(row.key) && (
+                                                                        <td className="px-2 py-2 text-center text-sm font-semibold text-estonia-dark">
+                                                                            {item.valueLabel}
+                                                                        </td>
+                                                                    )}
+                                                                    {serveMetrics.has(row.key) &&
+                                                                        getServeColumns(row.key).map((column) => (
+                                                                            <td
+                                                                                key={column}
+                                                                                className="px-2 py-2 text-center text-sm text-slate-700"
+                                                                            >
+                                                                                <span
+                                                                                    className={
+                                                                                        column === serveBoldColumn[row.key]
+                                                                                            ? "font-bold text-estonia-dark"
+                                                                                            : undefined
+                                                                                    }
+                                                                                >
+                                                                                    {item.serveDetails?.[column] ?? "—"}
+                                                                                </span>
+                                                                            </td>
+                                                                        ))}
                                                                 </tr>
                                                             ))}
                                                         </tbody>
                                                     </table>
+                                                    {serveTiebreakNotes[row.key] && (
+                                                        <p className="border-t border-slate-100 px-3 py-2 text-xs italic text-slate-500">
+                                                            {isEstonian
+                                                                ? serveTiebreakNotes[row.key]?.et
+                                                                : serveTiebreakNotes[row.key]?.en}
+                                                        </p>
+                                                    )}
                                                 </div>
                                             </TableCell>
                                         </TableRow>

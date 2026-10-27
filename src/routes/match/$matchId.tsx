@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { matchOptions } from "@/lib/match-stats.queries";
 import { useTranslation } from "react-i18next";
@@ -6,9 +6,7 @@ import { useState } from "react";
 
 export const Route = createFileRoute("/match/$matchId")({
     loader: ({ context, params }) =>
-        context.queryClient.ensureQueryData(
-            matchOptions(Number(params.matchId))
-        ),
+        context.queryClient.ensureQueryData(matchOptions(Number(params.matchId))),
 
     component: MatchStatsPage,
 });
@@ -17,9 +15,7 @@ function MatchStatsPage() {
     const { matchId } = Route.useParams();
     const { t, i18n } = useTranslation();
 
-    const { data } = useSuspenseQuery(
-        matchOptions(Number(matchId))
-    );
+    const { data } = useSuspenseQuery(matchOptions(Number(matchId)));
 
     const match = data.match;
     const players = data.players;
@@ -38,14 +34,21 @@ function MatchStatsPage() {
     const hasMultipleStatVersions = availableStatVersions.size > 1;
     const showStatsToggle = !!match.has_additional_sets && hasMultipleStatVersions;
 
-    const [statsMode, setStatsMode] = useState<"official" | "all">(showStatsToggle ? "official" : "all");
+    const [statsMode, setStatsMode] = useState<"official" | "all">(
+        showStatsToggle ? "official" : "all",
+    );
     const currentLanguage = i18n.language?.startsWith("et") ? "et" : "en";
 
-    const opponent = currentLanguage === "et" ? match.opponent : match.opponent_en ?? match.opponent;
-    const competition = currentLanguage === "et" ? match.competition : match.competition_en ?? match.competition;
+    const opponent =
+        currentLanguage === "et" ? match.opponent : (match.opponent_en ?? match.opponent);
+    const competition =
+        currentLanguage === "et" ? match.competition : (match.competition_en ?? match.competition);
     const city = match.city_en ?? match.city;
     const estoniaLabel = t("common.estonia");
-    const sourceUrl = typeof match.source_row === "string" && match.source_row.trim() ? match.source_row.trim() : null;
+    const sourceUrl =
+        typeof match.source_row === "string" && match.source_row.trim()
+            ? match.source_row.trim()
+            : null;
 
     const getCountryFlag = (country: string | null | undefined) => {
         const normalized = (country ?? "").trim().toLowerCase();
@@ -84,13 +87,25 @@ function MatchStatsPage() {
     };
 
     const officialSetScores = (match.match_sets ?? [])
-        .filter((set: { set_number: number; estonia_points: number; opponent_points: number }) => set.set_number <= 5)
-        .map((set: { estonia_points: number; opponent_points: number }) => `${set.estonia_points}:${set.opponent_points}`)
+        .filter(
+            (set: { set_number: number; estonia_points: number; opponent_points: number }) =>
+                set.set_number <= 5,
+        )
+        .map(
+            (set: { estonia_points: number; opponent_points: number }) =>
+                `${set.estonia_points}:${set.opponent_points}`,
+        )
         .join(" • ");
 
     const additionalSetScores = (match.match_sets ?? [])
-        .filter((set: { set_number: number; estonia_points: number; opponent_points: number }) => set.set_number > 5)
-        .map((set: { estonia_points: number; opponent_points: number }) => `${set.estonia_points}:${set.opponent_points}`)
+        .filter(
+            (set: { set_number: number; estonia_points: number; opponent_points: number }) =>
+                set.set_number > 5,
+        )
+        .map(
+            (set: { estonia_points: number; opponent_points: number }) =>
+                `${set.estonia_points}:${set.opponent_points}`,
+        )
         .join(" • ");
 
     const formatStat = (value: number | null): string => {
@@ -150,14 +165,17 @@ function MatchStatsPage() {
     const setColumns = [1, 2, 3, 4, 5];
 
     const getSetPosition = (
-        stats: {
-            set1_position?: string | null;
-            set2_position?: string | null;
-            set3_position?: string | null;
-            set4_position?: string | null;
-            set5_position?: string | null;
-        } | null | undefined,
-        setNumber: number
+        stats:
+            | {
+                set1_position?: string | null;
+                set2_position?: string | null;
+                set3_position?: string | null;
+                set4_position?: string | null;
+                set5_position?: string | null;
+            }
+            | null
+            | undefined,
+        setNumber: number,
     ) => {
         if (!stats) return "";
         if (setNumber === 1) return stats.set1_position ?? "";
@@ -196,9 +214,7 @@ function MatchStatsPage() {
         { field: "attack_efficiency", label: "Eff%" },
     ];
 
-    const blockColumns = [
-        { field: "block_points", label: "PTS" },
-    ];
+    const blockColumns = [{ field: "block_points", label: "PTS" }];
 
     // Calculate totals
     const calculateTotals = () => {
@@ -206,7 +222,13 @@ function MatchStatsPage() {
         const counts: Record<string, number> = {};
         let receptionPositiveCount = 0;
         let receptionExcellentCount = 0;
-        const allFields = [...statColumns, ...serveColumns, ...receptionColumns, ...attackColumns, ...blockColumns];
+        const allFields = [
+            ...statColumns,
+            ...serveColumns,
+            ...receptionColumns,
+            ...attackColumns,
+            ...blockColumns,
+        ];
 
         allFields.forEach((col) => {
             totals[col.field] = 0;
@@ -260,11 +282,15 @@ function MatchStatsPage() {
             });
 
             combined.reception_positive_pct =
-                !unavailableStats.has("reception_total") && !unavailableStats.has("reception_positive_pct") && combined.reception_total > 0
+                !unavailableStats.has("reception_total") &&
+                    !unavailableStats.has("reception_positive_pct") &&
+                    combined.reception_total > 0
                     ? (playerReceptionPositiveCount / combined.reception_total) * 100
                     : null;
             combined.reception_excellent_pct =
-                !unavailableStats.has("reception_total") && !unavailableStats.has("reception_excellent_pct") && combined.reception_total > 0
+                !unavailableStats.has("reception_total") &&
+                    !unavailableStats.has("reception_excellent_pct") &&
+                    combined.reception_total > 0
                     ? (playerReceptionExcellentCount / combined.reception_total) * 100
                     : null;
 
@@ -326,17 +352,21 @@ function MatchStatsPage() {
             ["attack_total", "attack_kills", "attack_blocked", "attack_errors"].some((field) =>
                 unavailableStats.has(field),
             )
-        ) return "";
+        )
+            return "";
         if (
             fieldName === "attack_kill_pct" &&
             ["attack_total", "attack_kills"].some((field) => unavailableStats.has(field))
-        ) return "";
+        )
+            return "";
         if (
             (fieldName === "reception_positive_pct" && unavailableStats.has("reception_positive_pct")) ||
-            (fieldName === "reception_excellent_pct" && unavailableStats.has("reception_excellent_pct")) ||
+            (fieldName === "reception_excellent_pct" &&
+                unavailableStats.has("reception_excellent_pct")) ||
             ((fieldName === "reception_positive_pct" || fieldName === "reception_excellent_pct") &&
                 unavailableStats.has("reception_total"))
-        ) return "";
+        )
+            return "";
 
         const value = totals[fieldName];
         if (value === undefined) return "-";
@@ -358,7 +388,11 @@ function MatchStatsPage() {
 
         if (fieldName === "attack_efficiency") {
             if (!totals.attack_total) return "";
-            return formatPercent(((totals.attack_kills - totals.attack_blocked - totals.attack_errors) / totals.attack_total) * 100);
+            return formatPercent(
+                ((totals.attack_kills - totals.attack_blocked - totals.attack_errors) /
+                    totals.attack_total) *
+                100,
+            );
         }
 
         return formatStat(value);
@@ -373,7 +407,9 @@ function MatchStatsPage() {
                         {/* Estonia Flag */}
                         <div className="flex-shrink-0">
                             <div className="text-[5rem] leading-none">{getCountryFlag("Estonia")}</div>
-                            <p className="mt-2 text-center text-base font-semibold text-slate-700">{estoniaLabel}</p>
+                            <p className="mt-2 text-center text-base font-semibold text-slate-700">
+                                {estoniaLabel}
+                            </p>
                         </div>
 
                         {/* Match Info */}
@@ -383,15 +419,11 @@ function MatchStatsPage() {
                             </h1>
 
                             {officialSetScores && (
-                                <div className="mt-2 text-sm font-mono text-slate-700">
-                                    {officialSetScores}
-                                </div>
+                                <div className="mt-2 text-sm font-mono text-slate-700">{officialSetScores}</div>
                             )}
 
                             {additionalSetScores && (
-                                <div className="mt-1 text-xs italic text-amber-600">
-                                    + {additionalSetScores}
-                                </div>
+                                <div className="mt-1 text-xs italic text-amber-600">+ {additionalSetScores}</div>
                             )}
 
                             <p className="mt-4 text-sm font-semibold text-slate-700">
@@ -402,15 +434,9 @@ function MatchStatsPage() {
                                 })}
                             </p>
 
-                            <p className="mt-2 text-sm text-slate-600">
-                                {competition}
-                            </p>
+                            <p className="mt-2 text-sm text-slate-600">{competition}</p>
 
-                            {city && (
-                                <p className="text-sm text-slate-500">
-                                    📍 {city}
-                                </p>
-                            )}
+                            {city && <p className="text-sm text-slate-500">📍 {city}</p>}
 
                             <div className="mt-3 text-xs">
                                 {sourceUrl ? (
@@ -441,13 +467,21 @@ function MatchStatsPage() {
                                     <div className="inline-flex overflow-hidden rounded-md border border-slate-200 bg-white text-xs font-semibold uppercase tracking-wide">
                                         <button
                                             onClick={() => setStatsMode("official")}
-                                            className={statsMode === "official" ? "bg-estonia-blue px-3 py-2 text-white" : "px-3 py-2 text-slate-500 hover:bg-slate-50"}
+                                            className={
+                                                statsMode === "official"
+                                                    ? "bg-estonia-blue px-3 py-2 text-white"
+                                                    : "px-3 py-2 text-slate-500 hover:bg-slate-50"
+                                            }
                                         >
                                             {t("matches.statsMode.official")}
                                         </button>
                                         <button
                                             onClick={() => setStatsMode("all")}
-                                            className={statsMode === "all" ? "bg-estonia-blue px-3 py-2 text-white" : "px-3 py-2 text-slate-500 hover:bg-slate-50"}
+                                            className={
+                                                statsMode === "all"
+                                                    ? "bg-estonia-blue px-3 py-2 text-white"
+                                                    : "px-3 py-2 text-slate-500 hover:bg-slate-50"
+                                            }
                                         >
                                             {t("matches.statsMode.all")}
                                         </button>
@@ -480,32 +514,50 @@ function MatchStatsPage() {
                                 </th>
 
                                 {/* Sets Section */}
-                                <th colSpan={5} className="border-r-2 border-slate-300 px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                <th
+                                    colSpan={5}
+                                    className="border-r-2 border-slate-300 px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                                >
                                     Sets
                                 </th>
 
                                 {/* Points Section */}
-                                <th colSpan={3} className="border-r-2 border-slate-300 px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                <th
+                                    colSpan={3}
+                                    className="border-r-2 border-slate-300 px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                                >
                                     Points
                                 </th>
 
                                 {/* Serve Section */}
-                                <th colSpan={3} className="border-r-2 border-slate-300 px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                <th
+                                    colSpan={3}
+                                    className="border-r-2 border-slate-300 px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                                >
                                     Serve
                                 </th>
 
                                 {/* Reception Section */}
-                                <th colSpan={4} className="border-r-2 border-slate-300 px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                <th
+                                    colSpan={4}
+                                    className="border-r-2 border-slate-300 px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                                >
                                     Reception
                                 </th>
 
                                 {/* Attack Section */}
-                                <th colSpan={6} className="border-r-2 border-slate-300 px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                <th
+                                    colSpan={6}
+                                    className="border-r-2 border-slate-300 px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                                >
                                     Attack
                                 </th>
 
                                 {/* Block Section */}
-                                <th colSpan={1} className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                <th
+                                    colSpan={1}
+                                    className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                                >
                                     Block
                                 </th>
                             </tr>
@@ -529,7 +581,9 @@ function MatchStatsPage() {
                                 {statColumns.map((col, idx) => (
                                     <th
                                         key={col.field}
-                                        className={`px-2 py-2 text-center text-[10px] font-semibold text-slate-600 ${idx === statColumns.length - 1 ? "border-r-2 border-slate-300" : "border-r border-slate-200"
+                                        className={`px-2 py-2 text-center text-[10px] font-semibold text-slate-600 ${idx === statColumns.length - 1
+                                                ? "border-r-2 border-slate-300"
+                                                : "border-r border-slate-200"
                                             }`}
                                     >
                                         {col.label}
@@ -584,16 +638,27 @@ function MatchStatsPage() {
                                 const statsRows = player.player_match_stats ?? [];
                                 const stats =
                                     statsMode === "official"
-                                        ? statsRows.find((r) => r?.stats_version === "AM") ?? statsRows[0]
-                                        : statsRows.find((r) => r?.stats_version === "ALL") ?? statsRows[0];
+                                        ? (statsRows.find((r) => r?.stats_version === "AM") ?? statsRows[0])
+                                        : (statsRows.find((r) => r?.stats_version === "ALL") ?? statsRows[0]);
 
                                 return (
-                                    <tr key={player.appearance_id} className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}>
+                                    <tr
+                                        key={player.appearance_id}
+                                        className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}
+                                    >
                                         <td className="border-r border-slate-200 px-4 py-3 text-center font-bold text-slate-900">
                                             {player.shirt_number || "—"}
                                         </td>
                                         <td className="border-r-2 border-slate-300 px-4 py-3 text-left text-sm font-medium text-slate-900">
-                                            {Array.isArray(player.players) ? `${player.players[0]?.first_name} ${player.players[0]?.last_name}` : `${player.players?.first_name} ${player.players?.last_name}`}
+                                            <Link
+                                                to="/players/$playerId"
+                                                params={{ playerId: String(player.player_id) }}
+                                                className="hover:text-estonia-blue hover:underline"
+                                            >
+                                                {Array.isArray(player.players)
+                                                    ? `${player.players[0]?.first_name} ${player.players[0]?.last_name}`
+                                                    : `${player.players?.first_name} ${player.players?.last_name}`}
+                                            </Link>
                                         </td>
 
                                         {/* Set appearances - showing if they played that set */}
@@ -610,10 +675,17 @@ function MatchStatsPage() {
                                         {statColumns.map((col, idx) => (
                                             <td
                                                 key={col.field}
-                                                className={`px-2 py-3 text-center text-sm text-slate-700 ${idx === statColumns.length - 1 ? "border-r-2 border-slate-300" : "border-r border-slate-200"
+                                                className={`px-2 py-3 text-center text-sm text-slate-700 ${idx === statColumns.length - 1
+                                                        ? "border-r-2 border-slate-300"
+                                                        : "border-r border-slate-200"
                                                     }`}
                                             >
-                                                {stats ? formatField(col.field, stats[col.field as keyof typeof stats] as number | null) : "-"}
+                                                {stats
+                                                    ? formatField(
+                                                        col.field,
+                                                        stats[col.field as keyof typeof stats] as number | null,
+                                                    )
+                                                    : "-"}
                                             </td>
                                         ))}
 
@@ -623,7 +695,12 @@ function MatchStatsPage() {
                                                 key={col.field}
                                                 className={`px-2 py-3 text-center text-sm text-slate-700 ${col === serveColumns[serveColumns.length - 1] ? "border-r-2 border-slate-300" : "border-r border-slate-200"}`}
                                             >
-                                                {stats ? formatField(col.field, stats[col.field as keyof typeof stats] as number | null) : "-"}
+                                                {stats
+                                                    ? formatField(
+                                                        col.field,
+                                                        stats[col.field as keyof typeof stats] as number | null,
+                                                    )
+                                                    : "-"}
                                             </td>
                                         ))}
 
@@ -633,7 +710,12 @@ function MatchStatsPage() {
                                                 key={col.field}
                                                 className={`px-2 py-3 text-center text-sm text-slate-700 ${col === receptionColumns[receptionColumns.length - 1] ? "border-r-2 border-slate-300" : "border-r border-slate-200"}`}
                                             >
-                                                {stats ? formatField(col.field, stats[col.field as keyof typeof stats] as number | null) : "-"}
+                                                {stats
+                                                    ? formatField(
+                                                        col.field,
+                                                        stats[col.field as keyof typeof stats] as number | null,
+                                                    )
+                                                    : "-"}
                                             </td>
                                         ))}
 
@@ -645,25 +727,37 @@ function MatchStatsPage() {
                                             >
                                                 {stats
                                                     ? col.field === "attack_efficiency"
-                                                        ? ["attack_total", "attack_kills", "attack_blocked", "attack_errors"].some((field) => unavailableStats.has(field))
+                                                        ? [
+                                                            "attack_total",
+                                                            "attack_kills",
+                                                            "attack_blocked",
+                                                            "attack_errors",
+                                                        ].some((field) => unavailableStats.has(field))
                                                             ? ""
                                                             : formatField("attack_efficiency", computeAttackEff(stats))
                                                         : col.field === "attack_kill_pct"
-                                                            ? ["attack_total", "attack_kills"].some((field) => unavailableStats.has(field))
+                                                            ? ["attack_total", "attack_kills"].some((field) =>
+                                                                unavailableStats.has(field),
+                                                            )
                                                                 ? ""
                                                                 : formatField("attack_kill_pct", computeAttackKillPct(stats))
-                                                            : formatField(col.field, stats[col.field as keyof typeof stats] as number | null)
+                                                            : formatField(
+                                                                col.field,
+                                                                stats[col.field as keyof typeof stats] as number | null,
+                                                            )
                                                     : "-"}
                                             </td>
                                         ))}
 
                                         {/* Block Stats */}
                                         {blockColumns.map((col) => (
-                                            <td
-                                                key={col.field}
-                                                className="px-2 py-3 text-center text-sm text-slate-700"
-                                            >
-                                                {stats ? formatField(col.field, stats[col.field as keyof typeof stats] as number | null) : "-"}
+                                            <td key={col.field} className="px-2 py-3 text-center text-sm text-slate-700">
+                                                {stats
+                                                    ? formatField(
+                                                        col.field,
+                                                        stats[col.field as keyof typeof stats] as number | null,
+                                                    )
+                                                    : "-"}
                                             </td>
                                         ))}
                                     </tr>
@@ -693,7 +787,9 @@ function MatchStatsPage() {
                                 {statColumns.map((col, idx) => (
                                     <td
                                         key={`total-${col.field}`}
-                                        className={`px-2 py-3 text-center text-sm text-slate-900 ${idx === statColumns.length - 1 ? "border-r-2 border-slate-300" : "border-r border-slate-200"
+                                        className={`px-2 py-3 text-center text-sm text-slate-900 ${idx === statColumns.length - 1
+                                                ? "border-r-2 border-slate-300"
+                                                : "border-r border-slate-200"
                                             }`}
                                     >
                                         {getStatValue(col.field)}

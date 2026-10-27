@@ -136,7 +136,7 @@
             "biggestServeErrorPct": "Biggest Serve Err %",
             "leastServeErrors": "Least Serve Errors",
             "smallestServeErrorPct": "Smallest Serve Err %",
-            "aceToErrorRatio": "Ace to Error Ratio (min 5 serves)",
+            "aceToErrorRatio": "Errors per Ace",
             "mostReceptions": "Most Receptions",
             "mostReceptionErrors": "Most Reception Errors",
             "bestReceptionPct": "Best Reception %",

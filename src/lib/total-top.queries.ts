@@ -1,8 +1,11 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
+  addStatCoverage,
+  createStatCoverage,
   getUnavailableStatSet,
   type MatchUnavailableStatRow,
+  type StatCoverage,
   type UnavailableStatField,
 } from "@/lib/match-unavailable-stats";
 
@@ -38,6 +41,7 @@ export type PlayerTotals = {
   attackKillPct: number;
   attackEfficiency: number;
   breakPoints: number;
+  coverage: StatCoverage;
 };
 
 export type TotalTopRow = {
@@ -67,6 +71,7 @@ export type TotalTopAppearance = {
   am: boolean | null;
   mam: boolean | null;
   onTheBench: boolean;
+  hasPositionInfo: boolean;
   unavailableStats: UnavailableStatField[];
   statsRows: PlayerMatchStatsRow[];
 };
@@ -285,6 +290,7 @@ function createTotals(): PlayerTotals {
     attackKillPct: 0,
     attackEfficiency: 0,
     breakPoints: 0,
+    coverage: createStatCoverage(),
   };
 }
 
@@ -342,6 +348,7 @@ function updateTotals(
     return;
   }
 
+  addStatCoverage(totals.coverage, stats, unavailableStats);
   if (!unavailableStats.has("points")) totals.points += stats.points ?? 0;
   if (!unavailableStats.has("block_points")) totals.blockPoints += stats.block_points ?? 0;
   if (!unavailableStats.has("plus_minus")) totals.plusMinus += stats.plus_minus ?? 0;
@@ -382,16 +389,27 @@ function updateTotals(
     totals.serveAceErrorRatioErrors += stats.serve_errors;
   }
   if (!unavailableStats.has("reception_total")) totals.receptionTotal += stats.reception_total ?? 0;
-  if (!unavailableStats.has("reception_errors")) totals.receptionErrors += stats.reception_errors ?? 0;
+  if (!unavailableStats.has("reception_errors"))
+    totals.receptionErrors += stats.reception_errors ?? 0;
 
   const receptionTotal = stats.reception_total;
-  if (!unavailableStats.has("reception_total") && typeof receptionTotal === "number" && receptionTotal > 0) {
-    if (!unavailableStats.has("reception_positive_pct") && typeof stats.reception_positive_pct === "number") {
+  if (
+    !unavailableStats.has("reception_total") &&
+    typeof receptionTotal === "number" &&
+    receptionTotal > 0
+  ) {
+    if (
+      !unavailableStats.has("reception_positive_pct") &&
+      typeof stats.reception_positive_pct === "number"
+    ) {
       accumulator.receptionPositiveCount += receptionTotal * (stats.reception_positive_pct / 100);
       accumulator.receptionPositiveTotal += receptionTotal;
     }
 
-    if (!unavailableStats.has("reception_excellent_pct") && typeof stats.reception_excellent_pct === "number") {
+    if (
+      !unavailableStats.has("reception_excellent_pct") &&
+      typeof stats.reception_excellent_pct === "number"
+    ) {
       accumulator.receptionExcellentCount += receptionTotal * (stats.reception_excellent_pct / 100);
       accumulator.receptionExcellentTotal += receptionTotal;
     }
@@ -458,7 +476,9 @@ function computeAttackEfficiency(accumulator: TotalsAccumulator): number {
     return 0;
   }
   return (
-    ((accumulator.attackEfficiencyKills - accumulator.attackEfficiencyBlocked - accumulator.attackEfficiencyErrors) /
+    ((accumulator.attackEfficiencyKills -
+      accumulator.attackEfficiencyBlocked -
+      accumulator.attackEfficiencyErrors) /
       accumulator.attackEfficiencyTotal) *
     100
   );
@@ -521,6 +541,15 @@ async function fetchTotalTop(): Promise<TotalTopRow[]> {
   >();
   const appearancesByPlayer = new Map<number, TotalTopAppearance[]>();
   const appearances = allAppearanceRows;
+  const matchesWithPositionInfo = new Set<number>(
+    appearances
+      .filter((appearance) =>
+        normalizeRelations(appearance.player_match_stats).some(
+          (row) => countSetsFromPositions(row) > 0,
+        ),
+      )
+      .map((appearance) => appearance.match_id),
+  );
 
   for (const appearance of appearances) {
     const match = normalizeRelation(appearance.matches);
@@ -544,15 +573,30 @@ async function fetchTotalTop(): Promise<TotalTopRow[]> {
     };
 
     if (isOfficial) {
-      updateTotals(totals.official, appearance, pickStatsRowForMode(statsRows, "am"), unavailableStats);
+      updateTotals(
+        totals.official,
+        appearance,
+        pickStatsRowForMode(statsRows, "am"),
+        unavailableStats,
+      );
     }
 
     if (isCompetitive) {
-      updateTotals(totals.competitive, appearance, pickStatsRowForMode(statsRows, "am"), unavailableStats);
+      updateTotals(
+        totals.competitive,
+        appearance,
+        pickStatsRowForMode(statsRows, "am"),
+        unavailableStats,
+      );
     }
 
     if (isNonOfficial) {
-      updateTotals(totals.nonOfficial, appearance, pickStatsRowForMode(statsRows, "am"), unavailableStats);
+      updateTotals(
+        totals.nonOfficial,
+        appearance,
+        pickStatsRowForMode(statsRows, "am"),
+        unavailableStats,
+      );
     }
 
     updateTotals(totals.all, appearance, pickStatsRowForMode(statsRows, "all"), unavailableStats);
@@ -573,6 +617,7 @@ async function fetchTotalTop(): Promise<TotalTopRow[]> {
       am: match.am,
       mam: match.mam,
       onTheBench: Boolean(appearance.on_the_bench),
+      hasPositionInfo: matchesWithPositionInfo.has(appearance.match_id),
       unavailableStats: [...unavailableStats],
       statsRows,
     });

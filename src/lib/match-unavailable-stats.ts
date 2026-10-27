@@ -22,6 +22,24 @@ export type MatchUnavailableStatRow = {
     stat_field: string;
 };
 
+export type StatCoverage = Record<UnavailableStatField, number>;
+
+export function createStatCoverage(): StatCoverage {
+    return Object.fromEntries(unavailableStatFields.map((field) => [field, 0])) as StatCoverage;
+}
+
+export function addStatCoverage(
+    coverage: StatCoverage,
+    stats: Record<string, unknown>,
+    unavailableStats: ReadonlySet<string>,
+) {
+    for (const field of unavailableStatFields) {
+        if (!unavailableStats.has(field) && typeof stats[field] === "number") {
+            coverage[field] += 1;
+        }
+    }
+}
+
 export function getUnavailableStatSet(
     value: MatchUnavailableStatRow | MatchUnavailableStatRow[] | null | undefined,
 ): Set<UnavailableStatField> {

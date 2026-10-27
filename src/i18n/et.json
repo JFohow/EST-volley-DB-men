@@ -136,7 +136,7 @@
             "biggestServeErrorPct": "Suurim servivigade %",
             "leastServeErrors": "Kõige vähem servivigu",
             "smallestServeErrorPct": "Väheim servivigade %",
-            "aceToErrorRatio": "Ässade ja vigade suhe (min 5 servi)",
+            "aceToErrorRatio": "Vigu ässa kohta",
             "mostReceptions": "Kõige rohkem vastuvõtte",
             "mostReceptionErrors": "Kõige rohkem vastuvõtuvigu",
             "bestReceptionPct": "Parim vastuvõtu %",
