@@ -1050,7 +1050,7 @@ function HomePage() {
                       </span>
                       <span className="block">
                         {labelKey === "withoutStatistics"
-                          ? t("home.anyStatistics")
+                          ? t("home.withoutStatistics")
                           : t(`home.${labelKey}`)}
                       </span>
                     </div>

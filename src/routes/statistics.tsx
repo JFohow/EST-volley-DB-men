@@ -105,6 +105,7 @@ function StatisticsPage() {
             stats["set3_position"],
             stats["set4_position"],
             stats["set5_position"],
+            stats["set6_position"],
         ];
 
         return setValues.filter((value) => typeof value === "string" && value.trim() !== "").length;

@@ -34,6 +34,7 @@ export type GameHighRow = {
   competitionEn: string | null;
   maxEstoniaSetPoints: number | null;
   maxSetOpponentPoints: number | null;
+  additionalSetScores: string[];
   matchDate: string;
   score: string;
   vm: boolean | null;
@@ -121,9 +122,12 @@ type MatchRow = {
 
 type MatchSetRow = {
   match_id: number;
+  set_number: number;
   estonia_points: number;
   opponent_points: number;
 };
+
+const OFFICIAL_SET_COUNT = 5;
 
 function normalizeRelation<T>(value: T | T[] | null): T | null {
   if (Array.isArray(value)) {
@@ -223,12 +227,13 @@ async function fetchGameHighs(): Promise<GameHighRow[]> {
 
   const { data: matchSetsData, error: matchSetsError } = await supabase
     .from("match_sets")
-    .select("match_id, estonia_points, opponent_points")
+    .select("match_id, set_number, estonia_points, opponent_points")
     .in("match_id", matchIds);
 
   if (matchSetsError) throw matchSetsError;
 
   const maxSetByMatch = new Map<number, { estonia: number; opponent: number }>();
+  const additionalSetsByMatch = new Map<number, MatchSetRow[]>();
   for (const setRow of (matchSetsData ?? []) as MatchSetRow[]) {
     const current = maxSetByMatch.get(setRow.match_id);
     if (current == null || setRow.estonia_points > current.estonia) {
@@ -237,6 +242,22 @@ async function fetchGameHighs(): Promise<GameHighRow[]> {
         opponent: setRow.opponent_points,
       });
     }
+
+    if (setRow.set_number > OFFICIAL_SET_COUNT) {
+      const sets = additionalSetsByMatch.get(setRow.match_id) ?? [];
+      sets.push(setRow);
+      additionalSetsByMatch.set(setRow.match_id, sets);
+    }
+  }
+
+  const additionalSetScoresByMatch = new Map<number, string[]>();
+  for (const [matchId, sets] of additionalSetsByMatch) {
+    additionalSetScoresByMatch.set(
+      matchId,
+      [...sets]
+        .sort((a, b) => a.set_number - b.set_number)
+        .map((set) => `${set.estonia_points}:${set.opponent_points}`),
+    );
   }
 
   const matchesById = new Map(
@@ -307,6 +328,7 @@ async function fetchGameHighs(): Promise<GameHighRow[]> {
         competitionEn: match.competition_en,
         maxEstoniaSetPoints: maxSetByMatch.get(item.match_id)?.estonia ?? null,
         maxSetOpponentPoints: maxSetByMatch.get(item.match_id)?.opponent ?? null,
+        additionalSetScores: additionalSetScoresByMatch.get(item.match_id) ?? [],
         matchDate: match.match_date,
         score: `${match.estonia_sets}-${match.opponent_sets}`,
         vm: match.vm,

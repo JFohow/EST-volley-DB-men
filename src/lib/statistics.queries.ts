@@ -94,6 +94,7 @@ export type AppearanceStatsRow = {
     set3_position?: string | null;
     set4_position?: string | null;
     set5_position?: string | null;
+    set6_position?: string | null;
 };
 
 export type StatisticsAppearanceRow = {
@@ -249,7 +250,7 @@ async function fetchStatisticsData(): Promise<StatisticsDataset> {
         const { data, error } = await supabase
             .from("appearances")
             .select(
-                `appearance_id, player_id, sets_played, sets_started, matches(match_id, match_date, opponent, opponent_en, competition, competition_en, estonia_sets, opponent_sets, vm, am, mam, match_unavailable_stats(stat_field)), player_match_stats(points, block_points, plus_minus, serve_total, serve_aces, serve_errors, reception_total, reception_errors, reception_positive_pct, reception_excellent_pct, attack_total, attack_errors, attack_blocked, attack_kills, attack_kill_pct, attack_efficiency, break_points, stats_version, set1_position, set2_position, set3_position, set4_position, set5_position)`,
+                `appearance_id, player_id, sets_played, sets_started, matches(match_id, match_date, opponent, opponent_en, competition, competition_en, estonia_sets, opponent_sets, vm, am, mam, match_unavailable_stats(stat_field)), player_match_stats(points, block_points, plus_minus, serve_total, serve_aces, serve_errors, reception_total, reception_errors, reception_positive_pct, reception_excellent_pct, attack_total, attack_errors, attack_blocked, attack_kills, attack_kill_pct, attack_efficiency, break_points, stats_version, set1_position, set2_position, set3_position, set4_position, set5_position, set6_position)`,
             )
             .gt("appearance_id", lastAppearanceId)
             .order("appearance_id", { ascending: true })

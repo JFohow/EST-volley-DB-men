@@ -524,6 +524,7 @@ function PlayerPage() {
             row["set3_position"],
             row["set4_position"],
             row["set5_position"],
+            row["set6_position"],
         ];
 
         const count = positions.filter(

@@ -259,6 +259,7 @@ export type Database = {
           set3_position: string | null
           set4_position: string | null
           set5_position: string | null
+          set6_position: string | null
           stat_id: number
           stats_version: Database["public"]["Enums"]["stats_version"]
         }
@@ -286,6 +287,7 @@ export type Database = {
           set3_position?: string | null
           set4_position?: string | null
           set5_position?: string | null
+          set6_position?: string | null
           stat_id?: number
           stats_version?: Database["public"]["Enums"]["stats_version"]
         }
@@ -313,6 +315,7 @@ export type Database = {
           set3_position?: string | null
           set4_position?: string | null
           set5_position?: string | null
+          set6_position?: string | null
           stat_id?: number
           stats_version?: Database["public"]["Enums"]["stats_version"]
         }

@@ -218,7 +218,7 @@
         "matchesWithout": "Matches without",
         "fullStatistics": "Full Statistics",
         "partialStatistics": "Partial Statistics",
-        "withoutStatistics": "Any Statistics",
+        "withoutStatistics": "Without Statistics",
         "coverageSummary": "Detailed stats: {{matchesWithStats}} / {{totalMatches}} matches",
         "tipText": "ALL vs AM: Matches with additional training sets are stored in two versions. Filter by AM to see only official international results."
     },

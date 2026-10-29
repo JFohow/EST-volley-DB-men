@@ -68,6 +68,7 @@ type AppearanceRow = {
         set3_position: string | null;
         set4_position: string | null;
         set5_position: string | null;
+        set6_position: string | null;
     }
     | Array<{
         points: number | null;
@@ -92,6 +93,7 @@ type AppearanceRow = {
         set3_position: string | null;
         set4_position: string | null;
         set5_position: string | null;
+        set6_position: string | null;
     }>
     | null;
     matches:
@@ -123,6 +125,7 @@ type AppearanceStatsRow = {
     set3_position: string | null;
     set4_position: string | null;
     set5_position: string | null;
+    set6_position: string | null;
 };
 
 function normalizeRelations<T>(value: T | T[] | null): T[] {
@@ -140,6 +143,7 @@ function countPlayedSetsFromPositions(stats: AppearanceStatsRow): number {
         stats.set3_position,
         stats.set4_position,
         stats.set5_position,
+        stats.set6_position,
     ];
 
     return values.filter((value) => typeof value === "string" && value.trim() !== "").length;
@@ -216,7 +220,8 @@ async function fetchPlayers(): Promise<PlayerListItem[]> {
                     set2_position,
                     set3_position,
                     set4_position,
-                    set5_position
+                    set5_position,
+                    set6_position
                 ),
                 matches(
                     match_id,

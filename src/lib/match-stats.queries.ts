@@ -51,6 +51,7 @@ export type PlayerMatchStats = {
         set3_position: string | null;
         set4_position: string | null;
         set5_position: string | null;
+        set6_position: string | null;
     }>;
 };
 
@@ -119,7 +120,8 @@ export function matchOptions(matchId: number) {
                         set2_position,
                         set3_position,
                         set4_position,
-                        set5_position
+                        set5_position,
+                        set6_position
                     )
         `)
                 .eq("match_id", matchId)

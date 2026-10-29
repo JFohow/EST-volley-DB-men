@@ -263,6 +263,8 @@ function GameHighsError({ error, reset }: { error: Error; reset: () => void }) {
   );
 }
 
+const TEAM_HIGHS_EXCLUDED_MATCH_IDS = new Set<number>([478]);
+
 function GameHighsPage() {
   const { t, i18n } = useTranslation();
   const { data } = useSuspenseQuery(gameHighsOptions());
@@ -934,6 +936,8 @@ function GameHighsPage() {
 
   const teamFilteredRows = useMemo(() => {
     return matchTypeFilteredRows.filter((row) => {
+      if (TEAM_HIGHS_EXCLUDED_MATCH_IDS.has(row.matchId)) return false;
+
       const localizedCompetition = getLocalizedCompetition(row);
       const localizedOpponent = getLocalizedOpponent(row);
 
@@ -962,6 +966,8 @@ function GameHighsPage() {
     getLocalizedOpponent,
   ]);
 
+  const showAdditionalSetsInScore = matchType === "ALL" || matchType === "NON_OFFICIAL";
+
   const teamGameHighRows = useMemo(() => {
     type TeamMatchTotals = {
       matchId: number;
@@ -975,6 +981,7 @@ function GameHighsPage() {
       mam: boolean | null;
       maxEstoniaSetPoints: number | null;
       maxSetOpponentPoints: number | null;
+      additionalSetScores: string[];
       points: number;
       breakPoints: number;
       plusMinus: number;
@@ -1010,6 +1017,7 @@ function GameHighsPage() {
         mam: row.mam,
         maxEstoniaSetPoints: row.maxEstoniaSetPoints,
         maxSetOpponentPoints: row.maxSetOpponentPoints,
+        additionalSetScores: row.additionalSetScores,
         points: 0,
         breakPoints: 0,
         plusMinus: 0,
@@ -1096,6 +1104,10 @@ function GameHighsPage() {
 
       return {
         ...match,
+        score:
+          showAdditionalSetsInScore && match.additionalSetScores.length > 0
+            ? `${match.score} (${match.additionalSetScores.join(", ")})`
+            : match.score,
         plusMinus: match.plusMinusCount > 0 ? match.plusMinus : null,
         receptionErrorsLeast:
           match.unavailableStats.has("reception_total") ||
@@ -1557,7 +1569,7 @@ function GameHighsPage() {
         topTen: topTenWithRanks,
       };
     });
-  }, [teamFilteredRows, t, isEstonian]);
+  }, [teamFilteredRows, t, isEstonian, showAdditionalSetsInScore]);
 
   const positionButtonsDisabled = viewMode === "TEAM";
 

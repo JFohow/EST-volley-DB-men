@@ -86,6 +86,10 @@ function MatchStatsPage() {
         return map[normalized] ?? "🌍";
     };
 
+    const hasSixthSet = players.some((p: any) =>
+        (p.player_match_stats ?? []).some((r: any) => Boolean(r?.set6_position)),
+    );
+
     const officialSetScores = (match.match_sets ?? [])
         .filter(
             (set: { set_number: number; estonia_points: number; opponent_points: number }) =>
@@ -162,7 +166,7 @@ function MatchStatsPage() {
         return (attackExc / attackTot) * 100;
     };
 
-    const setColumns = [1, 2, 3, 4, 5];
+    const setColumns = hasSixthSet ? [1, 2, 3, 4, 5, 6] : [1, 2, 3, 4, 5];
 
     const getSetPosition = (
         stats:
@@ -172,6 +176,7 @@ function MatchStatsPage() {
                 set3_position?: string | null;
                 set4_position?: string | null;
                 set5_position?: string | null;
+                set6_position?: string | null;
             }
             | null
             | undefined,
@@ -183,6 +188,7 @@ function MatchStatsPage() {
         if (setNumber === 3) return stats.set3_position ?? "";
         if (setNumber === 4) return stats.set4_position ?? "";
         if (setNumber === 5) return stats.set5_position ?? "";
+        if (setNumber === 6) return stats.set6_position ?? "";
         return "";
     };
 
@@ -236,78 +242,15 @@ function MatchStatsPage() {
         });
 
         const getPlayerStats = (player: any) => {
-            // If showing official stats, prefer the AM row when present
+            // Use one row per player, the same row the table displays for the active mode.
             const rows = player.player_match_stats ?? [];
             if (!rows || rows.length === 0) return null;
 
             if (statsMode === "official") {
-                const amRow = rows.find((r: any) => r?.stats_version === "AM");
-                return amRow ?? rows[0] ?? null;
+                return rows.find((r: any) => r?.stats_version === "AM") ?? rows[0] ?? null;
             }
 
-            // For 'all' mode, combine rows: sum counting stats and derive percentage stats.
-            const combined: any = {};
-            let playerReceptionPositiveCount = 0;
-            let playerReceptionExcellentCount = 0;
-
-            allFields.forEach((col) => {
-                combined[col.field] = 0;
-            });
-
-            rows.forEach((r: any) => {
-                allFields.forEach((col) => {
-                    const v = r[col.field as keyof typeof r];
-                    if (typeof v === "number" && !unavailableStats.has(col.field)) {
-                        if (
-                            col.field !== "reception_positive_pct" &&
-                            col.field !== "reception_excellent_pct" &&
-                            col.field !== "attack_kill_pct" &&
-                            col.field !== "attack_efficiency"
-                        ) {
-                            combined[col.field] += v;
-                        }
-                    }
-                });
-
-                const rowReceptionTotal = r.reception_total;
-                if (typeof rowReceptionTotal === "number" && rowReceptionTotal > 0) {
-                    if (typeof r.reception_positive_pct === "number") {
-                        playerReceptionPositiveCount += rowReceptionTotal * (r.reception_positive_pct / 100);
-                    }
-
-                    if (typeof r.reception_excellent_pct === "number") {
-                        playerReceptionExcellentCount += rowReceptionTotal * (r.reception_excellent_pct / 100);
-                    }
-                }
-            });
-
-            combined.reception_positive_pct =
-                !unavailableStats.has("reception_total") &&
-                    !unavailableStats.has("reception_positive_pct") &&
-                    combined.reception_total > 0
-                    ? (playerReceptionPositiveCount / combined.reception_total) * 100
-                    : null;
-            combined.reception_excellent_pct =
-                !unavailableStats.has("reception_total") &&
-                    !unavailableStats.has("reception_excellent_pct") &&
-                    combined.reception_total > 0
-                    ? (playerReceptionExcellentCount / combined.reception_total) * 100
-                    : null;
-
-            // Derive attack percentages from raw totals.
-            combined.attack_efficiency =
-                unavailableStats.has("attack_total") ||
-                    unavailableStats.has("attack_kills") ||
-                    unavailableStats.has("attack_blocked") ||
-                    unavailableStats.has("attack_errors")
-                    ? null
-                    : computeAttackEff(combined);
-            combined.attack_kill_pct =
-                unavailableStats.has("attack_total") || unavailableStats.has("attack_kills")
-                    ? null
-                    : computeAttackKillPct(combined);
-
-            return combined;
+            return rows.find((r: any) => r?.stats_version === "ALL") ?? rows[0] ?? null;
         };
 
         players.forEach((player) => {
