@@ -131,17 +131,45 @@ type AttackContextKey =
 function getServeContextKeys(metric: string): ServeContextKey[] {
   switch (metric) {
     case "serveTotal":
-      return ["serveErrors", "serveAces"];
     case "serveAces":
-      return ["serveTotal", "serveErrors"];
     case "serveErrors":
     case "serveErrorsMost":
     case "serveErrorsLeast":
-      return ["serveTotal", "serveAces"];
     case "bestAceErrorRatio":
-      return ["serveAces", "serveErrors", "serveTotal"];
+      return ["serveTotal", "serveErrors", "serveAces"];
     default:
       return [];
+  }
+}
+
+function isServeCountMetric(metric: string): boolean {
+  return (
+    metric === "serveTotal" ||
+    metric === "serveAces" ||
+    metric === "serveErrors" ||
+    metric === "serveErrorsMost" ||
+    metric === "serveErrorsLeast"
+  );
+}
+
+function isValueColumnHidden(metric: string): boolean {
+  return isServeCountMetric(metric) || isReceptionMetric(metric) || isAttackMetric(metric);
+}
+
+function isServeContextHighlighted(metric: string, key: ServeContextKey): boolean {
+  switch (metric) {
+    case "serveTotal":
+      return key === "serveTotal";
+    case "serveAces":
+      return key === "serveAces";
+    case "serveErrors":
+    case "serveErrorsMost":
+    case "serveErrorsLeast":
+      return key === "serveErrors";
+    case "bestAceErrorRatio":
+      return key === "serveAces" || key === "serveErrors";
+    default:
+      return false;
   }
 }
 
@@ -155,24 +183,39 @@ function formatServeContextValue(value: number | null | undefined): string {
   return value == null ? "—" : String(value);
 }
 
-function getReceptionContextKeys(metric: string): ReceptionContextKey[] {
+function isReceptionContextHighlighted(metric: string, key: ReceptionContextKey): boolean {
   switch (metric) {
     case "receptionTotal":
-      return ["receptionErrors", "receptionPositivePct", "receptionExcellentPct"];
+      return key === "receptionTotal";
     case "receptionErrors":
     case "receptionErrorsLeast":
-      return ["receptionTotal", "receptionPositivePct", "receptionExcellentPct"];
+      return key === "receptionErrors";
     case "receptionPositivePct":
     case "receptionPositivePctBest":
     case "receptionPositivePctWorst":
-      return ["receptionTotal", "receptionErrors", "receptionExcellentPct"];
+      return key === "receptionPositivePct";
     case "receptionExcellentPct":
     case "receptionExcellentPctBest":
     case "receptionExcellentPctWorst":
-      return ["receptionTotal", "receptionErrors", "receptionPositivePct"];
+      return key === "receptionExcellentPct";
     default:
-      return [];
+      return false;
   }
+}
+
+const RECEPTION_COLUMN_ORDER: ReceptionContextKey[] = [
+  "receptionTotal",
+  "receptionErrors",
+  "receptionPositivePct",
+  "receptionExcellentPct",
+];
+
+function getReceptionContextKeys(metric: string): ReceptionContextKey[] {
+  return isReceptionMetric(metric) ? RECEPTION_COLUMN_ORDER : [];
+}
+
+function isReceptionMetric(metric: string): boolean {
+  return metric.startsWith("reception");
 }
 
 const receptionContextLabels: Record<ReceptionContextKey, string> = {
@@ -192,25 +235,43 @@ function formatReceptionContextValue(
     : String(value);
 }
 
+const ATTACK_COLUMN_ORDER: AttackContextKey[] = [
+  "attackTotal",
+  "attackErrors",
+  "attackBlocked",
+  "attackKills",
+  "attackKillPct",
+  "attackEfficiency",
+];
+
+function isAttackMetric(metric: string): boolean {
+  return metric.startsWith("attack");
+}
+
 function getAttackContextKeys(metric: string): AttackContextKey[] {
+  return isAttackMetric(metric) ? ATTACK_COLUMN_ORDER : [];
+}
+
+function isAttackContextHighlighted(metric: string, key: AttackContextKey): boolean {
   switch (metric) {
     case "attackTotal":
-      return ["attackKills", "attackKillPct", "attackEfficiency"];
+      return key === "attackTotal";
     case "attackErrors":
+      return key === "attackErrors";
     case "attackBlocked":
-      return ["attackTotal", "attackKills", "attackKillPct", "attackEfficiency"];
+      return key === "attackBlocked";
     case "attackKills":
-      return ["attackTotal", "attackKillPct", "attackEfficiency"];
+      return key === "attackKills";
     case "attackKillPctBest":
     case "attackKillPctWorst":
     case "attackKillPct":
-      return ["attackTotal", "attackKills", "attackEfficiency"];
+      return key === "attackKillPct";
     case "attackEfficiencyBest":
     case "attackEfficiencyWorst":
     case "attackEfficiency":
-      return ["attackTotal", "attackKills", "attackErrors", "attackBlocked", "attackKillPct"];
+      return key === "attackEfficiency";
     default:
-      return [];
+      return false;
   }
 }
 
@@ -598,9 +659,24 @@ function GameHighsPage() {
       serveErrorsLeast: isEstonian
         ? "Võrdsete servivigade korral kasutatakse viigilahutajana servi koguarvu. Eelistatakse suuremat servide arvu."
         : "Serve Attempts is used as a tie-breaker in case of equal serve mistakes (least).",
+      receptionErrors: isEstonian
+        ? "Võrdsete vastuvõtuvigade korral eelistatakse väiksemat vastuvõttude koguarvu (R TOT)."
+        : "For equal reception-error counts, fewer total receptions (R TOT) rank higher.",
       receptionErrorsLeast: isEstonian
         ? "Võrdsete vastuvõtuvigade korral eelistatakse suuremat vastuvõttude koguarvu."
         : "For equal reception-error counts, more receptions rank higher.",
+      receptionPositivePctBest: isEstonian
+        ? "Võrdse positiivse vastuvõtu % korral eelistatakse suuremat vastuvõttude koguarvu (R TOT). Kui ka see on võrdne, eelistatakse väiksemat vastuvõttuvigade arvu (R ERR)."
+        : "For equal positive reception %, more total receptions (R TOT) rank higher. If still equal, fewer reception errors (R ERR) rank higher.",
+      receptionPositivePctWorst: isEstonian
+        ? "Võrdse positiivse vastuvõtu % korral eelistatakse väiksemat vastuvõttude koguarvu (R TOT). Kui ka see on võrdne, eelistatakse suuremat vastuvõttuvigade arvu (R ERR)."
+        : "For equal positive reception %, fewer total receptions (R TOT) rank higher. If still equal, more reception errors (R ERR) rank higher.",
+      receptionExcellentPctBest: isEstonian
+        ? "Võrdse ideaalse vastuvõtu % korral eelistatakse suuremat vastuvõttude koguarvu (R TOT)."
+        : "For equal ideal reception %, more total receptions (R TOT) rank higher.",
+      receptionExcellentPctWorst: isEstonian
+        ? "Võrdse ideaalse vastuvõtu % korral eelistatakse suuremat vastuvõttude koguarvu (R TOT)."
+        : "For equal ideal reception %, more total receptions (R TOT) rank higher.",
       bestAceErrorRatio: isEstonian
         ? "Võrdse ässade-vigade suhte korral eelistatakse suuremat servide koguarvu (S TOT)."
         : "For equal ace-to-error ratios, more total serve attempts (S TOT) rank higher.",
@@ -625,6 +701,23 @@ function GameHighsPage() {
       attackKills: isEstonian
         ? "Võrdse resultatiivsete rünnakute arvu korral eelistatakse väiksemat rünnakute koguarvu (A TOT)."
         : "For equal successful attacks, fewer total attacks (A TOT) rank higher.",
+    };
+
+    const receptionTieBreakers: Partial<
+      Record<PlayerMetricKey, { field: "receptionTotal" | "receptionErrors"; direction: "asc" | "desc" }[]>
+    > = {
+      receptionErrors: [{ field: "receptionTotal", direction: "asc" }],
+      receptionErrorsLeast: [{ field: "receptionTotal", direction: "desc" }],
+      receptionPositivePctBest: [
+        { field: "receptionTotal", direction: "desc" },
+        { field: "receptionErrors", direction: "asc" },
+      ],
+      receptionPositivePctWorst: [
+        { field: "receptionTotal", direction: "asc" },
+        { field: "receptionErrors", direction: "desc" },
+      ],
+      receptionExcellentPctBest: [{ field: "receptionTotal", direction: "desc" }],
+      receptionExcellentPctWorst: [{ field: "receptionTotal", direction: "desc" }],
     };
 
     const isSameDisplayedRank = (
@@ -669,8 +762,11 @@ function GameHighsPage() {
         return (current.serveTotal ?? 0) === (previous.serveTotal ?? 0);
       }
 
-      if (metric === "receptionErrorsLeast") {
-        return (current.receptionTotal ?? 0) === (previous.receptionTotal ?? 0);
+      const tieBreakers = receptionTieBreakers[metric];
+      if (tieBreakers) {
+        return tieBreakers.every(
+          ({ field }) => (current[field] ?? 0) === (previous[field] ?? 0),
+        );
       }
 
       if (
@@ -785,19 +881,11 @@ function GameHighsPage() {
             }
           }
 
-          if (metric === "receptionErrorsLeast") {
-            const leftReceptionTotal = left.receptionTotal ?? 0;
-            const rightReceptionTotal = right.receptionTotal ?? 0;
-            if (leftReceptionTotal !== rightReceptionTotal) {
-              return rightReceptionTotal - leftReceptionTotal;
-            }
-          }
-
-          if (metric === "receptionErrorsLeast") {
-            const leftReceptionTotal = left.receptionTotal ?? 0;
-            const rightReceptionTotal = right.receptionTotal ?? 0;
-            if (leftReceptionTotal !== rightReceptionTotal) {
-              return rightReceptionTotal - leftReceptionTotal;
+          for (const { field, direction } of receptionTieBreakers[metric] ?? []) {
+            const leftField = left[field] ?? 0;
+            const rightField = right[field] ?? 0;
+            if (leftField !== rightField) {
+              return direction === "asc" ? leftField - rightField : rightField - leftField;
             }
           }
 
@@ -1906,9 +1994,11 @@ function GameHighsPage() {
                                     <th className="px-2 py-2 text-center text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
                                       {t("gameHighs.table.position")}
                                     </th>
-                                    <th className="px-2 py-2 text-center text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
-                                      {getTopTenValueLabel(row.key)}
-                                    </th>
+                                    {!isValueColumnHidden(row.key) && (
+                                      <th className="px-2 py-2 text-center text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                                        {getTopTenValueLabel(row.key)}
+                                      </th>
+                                    )}
                                     {getReceptionContextKeys(row.key).map((key) => (
                                       <th
                                         key={key}
@@ -1967,13 +2057,15 @@ function GameHighsPage() {
                                       <td className="px-2 py-2 text-center text-sm text-slate-700">
                                         {item.position}
                                       </td>
-                                      <td className="px-2 py-2 text-center text-sm font-semibold text-estonia-dark">
-                                        {item.value}
-                                      </td>
+                                      {!isValueColumnHidden(row.key) && (
+                                        <td className="px-2 py-2 text-center text-sm font-semibold text-estonia-dark">
+                                          {item.value}
+                                        </td>
+                                      )}
                                       {getReceptionContextKeys(row.key).map((key) => (
                                         <td
                                           key={key}
-                                          className="px-2 py-2 text-center text-sm text-slate-700"
+                                          className={`px-2 py-2 text-center text-sm ${isReceptionContextHighlighted(row.key, key) ? "bg-amber-100 font-semibold text-estonia-dark" : "text-slate-700"}`}
                                         >
                                           {formatReceptionContextValue(key, item[key])}
                                         </td>
@@ -1981,7 +2073,7 @@ function GameHighsPage() {
                                       {getServeContextKeys(row.key).map((key) => (
                                         <td
                                           key={key}
-                                          className="px-2 py-2 text-center text-sm text-slate-700"
+                                          className={`px-2 py-2 text-center text-sm ${isServeContextHighlighted(row.key, key) ? "bg-amber-100 font-semibold text-estonia-dark" : "text-slate-700"}`}
                                         >
                                           {formatServeContextValue(item[key])}
                                         </td>
@@ -1989,7 +2081,7 @@ function GameHighsPage() {
                                       {getAttackContextKeys(row.key).map((key) => (
                                         <td
                                           key={key}
-                                          className="px-2 py-2 text-center text-sm text-slate-700"
+                                          className={`px-2 py-2 text-center text-sm ${isAttackContextHighlighted(row.key, key) ? "bg-amber-100 font-semibold text-estonia-dark" : "text-slate-700"}`}
                                         >
                                           {formatAttackContextValue(key, item[key])}
                                         </td>
@@ -2173,9 +2265,11 @@ function GameHighsPage() {
                                     <th className="px-2 py-2 text-left text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
                                       #
                                     </th>
-                                    <th className="px-2 py-2 text-center text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
-                                      {getTopTenValueLabel(row.key)}
-                                    </th>
+                                    {!isValueColumnHidden(row.key) && (
+                                      <th className="px-2 py-2 text-center text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                                        {getTopTenValueLabel(row.key)}
+                                      </th>
+                                    )}
                                     {getReceptionContextKeys(row.key).map((key) => (
                                       <th
                                         key={key}
@@ -2229,13 +2323,15 @@ function GameHighsPage() {
                                         <td className="px-2 py-2 text-sm text-slate-600">
                                           {item.rankLabel}
                                         </td>
-                                        <td className="px-2 py-2 text-center text-sm font-semibold text-estonia-dark">
-                                          {item.value}
-                                        </td>
+                                        {!isValueColumnHidden(row.key) && (
+                                          <td className="px-2 py-2 text-center text-sm font-semibold text-estonia-dark">
+                                            {item.value}
+                                          </td>
+                                        )}
                                         {getReceptionContextKeys(row.key).map((key) => (
                                           <td
                                             key={key}
-                                            className="px-2 py-2 text-center text-sm text-slate-700"
+                                            className={`px-2 py-2 text-center text-sm ${isReceptionContextHighlighted(row.key, key) ? "bg-amber-100 font-semibold text-estonia-dark" : "text-slate-700"}`}
                                           >
                                             {formatReceptionContextValue(key, item[key])}
                                           </td>
@@ -2243,7 +2339,7 @@ function GameHighsPage() {
                                         {getServeContextKeys(row.key).map((key) => (
                                           <td
                                             key={key}
-                                            className="px-2 py-2 text-center text-sm text-slate-700"
+                                            className={`px-2 py-2 text-center text-sm ${isServeContextHighlighted(row.key, key) ? "bg-amber-100 font-semibold text-estonia-dark" : "text-slate-700"}`}
                                           >
                                             {formatServeContextValue(item[key])}
                                           </td>
@@ -2251,7 +2347,7 @@ function GameHighsPage() {
                                         {getAttackContextKeys(row.key).map((key) => (
                                           <td
                                             key={key}
-                                            className="px-2 py-2 text-center text-sm text-slate-700"
+                                            className={`px-2 py-2 text-center text-sm ${isAttackContextHighlighted(row.key, key) ? "bg-amber-100 font-semibold text-estonia-dark" : "text-slate-700"}`}
                                           >
                                             {formatAttackContextValue(key, item[key])}
                                           </td>
@@ -2387,7 +2483,7 @@ function getTopTenValueLabel(metric: string): string {
     serveErrorsMost: "S ERR",
     serveErrorsLeast: "S ERR",
     serveErrors: "S ERR",
-    bestAceErrorRatio: "S ACE:S ERR",
+    bestAceErrorRatio: "Ratio",
     receptionTotal: "R TOT",
     receptionErrors: "R ERR",
     receptionPositivePctBest: "R POS%",
