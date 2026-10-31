@@ -4,6 +4,13 @@ import { matchOptions } from "@/lib/match-stats.queries";
 import { useTranslation } from "react-i18next";
 import { useState } from "react";
 
+const PERCENT_FIELDS = new Set([
+    "reception_positive_pct",
+    "reception_excellent_pct",
+    "attack_kill_pct",
+    "attack_efficiency",
+]);
+
 export const Route = createFileRoute("/match/$matchId")({
     loader: ({ context, params }) =>
         context.queryClient.ensureQueryData(matchOptions(Number(params.matchId))),
@@ -22,6 +29,8 @@ function MatchStatsPage() {
     const unavailableStats = new Set<string>(
         (match.match_unavailable_stats ?? []).map((row: { stat_field: string }) => row.stat_field),
     );
+    const teamTotals: Record<string, number> = data.teamTotals ?? {};
+    const hasTeamTotals = (...fields: string[]) => fields.every((f) => teamTotals[f] !== undefined);
 
     // determine available stats versions across players (e.g. 'ALL', 'AM')
     const availableStatVersions = new Set<string>();
@@ -288,10 +297,24 @@ function MatchStatsPage() {
 
     const { totals, receptionPositiveCount, receptionExcellentCount } = calculateTotals();
 
+    // Stored team totals replace the player sums for count stats.
+    Object.entries(teamTotals).forEach(([field, value]) => {
+        if (!PERCENT_FIELDS.has(field) && field in totals) {
+            totals[field] = value;
+        }
+    });
+
     const getStatValue = (fieldName: string): string => {
+        if (PERCENT_FIELDS.has(fieldName) && teamTotals[fieldName] !== undefined) {
+            return formatPercent(teamTotals[fieldName]);
+        }
+        if (teamTotals[fieldName] !== undefined) {
+            return formatStat(teamTotals[fieldName]);
+        }
         if (unavailableStats.has(fieldName)) return "";
         if (
             fieldName === "attack_efficiency" &&
+            !hasTeamTotals("attack_total", "attack_kills", "attack_blocked", "attack_errors") &&
             ["attack_total", "attack_kills", "attack_blocked", "attack_errors"].some((field) =>
                 unavailableStats.has(field),
             )
@@ -299,15 +322,17 @@ function MatchStatsPage() {
             return "";
         if (
             fieldName === "attack_kill_pct" &&
+            !hasTeamTotals("attack_total", "attack_kills") &&
             ["attack_total", "attack_kills"].some((field) => unavailableStats.has(field))
         )
             return "";
         if (
-            (fieldName === "reception_positive_pct" && unavailableStats.has("reception_positive_pct")) ||
-            (fieldName === "reception_excellent_pct" &&
-                unavailableStats.has("reception_excellent_pct")) ||
-            ((fieldName === "reception_positive_pct" || fieldName === "reception_excellent_pct") &&
-                unavailableStats.has("reception_total"))
+            ((fieldName === "reception_positive_pct" && unavailableStats.has("reception_positive_pct")) ||
+                (fieldName === "reception_excellent_pct" &&
+                    unavailableStats.has("reception_excellent_pct")) ||
+                ((fieldName === "reception_positive_pct" || fieldName === "reception_excellent_pct") &&
+                    unavailableStats.has("reception_total"))) &&
+            !hasTeamTotals("reception_total")
         )
             return "";
 

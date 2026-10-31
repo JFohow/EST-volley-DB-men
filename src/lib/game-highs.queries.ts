@@ -48,61 +48,61 @@ type GameHighAppearanceRow = {
   player_position_in_match: string | null;
   match_id: number;
   players:
-  | {
-    player_id: number;
-    first_name: string;
-    last_name: string;
-    position: string | null;
-  }
-  | Array<{
-    player_id: number;
-    first_name: string;
-    last_name: string;
-    position: string | null;
-  }>
-  | null;
+    | {
+        player_id: number;
+        first_name: string;
+        last_name: string;
+        position: string | null;
+      }
+    | Array<{
+        player_id: number;
+        first_name: string;
+        last_name: string;
+        position: string | null;
+      }>
+    | null;
   player_match_stats:
-  | {
-    stats_version: "ALL" | "AM" | null;
-    points: number | null;
-    plus_minus: number | null;
-    break_points: number | null;
-    serve_total: number | null;
-    serve_aces: number | null;
-    serve_errors: number | null;
-    reception_total: number | null;
-    reception_errors: number | null;
-    reception_positive_pct: number | null;
-    reception_excellent_pct: number | null;
-    attack_total: number | null;
-    attack_errors: number | null;
-    attack_blocked: number | null;
-    attack_kills: number | null;
-    attack_kill_pct: number | null;
-    attack_efficiency: number | null;
-    block_points: number | null;
-  }
-  | Array<{
-    stats_version: "ALL" | "AM" | null;
-    points: number | null;
-    plus_minus: number | null;
-    break_points: number | null;
-    serve_total: number | null;
-    serve_aces: number | null;
-    serve_errors: number | null;
-    reception_total: number | null;
-    reception_errors: number | null;
-    reception_positive_pct: number | null;
-    reception_excellent_pct: number | null;
-    attack_total: number | null;
-    attack_errors: number | null;
-    attack_blocked: number | null;
-    attack_kills: number | null;
-    attack_kill_pct: number | null;
-    attack_efficiency: number | null;
-    block_points: number | null;
-  }>
-  | null;
+    | {
+        stats_version: "ALL" | "AM" | null;
+        points: number | null;
+        plus_minus: number | null;
+        break_points: number | null;
+        serve_total: number | null;
+        serve_aces: number | null;
+        serve_errors: number | null;
+        reception_total: number | null;
+        reception_errors: number | null;
+        reception_positive_pct: number | null;
+        reception_excellent_pct: number | null;
+        attack_total: number | null;
+        attack_errors: number | null;
+        attack_blocked: number | null;
+        attack_kills: number | null;
+        attack_kill_pct: number | null;
+        attack_efficiency: number | null;
+        block_points: number | null;
+      }
+    | Array<{
+        stats_version: "ALL" | "AM" | null;
+        points: number | null;
+        plus_minus: number | null;
+        break_points: number | null;
+        serve_total: number | null;
+        serve_aces: number | null;
+        serve_errors: number | null;
+        reception_total: number | null;
+        reception_errors: number | null;
+        reception_positive_pct: number | null;
+        reception_excellent_pct: number | null;
+        attack_total: number | null;
+        attack_errors: number | null;
+        attack_blocked: number | null;
+        attack_kills: number | null;
+        attack_kill_pct: number | null;
+        attack_efficiency: number | null;
+        block_points: number | null;
+      }>
+    | null;
 };
 
 type MatchRow = {
@@ -316,9 +316,9 @@ async function fetchGameHighs(): Promise<GameHighRow[]> {
             : deriveAttackKillPct(stats),
         attackEfficiency:
           unavailableStats.has("attack_total") ||
-            unavailableStats.has("attack_kills") ||
-            unavailableStats.has("attack_blocked") ||
-            unavailableStats.has("attack_errors")
+          unavailableStats.has("attack_kills") ||
+          unavailableStats.has("attack_blocked") ||
+          unavailableStats.has("attack_errors")
             ? null
             : deriveAttackEfficiency(stats),
         blockPoints: unavailableStats.has("block_points") ? null : stats.block_points,
@@ -342,8 +342,79 @@ async function fetchGameHighs(): Promise<GameHighRow[]> {
   return rows.sort((a, b) => (b.points ?? 0) - (a.points ?? 0));
 }
 
+export const TEAM_TOTAL_STAT_FIELDS = [
+  "points",
+  "block_points",
+  "plus_minus",
+  "break_points",
+  "serve_total",
+  "serve_aces",
+  "serve_errors",
+  "reception_total",
+  "reception_errors",
+  "reception_positive_pct",
+  "reception_excellent_pct",
+  "attack_total",
+  "attack_errors",
+  "attack_blocked",
+  "attack_kills",
+  "attack_kill_pct",
+] as const;
+
+export type MatchTeamTotalRow = {
+  matchId: number;
+  statField: string;
+  teamTotal: number;
+};
+
+type MatchTeamTotalDbRow = {
+  match_id: number;
+  stat_field: string;
+  team_total: number;
+};
+
+async function fetchMatchTeamTotals(): Promise<MatchTeamTotalRow[]> {
+  const pageSize = 1000;
+  const rows: MatchTeamTotalRow[] = [];
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from("match_team_totals")
+      .select("match_id, stat_field, team_total")
+      .order("match_id", { ascending: true })
+      .order("stat_field", { ascending: true })
+      .range(from, from + pageSize - 1);
+
+    if (error) throw error;
+
+    const chunk = (data ?? []) as MatchTeamTotalDbRow[];
+    rows.push(
+      ...chunk.map((row) => ({
+        matchId: row.match_id,
+        statField: row.stat_field,
+        teamTotal: row.team_total,
+      })),
+    );
+
+    if (chunk.length < pageSize) {
+      break;
+    }
+
+    from += pageSize;
+  }
+
+  return rows;
+}
+
 export const gameHighsOptions = () =>
   queryOptions({
     queryKey: ["game-highs"],
     queryFn: fetchGameHighs,
+  });
+
+export const matchTeamTotalsOptions = () =>
+  queryOptions({
+    queryKey: ["match-team-totals"],
+    queryFn: fetchMatchTeamTotals,
   });

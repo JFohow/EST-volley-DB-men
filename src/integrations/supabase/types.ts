@@ -165,6 +165,35 @@ export type Database = {
           },
         ]
       }
+      match_team_totals: {
+        Row: {
+          entered_at: string
+          match_id: number
+          stat_field: string
+          team_total: number
+        }
+        Insert: {
+          entered_at?: string
+          match_id: number
+          stat_field: string
+          team_total: number
+        }
+        Update: {
+          entered_at?: string
+          match_id?: number
+          stat_field?: string
+          team_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_team_totals_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["match_id"]
+          },
+        ]
+      }
       matches: {
         Row: {
           additional_sets_count: number

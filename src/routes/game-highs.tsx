@@ -1,7 +1,12 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { gameHighsOptions, type GameHighRow } from "@/lib/game-highs.queries";
+import {
+  gameHighsOptions,
+  matchTeamTotalsOptions,
+  TEAM_TOTAL_STAT_FIELDS,
+  type GameHighRow,
+} from "@/lib/game-highs.queries";
 import {
   Table,
   TableBody,
@@ -302,7 +307,11 @@ export const Route = createFileRoute("/game-highs")({
       },
     ],
   }),
-  loader: ({ context }) => context.queryClient.ensureQueryData(gameHighsOptions()),
+  loader: ({ context }) =>
+    Promise.all([
+      context.queryClient.ensureQueryData(gameHighsOptions()),
+      context.queryClient.ensureQueryData(matchTeamTotalsOptions()),
+    ]),
   component: GameHighsPage,
   errorComponent: GameHighsError,
 });
@@ -329,6 +338,16 @@ const TEAM_HIGHS_EXCLUDED_MATCH_IDS = new Set<number>([478]);
 function GameHighsPage() {
   const { t, i18n } = useTranslation();
   const { data } = useSuspenseQuery(gameHighsOptions());
+  const { data: teamTotalRows } = useSuspenseQuery(matchTeamTotalsOptions());
+  const teamTotalsByMatch = useMemo(() => {
+    const byMatch = new Map<number, Map<string, number>>();
+    for (const row of teamTotalRows) {
+      const stats = byMatch.get(row.matchId) ?? new Map<string, number>();
+      stats.set(row.statField, row.teamTotal);
+      byMatch.set(row.matchId, stats);
+    }
+    return byMatch;
+  }, [teamTotalRows]);
   const [viewMode, setViewMode] = useState<"PLAYERS" | "TEAM">("PLAYERS");
   const [selectedPosition, setSelectedPosition] = useState<string>("ALL");
   const [matchType, setMatchType] = useState<"ALL" | "OFFICIAL" | "COMPETITIVE" | "NON_OFFICIAL">(
@@ -704,7 +723,10 @@ function GameHighsPage() {
     };
 
     const receptionTieBreakers: Partial<
-      Record<PlayerMetricKey, { field: "receptionTotal" | "receptionErrors"; direction: "asc" | "desc" }[]>
+      Record<
+        PlayerMetricKey,
+        { field: "receptionTotal" | "receptionErrors"; direction: "asc" | "desc" }[]
+      >
     > = {
       receptionErrors: [{ field: "receptionTotal", direction: "asc" }],
       receptionErrorsLeast: [{ field: "receptionTotal", direction: "desc" }],
@@ -764,9 +786,7 @@ function GameHighsPage() {
 
       const tieBreakers = receptionTieBreakers[metric];
       if (tieBreakers) {
-        return tieBreakers.every(
-          ({ field }) => (current[field] ?? 0) === (previous[field] ?? 0),
-        );
+        return tieBreakers.every(({ field }) => (current[field] ?? 0) === (previous[field] ?? 0));
       }
 
       if (
@@ -953,11 +973,11 @@ function GameHighsPage() {
           ? "min 10 vastuvõttu"
           : "minimum 10 receptions"
         : [
-          "attackKillPctBest",
-          "attackKillPctWorst",
-          "attackEfficiencyBest",
-          "attackEfficiencyWorst",
-        ].includes(metric)
+              "attackKillPctBest",
+              "attackKillPctWorst",
+              "attackEfficiencyBest",
+              "attackEfficiencyWorst",
+            ].includes(metric)
           ? isEstonian
             ? "min 10 rünnakut"
             : "minimum 10 attacks"
@@ -1166,28 +1186,61 @@ function GameHighsPage() {
     });
 
     const teamMatches = Array.from(teamByMatch.values()).map((match) => {
-      const receptionPositivePct =
+      const teamTotals = teamTotalsByMatch.get(match.matchId);
+      const unavailable = new Set(match.unavailableStats);
+      if (match.unavailableStats.size > 0) {
+        TEAM_TOTAL_STAT_FIELDS.forEach((field) => {
+          if (!teamTotals?.has(field)) unavailable.add(field);
+        });
+      }
+
+      const value = (field: string, playerSum: number) => teamTotals?.get(field) ?? playerSum;
+      const points = value("points", match.points);
+      const breakPoints = value("break_points", match.breakPoints);
+      const plusMinus =
+        teamTotals?.get("plus_minus") ?? (match.plusMinusCount > 0 ? match.plusMinus : null);
+      const serveTotal = value("serve_total", match.serveTotal);
+      const serveAces = value("serve_aces", match.serveAces);
+      const serveErrors = value("serve_errors", match.serveErrors);
+      const receptionTotal = value("reception_total", match.receptionTotal);
+      const receptionErrors = value("reception_errors", match.receptionErrors);
+      const attackTotal = value("attack_total", match.attackTotal);
+      const attackErrors = value("attack_errors", match.attackErrors);
+      const attackBlocked = value("attack_blocked", match.attackBlocked);
+      const attackKills = value("attack_kills", match.attackKills);
+      const blockPoints = value("block_points", match.blockPoints);
+
+      const derivedReceptionPositivePct =
         match.receptionTotal > 0
           ? (match.receptionPositiveCount / match.receptionTotal) * 100
           : null;
-      const receptionExcellentPct =
+      const derivedReceptionExcellentPct =
         match.receptionTotal > 0
           ? (match.receptionExcellentCount / match.receptionTotal) * 100
           : null;
+
+      const receptionPositivePct =
+        teamTotals?.get("reception_positive_pct") ??
+        (unavailable.has("reception_total") || unavailable.has("reception_positive_pct")
+          ? null
+          : derivedReceptionPositivePct);
+      const receptionExcellentPct =
+        teamTotals?.get("reception_excellent_pct") ??
+        (unavailable.has("reception_total") || unavailable.has("reception_excellent_pct")
+          ? null
+          : derivedReceptionExcellentPct);
       const attackKillPct =
-        !match.unavailableStats.has("attack_total") &&
-          !match.unavailableStats.has("attack_kills") &&
-          match.attackTotal > 0
-          ? (match.attackKills / match.attackTotal) * 100
-          : null;
+        teamTotals?.get("attack_kill_pct") ??
+        (!unavailable.has("attack_total") && !unavailable.has("attack_kills") && attackTotal > 0
+          ? (attackKills / attackTotal) * 100
+          : null);
       const attackEfficiency =
-        !match.unavailableStats.has("attack_total") &&
-          !match.unavailableStats.has("attack_kills") &&
-          !match.unavailableStats.has("attack_blocked") &&
-          !match.unavailableStats.has("attack_errors") &&
-          match.attackTotal > 0
-          ? ((match.attackKills - match.attackBlocked - match.attackErrors) / match.attackTotal) *
-          100
+        !unavailable.has("attack_total") &&
+        !unavailable.has("attack_kills") &&
+        !unavailable.has("attack_blocked") &&
+        !unavailable.has("attack_errors") &&
+        attackTotal > 0
+          ? ((attackKills - attackBlocked - attackErrors) / attackTotal) * 100
           : null;
 
       return {
@@ -1196,25 +1249,30 @@ function GameHighsPage() {
           showAdditionalSetsInScore && match.additionalSetScores.length > 0
             ? `${match.score} (${match.additionalSetScores.join(", ")})`
             : match.score,
-        plusMinus: match.plusMinusCount > 0 ? match.plusMinus : null,
+        points,
+        breakPoints,
+        plusMinus,
+        serveTotal,
+        serveAces,
+        serveErrors,
+        receptionTotal,
+        receptionErrors,
+        attackTotal,
+        attackErrors,
+        attackBlocked,
+        attackKills,
+        blockPoints,
         receptionErrorsLeast:
-          match.unavailableStats.has("reception_total") ||
-            match.unavailableStats.has("reception_errors") ||
-            match.receptionTotal < 10
+          unavailable.has("reception_total") ||
+          unavailable.has("reception_errors") ||
+          receptionTotal < 10
             ? null
-            : match.receptionErrors,
-        receptionPositivePct:
-          match.unavailableStats.has("reception_total") ||
-            match.unavailableStats.has("reception_positive_pct")
-            ? null
-            : receptionPositivePct,
-        receptionExcellentPct:
-          match.unavailableStats.has("reception_total") ||
-            match.unavailableStats.has("reception_excellent_pct")
-            ? null
-            : receptionExcellentPct,
+            : receptionErrors,
+        receptionPositivePct,
+        receptionExcellentPct,
         attackKillPct,
         attackEfficiency,
+        unavailableStats: unavailable,
       };
     });
 
@@ -1529,21 +1587,21 @@ function GameHighsPage() {
             metric.key === "bestAceErrorRatio"
               ? `${match.serveAces} : ${match.serveErrors}`
               : formatTeamValue(
-                (match[metric.key as keyof typeof match] as number | null) ?? null,
-                metric.key,
-              ),
+                  (match[metric.key as keyof typeof match] as number | null) ?? null,
+                  metric.key,
+                ),
           opponent: isEstonian ? match.opponent : (match.opponentEn ?? match.opponent),
           score: match.score,
           setScore:
             metric.key === "maxEstoniaSetPoints" &&
-              match.maxEstoniaSetPoints != null &&
-              match.maxSetOpponentPoints != null
+            match.maxEstoniaSetPoints != null &&
+            match.maxSetOpponentPoints != null
               ? `${match.maxEstoniaSetPoints}-${match.maxSetOpponentPoints}`
               : null,
           setWon:
             metric.key === "maxEstoniaSetPoints" &&
-              match.maxEstoniaSetPoints != null &&
-              match.maxSetOpponentPoints != null
+            match.maxEstoniaSetPoints != null &&
+            match.maxSetOpponentPoints != null
               ? match.maxEstoniaSetPoints > match.maxSetOpponentPoints
               : null,
           date: new Date(match.matchDate).toLocaleDateString("en-GB", {
@@ -1632,17 +1690,17 @@ function GameHighsPage() {
               ? `${best.serveAces} : ${best.serveErrors}`
               : "—"
             : formatTeamValue(
-              best ? ((best[metric.key as keyof typeof best] as number | null) ?? null) : null,
-              metric.key,
-            ),
+                best ? ((best[metric.key as keyof typeof best] as number | null) ?? null) : null,
+                metric.key,
+              ),
         opponent: best ? (isEstonian ? best.opponent : (best.opponentEn ?? best.opponent)) : "—",
         score: best?.score ?? "—",
         date: best
           ? new Date(best.matchDate).toLocaleDateString("en-GB", {
-            day: "numeric",
-            month: "short",
-            year: "numeric",
-          })
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+            })
           : "—",
         competition: best
           ? isEstonian
@@ -1657,7 +1715,7 @@ function GameHighsPage() {
         topTen: topTenWithRanks,
       };
     });
-  }, [teamFilteredRows, t, isEstonian, showAdditionalSetsInScore]);
+  }, [teamFilteredRows, t, isEstonian, showAdditionalSetsInScore, teamTotalsByMatch]);
 
   const positionButtonsDisabled = viewMode === "TEAM";
 
@@ -1721,10 +1779,11 @@ function GameHighsPage() {
               key={option.value}
               type="button"
               onClick={() => setViewMode(option.value as typeof viewMode)}
-              className={`h-10 w-full rounded-md border px-3 text-xs font-semibold uppercase tracking-[0.14em] transition ${viewMode === option.value
+              className={`h-10 w-full rounded-md border px-3 text-xs font-semibold uppercase tracking-[0.14em] transition ${
+                viewMode === option.value
                   ? "border-estonia-blue bg-estonia-blue text-white"
                   : "border-white/30 bg-white/10 text-white/90 hover:bg-white/20"
-                }`}
+              }`}
             >
               {option.label}
             </button>
@@ -1747,10 +1806,11 @@ function GameHighsPage() {
                   key={option.value}
                   type="button"
                   onClick={() => setMatchType(option.value as typeof matchType)}
-                  className={`h-10 w-full rounded-md border px-3 text-xs font-semibold uppercase tracking-[0.16em] transition ${matchType === option.value
+                  className={`h-10 w-full rounded-md border px-3 text-xs font-semibold uppercase tracking-[0.16em] transition ${
+                    matchType === option.value
                       ? "border-estonia-blue bg-estonia-blue text-white"
                       : "border-white/30 bg-white/10 text-white/90 hover:bg-white/20"
-                    }`}
+                  }`}
                 >
                   {option.label}
                 </button>
@@ -1771,10 +1831,11 @@ function GameHighsPage() {
                   type="button"
                   disabled={positionButtonsDisabled}
                   onClick={() => setSelectedPosition(position)}
-                  className={`h-10 w-full rounded-md border px-3 text-xs font-semibold uppercase tracking-[0.16em] transition ${selectedPosition === position
+                  className={`h-10 w-full rounded-md border px-3 text-xs font-semibold uppercase tracking-[0.16em] transition ${
+                    selectedPosition === position
                       ? "border-estonia-blue bg-estonia-blue text-white"
                       : "border-white/30 bg-white/10 text-white/90 hover:bg-white/20"
-                    }`}
+                  }`}
                 >
                   {position === "ALL" ? "ALL" : position}
                 </button>
@@ -1796,10 +1857,11 @@ function GameHighsPage() {
                   key={option.value}
                   type="button"
                   onClick={() => setMatchLengthFilter(option.value)}
-                  className={`h-10 w-full rounded-md border px-3 text-xs font-semibold uppercase tracking-[0.16em] transition ${matchLengthFilter === option.value
+                  className={`h-10 w-full rounded-md border px-3 text-xs font-semibold uppercase tracking-[0.16em] transition ${
+                    matchLengthFilter === option.value
                       ? "border-estonia-blue bg-estonia-blue text-white"
                       : "border-white/30 bg-white/10 text-white/90 hover:bg-white/20"
-                    }`}
+                  }`}
                 >
                   {option.label}
                 </button>
@@ -1892,19 +1954,19 @@ function GameHighsPage() {
                       {(row.key === "serveTotal" ||
                         row.key === "receptionTotal" ||
                         row.key === "attackTotal") && (
-                          <TableRow className="bg-slate-100">
-                            <TableCell
-                              colSpan={8}
-                              className="py-2 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-slate-600"
-                            >
-                              {row.key === "serveTotal"
-                                ? playerSectionHeaders.serveTotal
-                                : row.key === "receptionTotal"
-                                  ? playerSectionHeaders.receptionTotal
-                                  : playerSectionHeaders.attackTotal}
-                            </TableCell>
-                          </TableRow>
-                        )}
+                        <TableRow className="bg-slate-100">
+                          <TableCell
+                            colSpan={8}
+                            className="py-2 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-slate-600"
+                          >
+                            {row.key === "serveTotal"
+                              ? playerSectionHeaders.serveTotal
+                              : row.key === "receptionTotal"
+                                ? playerSectionHeaders.receptionTotal
+                                : playerSectionHeaders.attackTotal}
+                          </TableCell>
+                        </TableRow>
+                      )}
 
                       <TableRow className={playerSectionToneClass[row.key]}>
                         <TableCell className="p-3 text-sm text-slate-700">{row.metric}</TableCell>
@@ -2171,19 +2233,19 @@ function GameHighsPage() {
                       {(row.key === "serveTotal" ||
                         row.key === "receptionTotal" ||
                         row.key === "attackTotal") && (
-                          <TableRow className="bg-slate-100">
-                            <TableCell
-                              colSpan={7}
-                              className="py-2 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-slate-600"
-                            >
-                              {row.key === "serveTotal"
-                                ? teamSectionHeaders.serveTotal
-                                : row.key === "receptionTotal"
-                                  ? teamSectionHeaders.receptionTotal
-                                  : teamSectionHeaders.attackTotal}
-                            </TableCell>
-                          </TableRow>
-                        )}
+                        <TableRow className="bg-slate-100">
+                          <TableCell
+                            colSpan={7}
+                            className="py-2 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-slate-600"
+                          >
+                            {row.key === "serveTotal"
+                              ? teamSectionHeaders.serveTotal
+                              : row.key === "receptionTotal"
+                                ? teamSectionHeaders.receptionTotal
+                                : teamSectionHeaders.attackTotal}
+                          </TableCell>
+                        </TableRow>
+                      )}
 
                       <TableRow className={teamSectionToneClass[row.key] ?? "bg-white"}>
                         <TableCell className="p-3 text-sm text-slate-700">{row.metric}</TableCell>
@@ -2194,25 +2256,25 @@ function GameHighsPage() {
                         <TableCell className="p-3 text-center">
                           {row.matchHref
                             ? (() => {
-                              const parts = row.score.split("-");
-                              const estonia = Number.parseInt(parts[0] ?? "0", 10);
-                              const opponent = Number.parseInt(parts[1] ?? "0", 10);
-                              const resultStyle =
-                                estonia > opponent
-                                  ? "text-estonia-blue"
-                                  : estonia === opponent
-                                    ? "text-green-700"
-                                    : "text-red-700";
+                                const parts = row.score.split("-");
+                                const estonia = Number.parseInt(parts[0] ?? "0", 10);
+                                const opponent = Number.parseInt(parts[1] ?? "0", 10);
+                                const resultStyle =
+                                  estonia > opponent
+                                    ? "text-estonia-blue"
+                                    : estonia === opponent
+                                      ? "text-green-700"
+                                      : "text-red-700";
 
-                              return (
-                                <a
-                                  href={row.matchHref}
-                                  className={`font-semibold hover:underline ${resultStyle}`}
-                                >
-                                  {row.score}
-                                </a>
-                              );
-                            })()
+                                return (
+                                  <a
+                                    href={row.matchHref}
+                                    className={`font-semibold hover:underline ${resultStyle}`}
+                                  >
+                                    {row.score}
+                                  </a>
+                                );
+                              })()
                             : "—"}
                         </TableCell>
                         <TableCell className="p-3 text-center text-sm text-slate-700">

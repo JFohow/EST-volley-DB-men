@@ -58,6 +58,7 @@ export type PlayerMatchStats = {
 export type MatchDetailsWithPlayers = {
     match: any;
     players: PlayerMatchStats[];
+    teamTotals: Record<string, number>;
 };
 
 export function matchOptions(matchId: number) {
@@ -131,6 +132,20 @@ export function matchOptions(matchId: number) {
                 throw appearanceError;
             }
 
+            const { data: teamTotalRows, error: teamTotalError } = await supabase
+                .from("match_team_totals")
+                .select("stat_field, team_total")
+                .eq("match_id", matchId);
+
+            if (teamTotalError) {
+                throw teamTotalError;
+            }
+
+            const teamTotals: Record<string, number> = {};
+            (teamTotalRows ?? []).forEach((row) => {
+                teamTotals[row.stat_field] = row.team_total;
+            });
+
             const unavailableStats = getUnavailableStatSet(match.match_unavailable_stats);
             const playersWithMaskedStats = (appearances ?? []).map((appearance) => {
                 const statsRows = Array.isArray(appearance.player_match_stats)
@@ -151,6 +166,7 @@ export function matchOptions(matchId: number) {
             return {
                 match,
                 players: playersWithMaskedStats,
+                teamTotals,
             } as MatchDetailsWithPlayers;
         },
     });
