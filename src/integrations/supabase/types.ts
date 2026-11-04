@@ -420,7 +420,13 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      match_opp_errors: {
+        Row: {
+          match_id: number | null
+          opp_errors: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never

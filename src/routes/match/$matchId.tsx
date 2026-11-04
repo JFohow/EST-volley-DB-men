@@ -231,6 +231,10 @@ function MatchStatsPage() {
 
     const blockColumns = [{ field: "block_points", label: "PTS" }];
 
+    // Number, name and set columns take their content width; the rest share the remaining width equally.
+    const flexibleColumnCount =
+        statColumns.length + serveColumns.length + receptionColumns.length + attackColumns.length + blockColumns.length;
+
     // Calculate totals
     const calculateTotals = () => {
         const totals: Record<string, number> = {};
@@ -470,7 +474,17 @@ function MatchStatsPage() {
 
                 {/* Statistics Table */}
                 <div className="mt-8 overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-                    <table className="w-full border-collapse">
+                    <table className="w-full min-w-[56rem] border-collapse">
+                        <colgroup>
+                            <col className="w-px" />
+                            <col className="w-px" />
+                            {setColumns.map((set) => (
+                                <col key={`set-col-${set}`} className="w-px" />
+                            ))}
+                            {Array.from({ length: flexibleColumnCount }, (_, idx) => (
+                                <col key={`flex-col-${idx}`} style={{ width: `${100 / flexibleColumnCount}%` }} />
+                            ))}
+                        </colgroup>
                         <thead>
                             {/* Section Headers */}
                             <tr className="border-b-2 border-slate-300 bg-slate-50">
@@ -484,7 +498,7 @@ function MatchStatsPage() {
                                 {/* Sets Section */}
                                 <th
                                     colSpan={5}
-                                    className="border-r-2 border-slate-300 px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                                    className="border-r-2 border-slate-300 px-4 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500"
                                 >
                                     Sets
                                 </th>
@@ -492,7 +506,7 @@ function MatchStatsPage() {
                                 {/* Points Section */}
                                 <th
                                     colSpan={3}
-                                    className="border-r-2 border-slate-300 px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                                    className="border-r-2 border-slate-300 px-4 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500"
                                 >
                                     Points
                                 </th>
@@ -500,7 +514,7 @@ function MatchStatsPage() {
                                 {/* Serve Section */}
                                 <th
                                     colSpan={3}
-                                    className="border-r-2 border-slate-300 px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                                    className="border-r-2 border-slate-300 px-4 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500"
                                 >
                                     Serve
                                 </th>
@@ -508,7 +522,7 @@ function MatchStatsPage() {
                                 {/* Reception Section */}
                                 <th
                                     colSpan={4}
-                                    className="border-r-2 border-slate-300 px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                                    className="border-r-2 border-slate-300 px-4 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500"
                                 >
                                     Reception
                                 </th>
@@ -516,7 +530,7 @@ function MatchStatsPage() {
                                 {/* Attack Section */}
                                 <th
                                     colSpan={6}
-                                    className="border-r-2 border-slate-300 px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                                    className="border-r-2 border-slate-300 px-4 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500"
                                 >
                                     Attack
                                 </th>
@@ -524,7 +538,7 @@ function MatchStatsPage() {
                                 {/* Block Section */}
                                 <th
                                     colSpan={1}
-                                    className="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                                    className="px-4 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500"
                                 >
                                     Block
                                 </th>
@@ -532,14 +546,14 @@ function MatchStatsPage() {
 
                             {/* Column Headers */}
                             <tr className="border-b-2 border-slate-300 bg-slate-50">
-                                <th className="border-r border-slate-200 px-4 py-2 text-center text-[10px] font-semibold text-slate-600" />
-                                <th className="border-r-2 border-slate-300 px-4 py-2 text-left text-[10px] font-semibold text-slate-600" />
+                                <th className="border-r border-slate-200 px-4 py-1 text-center text-[10px] font-semibold text-slate-600" />
+                                <th className="border-r-2 border-slate-300 px-4 py-1 text-left text-[10px] font-semibold text-slate-600" />
 
                                 {/* Set columns */}
                                 {setColumns.map((set, idx) => (
                                     <th
                                         key={`set-${set}`}
-                                        className={`px-2 py-2 text-center text-[10px] font-semibold text-slate-600 ${idx === setColumns.length - 1 ? "border-r-2 border-slate-300" : "border-r border-slate-200"}`}
+                                        className={`px-2 py-1 text-center text-[10px] font-semibold text-slate-600 ${idx === setColumns.length - 1 ? "border-r-2 border-slate-300" : "border-r border-slate-200"}`}
                                     >
                                         {set}
                                     </th>
@@ -549,7 +563,7 @@ function MatchStatsPage() {
                                 {statColumns.map((col, idx) => (
                                     <th
                                         key={col.field}
-                                        className={`px-2 py-2 text-center text-[10px] font-semibold text-slate-600 ${idx === statColumns.length - 1
+                                        className={`px-2 py-1 text-center text-[10px] font-semibold text-slate-600 ${idx === statColumns.length - 1
                                                 ? "border-r-2 border-slate-300"
                                                 : "border-r border-slate-200"
                                             }`}
@@ -562,7 +576,7 @@ function MatchStatsPage() {
                                 {serveColumns.map((col) => (
                                     <th
                                         key={col.field}
-                                        className={`px-2 py-2 text-center text-[10px] font-semibold text-slate-600 border-r-2 border-slate-300`}
+                                        className={`px-2 py-1 text-center text-[10px] font-semibold text-slate-600 border-r-2 border-slate-300`}
                                     >
                                         {col.label}
                                     </th>
@@ -572,7 +586,7 @@ function MatchStatsPage() {
                                 {receptionColumns.map((col) => (
                                     <th
                                         key={col.field}
-                                        className={`px-2 py-2 text-center text-[10px] font-semibold text-slate-600 border-r-2 border-slate-300`}
+                                        className={`px-2 py-1 text-center text-[10px] font-semibold text-slate-600 border-r-2 border-slate-300`}
                                     >
                                         {col.label}
                                     </th>
@@ -582,7 +596,7 @@ function MatchStatsPage() {
                                 {attackColumns.map((col) => (
                                     <th
                                         key={col.field}
-                                        className={`px-2 py-2 text-center text-[10px] font-semibold text-slate-600 border-r-2 border-slate-300`}
+                                        className={`px-2 py-1 text-center text-[10px] font-semibold text-slate-600 border-r-2 border-slate-300`}
                                     >
                                         {col.label}
                                     </th>
@@ -592,7 +606,7 @@ function MatchStatsPage() {
                                 {blockColumns.map((col) => (
                                     <th
                                         key={col.field}
-                                        className="px-2 py-2 text-center text-[10px] font-semibold text-slate-600"
+                                        className="px-2 py-1 text-center text-[10px] font-semibold text-slate-600"
                                     >
                                         {col.label}
                                     </th>
@@ -617,7 +631,7 @@ function MatchStatsPage() {
                                         <td className="border-r border-slate-200 px-4 py-3 text-center font-bold text-slate-900">
                                             {player.shirt_number || "—"}
                                         </td>
-                                        <td className="border-r-2 border-slate-300 px-4 py-3 text-left text-sm font-medium text-slate-900">
+                                        <td className="whitespace-nowrap border-r-2 border-slate-300 px-4 py-3 text-left text-sm font-medium text-slate-900">
                                             <Link
                                                 to="/players/$playerId"
                                                 params={{ playerId: String(player.player_id) }}
@@ -746,9 +760,7 @@ function MatchStatsPage() {
                                     <td
                                         key={`set-total-${set}`}
                                         className={`px-2 py-3 text-center text-sm text-slate-700 ${idx === setColumns.length - 1 ? "border-r-2 border-slate-300" : "border-r border-slate-200"}`}
-                                    >
-                                        —
-                                    </td>
+                                    ></td>
                                 ))}
 
                                 {/* Points totals */}

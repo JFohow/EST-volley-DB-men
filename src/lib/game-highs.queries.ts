@@ -403,6 +403,18 @@ async function fetchMatchTeamTotals(): Promise<MatchTeamTotalRow[]> {
     from += pageSize;
   }
 
+  const { data: oppErrorRows, error: oppErrorError } = await supabase
+    .from("match_opp_errors")
+    .select("match_id, opp_errors");
+
+  if (oppErrorError) throw oppErrorError;
+
+  (oppErrorRows ?? []).forEach((row) => {
+    if (row.match_id != null && typeof row.opp_errors === "number") {
+      rows.push({ matchId: row.match_id, statField: "opp_errors", teamTotal: row.opp_errors });
+    }
+  });
+
   return rows;
 }
 
