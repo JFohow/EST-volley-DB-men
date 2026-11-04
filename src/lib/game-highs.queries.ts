@@ -369,8 +369,7 @@ export type MatchTeamTotalRow = {
 
 type MatchTeamTotalDbRow = {
   match_id: number;
-  stat_field: string;
-  team_total: number;
+  [field: string]: number | null;
 };
 
 async function fetchMatchTeamTotals(): Promise<MatchTeamTotalRow[]> {
@@ -381,21 +380,21 @@ async function fetchMatchTeamTotals(): Promise<MatchTeamTotalRow[]> {
   while (true) {
     const { data, error } = await supabase
       .from("match_team_totals")
-      .select("match_id, stat_field, team_total")
+      .select(`match_id, ${TEAM_TOTAL_STAT_FIELDS.join(", ")}`)
       .order("match_id", { ascending: true })
-      .order("stat_field", { ascending: true })
       .range(from, from + pageSize - 1);
 
     if (error) throw error;
 
-    const chunk = (data ?? []) as MatchTeamTotalDbRow[];
-    rows.push(
-      ...chunk.map((row) => ({
-        matchId: row.match_id,
-        statField: row.stat_field,
-        teamTotal: row.team_total,
-      })),
-    );
+    const chunk = (data ?? []) as unknown as MatchTeamTotalDbRow[];
+    chunk.forEach((row) => {
+      TEAM_TOTAL_STAT_FIELDS.forEach((statField) => {
+        const teamTotal = row[statField];
+        if (typeof teamTotal === "number") {
+          rows.push({ matchId: row.match_id, statField, teamTotal });
+        }
+      });
+    });
 
     if (chunk.length < pageSize) {
       break;

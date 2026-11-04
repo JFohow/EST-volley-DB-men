@@ -61,6 +61,28 @@ export type MatchDetailsWithPlayers = {
     teamTotals: Record<string, number>;
 };
 
+const MATCH_TEAM_TOTAL_COLUMNS = [
+    "points",
+    "break_points",
+    "plus_minus",
+    "serve_total",
+    "serve_errors",
+    "serve_aces",
+    "reception_total",
+    "reception_errors",
+    "reception_positive_pct",
+    "reception_excellent_pct",
+    "reception_positive",
+    "reception_excellent",
+    "attack_total",
+    "attack_errors",
+    "attack_blocked",
+    "attack_kills",
+    "attack_kill_pct",
+    "attack_efficiency",
+    "block_points",
+].join(", ");
+
 export function matchOptions(matchId: number) {
     return queryOptions({
         queryKey: ["match-stats", matchId],
@@ -132,18 +154,21 @@ export function matchOptions(matchId: number) {
                 throw appearanceError;
             }
 
-            const { data: teamTotalRows, error: teamTotalError } = await supabase
+            const { data: teamTotalRow, error: teamTotalError } = await supabase
                 .from("match_team_totals")
-                .select("stat_field, team_total")
-                .eq("match_id", matchId);
+                .select(MATCH_TEAM_TOTAL_COLUMNS)
+                .eq("match_id", matchId)
+                .maybeSingle();
 
             if (teamTotalError) {
                 throw teamTotalError;
             }
 
             const teamTotals: Record<string, number> = {};
-            (teamTotalRows ?? []).forEach((row) => {
-                teamTotals[row.stat_field] = row.team_total;
+            Object.entries(teamTotalRow ?? {}).forEach(([field, value]) => {
+                if (typeof value === "number") {
+                    teamTotals[field] = value;
+                }
             });
 
             const unavailableStats = getUnavailableStatSet(match.match_unavailable_stats);
