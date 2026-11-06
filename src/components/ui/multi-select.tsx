@@ -85,10 +85,11 @@ export default function MultiSelect<T extends { value: string; label: string }>(
                     <div className="p-2">
                         {searchable && (
                             <input
+                                autoFocus
                                 value={filter}
                                 onChange={(e) => setFilter(e.target.value)}
                                 placeholder="Search"
-                                className="w-full rounded-md border border-slate-200 px-2 py-1 text-sm outline-none"
+                                className="w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-sm text-slate-900 outline-none placeholder:text-slate-400"
                             />
                         )}
 

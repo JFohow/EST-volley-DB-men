@@ -34,6 +34,13 @@ export type TriviaCityRow = {
     city: string;
     cityEn: string | null;
     count: number;
+    won: number;
+    draw: number;
+    lost: number;
+    wonPct: number;
+    share: number;
+    firstYear: string;
+    lastYear: string;
 };
 
 export type TriviaMatchTotalRow = {
@@ -96,7 +103,121 @@ export type TriviaModeData = {
     longestMatches: TriviaMatchDurationRow[];
 };
 
-export type TriviaData = Record<TriviaMode, TriviaModeData>;
+export type TriviaRawData = {
+    matches: TriviaMatchBase[];
+    sets: MatchSetRow[];
+};
+
+export type TriviaEra = "25" | "2set" | "15" | "all";
+export type TriviaMatchLength = 3 | 4 | 5;
+
+export type TriviaFilters = {
+    mode: TriviaMode;
+    era: TriviaEra;
+    matchLength: TriviaMatchLength;
+    years: string[];
+    competitions: string[];
+    opponents: string[];
+};
+
+export type TriviaFilterOption = { value: string; label: string };
+
+export type TriviaFilterOptions = {
+    years: string[];
+    competitions: TriviaFilterOption[];
+    opponents: TriviaFilterOption[];
+};
+
+const ERA_CUTOFF_DATE = "1999-01-01";
+const TWO_SET_ERA_MATCH_IDS = new Set<number>([41, 40, 39, 38, 37, 36, 35, 30]);
+
+function matchesMode(match: TriviaMatchBase, mode: TriviaMode): boolean {
+    switch (mode) {
+        case "official":
+            return Boolean(match.am);
+        case "competitive":
+            return Boolean(match.vm);
+        case "nonCompetitive":
+            return Boolean(match.mam);
+        case "all":
+            return true;
+    }
+}
+
+function matchesEra(match: TriviaMatchBase, era: TriviaEra): boolean {
+    switch (era) {
+        case "25":
+            return match.match_date >= ERA_CUTOFF_DATE;
+        case "2set":
+            return TWO_SET_ERA_MATCH_IDS.has(match.match_id);
+        case "15":
+            return match.match_date < ERA_CUTOFF_DATE && !TWO_SET_ERA_MATCH_IDS.has(match.match_id);
+        case "all":
+            return true;
+    }
+}
+
+function matchesLength(match: TriviaMatchBase, matchLength: TriviaMatchLength): boolean {
+    return match.estonia_sets + match.opponent_sets <= matchLength;
+}
+
+function matchesYear(match: TriviaMatchBase, years: string[]): boolean {
+    return years.length === 0 || years.includes(match.match_date.slice(0, 4));
+}
+
+function matchesCompetition(match: TriviaMatchBase, competitions: string[]): boolean {
+    return competitions.length === 0 || (match.competition !== null && competitions.includes(match.competition));
+}
+
+function matchesOpponent(match: TriviaMatchBase, opponents: string[]): boolean {
+    return opponents.length === 0 || opponents.includes(match.opponent);
+}
+
+export function buildTriviaFilterOptions(
+    raw: TriviaRawData,
+    filters: TriviaFilters,
+    useEnglish: boolean,
+): TriviaFilterOptions {
+    const base = raw.matches.filter(
+        (match) =>
+            matchesMode(match, filters.mode) &&
+            matchesEra(match, filters.era) &&
+            matchesLength(match, filters.matchLength),
+    );
+
+    const years = new Set<string>();
+    const competitions = new Map<string, string>();
+    const opponents = new Map<string, string>();
+
+    for (const match of base) {
+        if (matchesCompetition(match, filters.competitions) && matchesOpponent(match, filters.opponents)) {
+            years.add(match.match_date.slice(0, 4));
+        }
+
+        if (
+            match.competition &&
+            matchesYear(match, filters.years) &&
+            matchesOpponent(match, filters.opponents)
+        ) {
+            competitions.set(match.competition, useEnglish ? (match.competition_en ?? match.competition) : match.competition);
+        }
+
+        if (matchesYear(match, filters.years) && matchesCompetition(match, filters.competitions)) {
+            opponents.set(match.opponent, useEnglish ? (match.opponent_en ?? match.opponent) : match.opponent);
+        }
+    }
+
+    const toOptions = (map: Map<string, string>) =>
+        [...map.entries()]
+            .map(([value, label]) => ({ value, label }))
+            .sort((a, b) => a.label.localeCompare(b.label));
+
+    return {
+        years: [...years].sort((a, b) => Number.parseInt(b, 10) - Number.parseInt(a, 10)),
+        competitions: toOptions(competitions),
+        opponents: toOptions(opponents),
+    };
+}
 
 const estoniaHomeCities = new Set([
     "tallinn",
@@ -178,8 +299,13 @@ async function fetchAllMatchSets(): Promise<MatchSetRow[]> {
     return rows;
 }
 
-async function fetchTriviaData(): Promise<TriviaData> {
+async function fetchTriviaData(): Promise<TriviaRawData> {
     const [matches, sets] = await Promise.all([fetchAllMatches(), fetchAllMatchSets()]);
+    return { matches, sets };
+}
+
+export function buildTriviaModeData(raw: TriviaRawData, filters: TriviaFilters): TriviaModeData {
+    const { matches, sets } = raw;
 
     const setsByMatch = new Map<number, MatchSetRow[]>();
     for (const set of sets) {
@@ -218,15 +344,41 @@ async function fetchTriviaData(): Promise<TriviaData> {
         const filteredMatchIds = new Set(filteredMatches.map((match) => match.match_id));
         const filteredSetRows = allSetRows.filter((row) => filteredMatchIds.has(row.matchId));
 
-        const cityMap = new Map<string, { city: string; cityEnCounts: Map<string, number>; count: number }>();
+        const cityMap = new Map<
+            string,
+            {
+                city: string;
+                cityEnCounts: Map<string, number>;
+                count: number;
+                won: number;
+                draw: number;
+                lost: number;
+                firstDate: string;
+                lastDate: string;
+            }
+        >();
         for (const match of filteredMatches) {
             const city = normalizeText(match.city);
             const cityEn = normalizeText(match.city_en);
 
             if (!city) continue;
 
-            const current = cityMap.get(city) ?? { city, cityEnCounts: new Map<string, number>(), count: 0 };
+            const current = cityMap.get(city) ?? {
+                city,
+                cityEnCounts: new Map<string, number>(),
+                count: 0,
+                won: 0,
+                draw: 0,
+                lost: 0,
+                firstDate: match.match_date,
+                lastDate: match.match_date,
+            };
             current.count += 1;
+            if (match.estonia_sets > match.opponent_sets) current.won += 1;
+            else if (match.estonia_sets < match.opponent_sets) current.lost += 1;
+            else current.draw += 1;
+            if (match.match_date < current.firstDate) current.firstDate = match.match_date;
+            if (match.match_date > current.lastDate) current.lastDate = match.match_date;
             if (cityEn) {
                 current.cityEnCounts.set(cityEn, (current.cityEnCounts.get(cityEn) ?? 0) + 1);
             }
@@ -248,6 +400,13 @@ async function fetchTriviaData(): Promise<TriviaData> {
                 city: item.city,
                 cityEn,
                 count: item.count,
+                won: item.won,
+                draw: item.draw,
+                lost: item.lost,
+                wonPct: item.count > 0 ? (item.won / item.count) * 100 : 0,
+                share: filteredMatches.length > 0 ? (item.count / filteredMatches.length) * 100 : 0,
+                firstYear: item.firstDate.slice(0, 4),
+                lastYear: item.lastDate.slice(0, 4),
             };
         });
 
@@ -321,12 +480,15 @@ async function fetchTriviaData(): Promise<TriviaData> {
         };
     }
 
-    return {
-        official: buildModeData((match) => Boolean(match.am)),
-        competitive: buildModeData((match) => Boolean(match.vm)),
-        nonCompetitive: buildModeData((match) => Boolean(match.mam)),
-        all: buildModeData(() => true),
-    };
+    return buildModeData(
+        (match) =>
+            matchesMode(match, filters.mode) &&
+            matchesEra(match, filters.era) &&
+            matchesLength(match, filters.matchLength) &&
+            matchesYear(match, filters.years) &&
+            matchesCompetition(match, filters.competitions) &&
+            matchesOpponent(match, filters.opponents),
+    );
 }
 
 export const triviaOptions = () =>
