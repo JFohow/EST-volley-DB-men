@@ -415,14 +415,20 @@ function GameHighsPage() {
   const { t, i18n } = useTranslation();
   const { data } = useSuspenseQuery(gameHighsOptions());
   const { data: teamTotalRows } = useSuspenseQuery(matchTeamTotalsOptions());
-  const teamTotalsByMatch = useMemo(() => {
-    const byMatch = new Map<number, Map<string, number>>();
+  const { teamTotalsByMatch, oppErrorsByMatch } = useMemo(() => {
+    // A match is present in teamTotalsByMatch only if it has a match_team_totals row.
+    const teamTotals = new Map<number, Map<string, number | null>>();
+    const oppErrors = new Map<number, number>();
     for (const row of teamTotalRows) {
-      const stats = byMatch.get(row.matchId) ?? new Map<string, number>();
+      if (row.statField === "opp_errors") {
+        if (row.teamTotal != null) oppErrors.set(row.matchId, row.teamTotal);
+        continue;
+      }
+      const stats = teamTotals.get(row.matchId) ?? new Map<string, number | null>();
       stats.set(row.statField, row.teamTotal);
-      byMatch.set(row.matchId, stats);
+      teamTotals.set(row.matchId, stats);
     }
-    return byMatch;
+    return { teamTotalsByMatch: teamTotals, oppErrorsByMatch: oppErrors };
   }, [teamTotalRows]);
   const [viewMode, setViewMode] = useState<"PLAYERS" | "TEAM">("PLAYERS");
   const [selectedPosition, setSelectedPosition] = useState<string>("ALL");
@@ -1171,6 +1177,7 @@ function GameHighsPage() {
       mam: boolean | null;
       maxEstoniaSetPoints: number | null;
       maxSetOpponentPoints: number | null;
+      estoniaSetPointsTotal: number | null;
       additionalSetScores: string[];
       points: number;
       breakPoints: number;
@@ -1207,6 +1214,7 @@ function GameHighsPage() {
         mam: row.mam,
         maxEstoniaSetPoints: row.maxEstoniaSetPoints,
         maxSetOpponentPoints: row.maxSetOpponentPoints,
+        estoniaSetPointsTotal: row.estoniaSetPointsTotal,
         additionalSetScores: row.additionalSetScores,
         points: 0,
         breakPoints: 0,
@@ -1269,18 +1277,28 @@ function GameHighsPage() {
 
     const teamMatches = Array.from(teamByMatch.values()).map((match) => {
       const teamTotals = teamTotalsByMatch.get(match.matchId);
-      const unavailable = new Set(match.unavailableStats);
-      if (match.unavailableStats.size > 0) {
+      // When a match_team_totals row exists it is authoritative: a null there means unavailable,
+      // and player sums are not used as a fallback.
+      const unavailable = new Set<string>(teamTotals ? [] : match.unavailableStats);
+      if (teamTotals) {
         TEAM_TOTAL_STAT_FIELDS.forEach((field) => {
-          if (!teamTotals?.has(field)) unavailable.add(field);
+          if (teamTotals.get(field) == null) unavailable.add(field);
         });
+      } else if (match.unavailableStats.size > 0) {
+        TEAM_TOTAL_STAT_FIELDS.forEach((field) => unavailable.add(field));
       }
 
-      const value = (field: string, playerSum: number) => teamTotals?.get(field) ?? playerSum;
+      const teamValue = (field: string): number | null => teamTotals?.get(field) ?? null;
+      const value = (field: string, playerSum: number): number | null =>
+        teamTotals ? teamValue(field) : playerSum;
+
       const points = value("points", match.points);
       const breakPoints = value("break_points", match.breakPoints);
-      const plusMinus =
-        teamTotals?.get("plus_minus") ?? (match.plusMinusCount > 0 ? match.plusMinus : null);
+      const plusMinus = teamTotals
+        ? teamValue("plus_minus")
+        : match.plusMinusCount > 0
+          ? match.plusMinus
+          : null;
       const serveTotal = value("serve_total", match.serveTotal);
       const serveAces = value("serve_aces", match.serveAces);
       const serveErrors = value("serve_errors", match.serveErrors);
@@ -1301,41 +1319,54 @@ function GameHighsPage() {
           ? (match.receptionExcellentCount / match.receptionTotal) * 100
           : null;
 
-      const receptionPositivePct =
-        teamTotals?.get("reception_positive_pct") ??
-        (unavailable.has("reception_total") || unavailable.has("reception_positive_pct")
+      const receptionPositivePct = teamTotals
+        ? teamValue("reception_positive_pct")
+        : unavailable.has("reception_total") || unavailable.has("reception_positive_pct")
           ? null
-          : derivedReceptionPositivePct);
-      const receptionExcellentPct =
-        teamTotals?.get("reception_excellent_pct") ??
-        (unavailable.has("reception_total") || unavailable.has("reception_excellent_pct")
+          : derivedReceptionPositivePct;
+      const receptionExcellentPct = teamTotals
+        ? teamValue("reception_excellent_pct")
+        : unavailable.has("reception_total") || unavailable.has("reception_excellent_pct")
           ? null
-          : derivedReceptionExcellentPct);
-      const attackKillPct =
-        teamTotals?.get("attack_kill_pct") ??
-        (!unavailable.has("attack_total") && !unavailable.has("attack_kills") && attackTotal > 0
-          ? (attackKills / attackTotal) * 100
-          : null);
+          : derivedReceptionExcellentPct;
+      const attackKillPct = teamTotals
+        ? teamValue("attack_kill_pct")
+        : !unavailable.has("attack_total") && !unavailable.has("attack_kills") && match.attackTotal > 0
+          ? (match.attackKills / match.attackTotal) * 100
+          : null;
       const attackEfficiency =
         !unavailable.has("attack_total") &&
         !unavailable.has("attack_kills") &&
         !unavailable.has("attack_blocked") &&
         !unavailable.has("attack_errors") &&
+        attackTotal != null &&
+        attackKills != null &&
+        attackBlocked != null &&
+        attackErrors != null &&
         attackTotal > 0
           ? ((attackKills - attackBlocked - attackErrors) / attackTotal) * 100
           : null;
 
-      const serveAcePct = serveTotal > 0 ? (serveAces / serveTotal) * 100 : null;
-      const serveErrorPct = serveTotal > 0 ? (serveErrors / serveTotal) * 100 : null;
-      const errorsPerAce = serveAces > 0 ? serveErrors / serveAces : null;
+      const serveAcePct =
+        serveTotal != null && serveAces != null && serveTotal > 0
+          ? (serveAces / serveTotal) * 100
+          : null;
+      const serveErrorPct =
+        serveTotal != null && serveErrors != null && serveTotal > 0
+          ? (serveErrors / serveTotal) * 100
+          : null;
+      const errorsPerAce =
+        serveErrors != null && serveAces != null && serveAces > 0 ? serveErrors / serveAces : null;
       const receptionErrorPct =
-        receptionTotal > 0 ? (receptionErrors / receptionTotal) * 100 : null;
+        receptionTotal != null && receptionErrors != null && receptionTotal > 0
+          ? (receptionErrors / receptionTotal) * 100
+          : null;
       const receptionPositiveTotal =
-        receptionPositivePct != null
+        receptionTotal != null && receptionPositivePct != null
           ? Math.round((receptionTotal * receptionPositivePct) / 100)
           : null;
       const receptionIdealTotal =
-        receptionExcellentPct != null
+        receptionTotal != null && receptionExcellentPct != null
           ? Math.round((receptionTotal * receptionExcellentPct) / 100)
           : null;
 
@@ -1361,6 +1392,7 @@ function GameHighsPage() {
         receptionErrorsLeast:
           unavailable.has("reception_total") ||
           unavailable.has("reception_errors") ||
+          receptionTotal == null ||
           receptionTotal < 10
             ? null
             : receptionErrors,
@@ -1368,7 +1400,11 @@ function GameHighsPage() {
         receptionExcellentPct,
         attackKillPct,
         attackEfficiency,
-        oppErrors: teamTotals?.get("opp_errors") ?? null,
+        oppErrors: teamTotals
+          ? (oppErrorsByMatch.get(match.matchId) ?? null)
+          : !unavailable.has("points") && match.estoniaSetPointsTotal != null
+            ? match.estoniaSetPointsTotal - match.points
+            : null,
         serveAcePct,
         serveErrorPct,
         errorsPerAce,
@@ -1566,7 +1602,7 @@ function GameHighsPage() {
             return (
               !match.unavailableStats.has("reception_total") &&
               !match.unavailableStats.has("reception_errors") &&
-              match.receptionTotal >= 10
+              (match.receptionTotal ?? 0) >= 10
             );
           }
 
@@ -1589,7 +1625,7 @@ function GameHighsPage() {
               (metric.key !== "attackEfficiency" ||
                 (!match.unavailableStats.has("attack_blocked") &&
                   !match.unavailableStats.has("attack_errors"))) &&
-              match.attackTotal >= 10
+              (match.attackTotal ?? 0) >= 10
             );
           }
 
@@ -1626,13 +1662,13 @@ function GameHighsPage() {
 
           if (metric.key === "receptionErrorsLeast") {
             if (left.receptionTotal !== right.receptionTotal) {
-              return right.receptionTotal - left.receptionTotal;
+              return (right.receptionTotal ?? 0) - (left.receptionTotal ?? 0);
             }
           }
 
           if (metric.key === "attackKillPct" || metric.key === "attackEfficiency") {
             if (left.attackTotal !== right.attackTotal) {
-              return right.attackTotal - left.attackTotal;
+              return (right.attackTotal ?? 0) - (left.attackTotal ?? 0);
             }
           }
 
@@ -1642,19 +1678,19 @@ function GameHighsPage() {
             metric.key === "attackKills"
           ) {
             if (left.attackTotal !== right.attackTotal) {
-              return left.attackTotal - right.attackTotal;
+              return (left.attackTotal ?? 0) - (right.attackTotal ?? 0);
             }
           }
 
           if (metric.key === "points") {
             if (left.attackTotal !== right.attackTotal) {
-              return left.attackTotal - right.attackTotal;
+              return (left.attackTotal ?? 0) - (right.attackTotal ?? 0);
             }
           }
 
           if (metric.key === "serveAces" || metric.key === "serveErrors") {
             if (left.serveTotal !== right.serveTotal) {
-              return left.serveTotal - right.serveTotal;
+              return (left.serveTotal ?? 0) - (right.serveTotal ?? 0);
             }
           }
 
@@ -1828,7 +1864,7 @@ function GameHighsPage() {
         topTen: topTenWithRanks,
       };
     });
-  }, [teamFilteredRows, t, isEstonian, showAdditionalSetsInScore, teamTotalsByMatch]);
+  }, [teamFilteredRows, t, isEstonian, showAdditionalSetsInScore, teamTotalsByMatch, oppErrorsByMatch]);
 
   const positionButtonsDisabled = viewMode === "TEAM";
 

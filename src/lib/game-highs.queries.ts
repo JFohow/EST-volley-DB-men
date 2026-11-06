@@ -34,6 +34,7 @@ export type GameHighRow = {
   competitionEn: string | null;
   maxEstoniaSetPoints: number | null;
   maxSetOpponentPoints: number | null;
+  estoniaSetPointsTotal: number | null;
   additionalSetScores: string[];
   matchDate: string;
   score: string;
@@ -233,8 +234,14 @@ async function fetchGameHighs(): Promise<GameHighRow[]> {
   if (matchSetsError) throw matchSetsError;
 
   const maxSetByMatch = new Map<number, { estonia: number; opponent: number }>();
+  const estoniaSetTotalByMatch = new Map<number, number>();
   const additionalSetsByMatch = new Map<number, MatchSetRow[]>();
   for (const setRow of (matchSetsData ?? []) as MatchSetRow[]) {
+    estoniaSetTotalByMatch.set(
+      setRow.match_id,
+      (estoniaSetTotalByMatch.get(setRow.match_id) ?? 0) + setRow.estonia_points,
+    );
+
     const current = maxSetByMatch.get(setRow.match_id);
     if (current == null || setRow.estonia_points > current.estonia) {
       maxSetByMatch.set(setRow.match_id, {
@@ -328,6 +335,7 @@ async function fetchGameHighs(): Promise<GameHighRow[]> {
         competitionEn: match.competition_en,
         maxEstoniaSetPoints: maxSetByMatch.get(item.match_id)?.estonia ?? null,
         maxSetOpponentPoints: maxSetByMatch.get(item.match_id)?.opponent ?? null,
+        estoniaSetPointsTotal: estoniaSetTotalByMatch.get(item.match_id) ?? null,
         additionalSetScores: additionalSetScoresByMatch.get(item.match_id) ?? [],
         matchDate: match.match_date,
         score: `${match.estonia_sets}-${match.opponent_sets}`,
@@ -364,7 +372,7 @@ export const TEAM_TOTAL_STAT_FIELDS = [
 export type MatchTeamTotalRow = {
   matchId: number;
   statField: string;
-  teamTotal: number;
+  teamTotal: number | null;
 };
 
 type MatchTeamTotalDbRow = {
@@ -390,9 +398,11 @@ async function fetchMatchTeamTotals(): Promise<MatchTeamTotalRow[]> {
     chunk.forEach((row) => {
       TEAM_TOTAL_STAT_FIELDS.forEach((statField) => {
         const teamTotal = row[statField];
-        if (typeof teamTotal === "number") {
-          rows.push({ matchId: row.match_id, statField, teamTotal });
-        }
+        rows.push({
+          matchId: row.match_id,
+          statField,
+          teamTotal: typeof teamTotal === "number" ? teamTotal : null,
+        });
       });
     });
 

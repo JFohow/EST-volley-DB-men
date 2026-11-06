@@ -58,7 +58,8 @@ export type PlayerMatchStats = {
 export type MatchDetailsWithPlayers = {
     match: any;
     players: PlayerMatchStats[];
-    teamTotals: Record<string, number>;
+    teamTotals: Record<string, number | null>;
+    hasTeamTotalRow: boolean;
 };
 
 const MATCH_TEAM_TOTAL_COLUMNS = [
@@ -164,12 +165,12 @@ export function matchOptions(matchId: number) {
                 throw teamTotalError;
             }
 
-            const teamTotals: Record<string, number> = {};
+            // A team totals row is authoritative for every column it holds, so nulls are kept.
+            const teamTotals: Record<string, number | null> = {};
             Object.entries(teamTotalRow ?? {}).forEach(([field, value]) => {
-                if (typeof value === "number") {
-                    teamTotals[field] = value;
-                }
+                teamTotals[field] = typeof value === "number" ? value : null;
             });
+
 
             const unavailableStats = getUnavailableStatSet(match.match_unavailable_stats);
             const playersWithMaskedStats = (appearances ?? []).map((appearance) => {
@@ -192,6 +193,7 @@ export function matchOptions(matchId: number) {
                 match,
                 players: playersWithMaskedStats,
                 teamTotals,
+                hasTeamTotalRow: teamTotalRow != null,
             } as MatchDetailsWithPlayers;
         },
     });
