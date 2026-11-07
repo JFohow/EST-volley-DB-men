@@ -1,0 +1,153 @@
+# Eesti Võrkpall DB
+
+Eesti Võrkpall DB is a bilingual (English and Estonian) historical statistics
+archive for the Estonia Men's National Volleyball Team. It brings match,
+player, coach, and performance data together in a searchable web app.
+
+## What's in the app
+
+- Match archive and individual match pages, including available match stats
+- Player and coach indexes and profile pages
+- Team and player statistics, season totals, and match highs
+- Historical trivia and a configurable set of homepage highlights
+- English and Estonian interface translations
+- A development-only data import page at `/add` (currently supports previewing
+  DataVolley text files; PDF and CEV import flows are placeholders)
+
+## Tech stack
+
+- React 19 and TypeScript
+- TanStack Start and TanStack Router
+- Vite and Tailwind CSS
+- Supabase for database access and authentication
+- Bun for dependency installation and project scripts
+
+## Getting started
+
+### Prerequisites
+
+- [Bun](https://bun.sh/)
+- Access to the Supabase project used by this app, with its schema and data
+
+### Install and run
+
+1. Install dependencies:
+
+   ```sh
+   bun install
+   ```
+
+2. Create a `.env.local` file in the project root and configure Supabase:
+
+   ```dotenv
+   SUPABASE_URL=https://your-project.supabase.co
+   SUPABASE_PUBLISHABLE_KEY=your-publishable-key
+   VITE_SUPABASE_URL=https://your-project.supabase.co
+   VITE_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
+   ```
+
+   The `VITE_` variables are used by the browser bundle; the non-prefixed
+   variables are used by server-side code. Use the same project URL and
+   publishable key for both. Publishable keys are intended for client use and
+   do not replace appropriate Supabase Row Level Security policies.
+
+   `SUPABASE_SERVICE_ROLE_KEY` is only needed for server-side admin operations.
+   Never prefix it with `VITE_` or expose it to the browser.
+
+3. Start the development server:
+
+   ```sh
+   bun run dev
+   ```
+
+   Open the local URL printed by Vite.
+
+The app expects a Supabase project containing the database schema and data it
+queries. Project migrations are in [`supabase/migrations`](./supabase/migrations);
+apply them to your Supabase project when setting up or updating its schema.
+Some views may also depend on historical data that migrations do not provide.
+
+## Match data model
+
+### Match classification
+
+The Estonian Volleyball Federation decides which matches are official. The
+app stores this in three boolean columns on `matches`:
+
+- `vm`: competitive match. Only official federation competitions count.
+  Friendlies, friendly tournaments, and show games are excluded.
+- `am`: official match. Every VM match is also AM, but an AM match need not be
+  VM (an official match that is not competitive).
+- `mam`: non-competitive match. Exclusive: a MAM match is never VM or AM.
+
+### Official sets and additional sets
+
+- `matches.estonia_sets` and `matches.opponent_sets` store the official
+  scoreline. Their sum is the number of official sets (for example, 3 + 0 = 3
+  official sets in a 3–0 win).
+- Additional sets (when `has_additional_sets` is true, with the count in
+  `additional_sets_count`) are stored in `match_sets` as set_number 6, 7, and 8.
+  They are not part of the official scoreline.
+
+### Statistics versions
+
+`player_match_stats.stats_version` identifies which part of the match a row
+covers:
+
+- `AM`: official part of the match only. These rows use the first
+  `estonia_sets + opponent_sets` sets.
+- `ALL`: full match, including additional sets.
+
+For matches with additional sets there are two rows per appearance, one `AM`
+and one `ALL`. Matches without additional sets have only an `ALL` row. Some rows
+may be mis-tagged as `AM` because of data-entry typos.
+
+Position columns are not tied to set_number. They follow the order of play: the
+first additional set uses the next free column after the official sets. For a
+3–0 win with one additional set, that is `set4_position`; with two additional
+sets, `set4_position` and `set5_position`. The scoreline for the same sets is
+still stored in `match_sets` as set_number 6, 7, and 8.
+
+### Coaches
+
+Use `matches.coach_id` (linked to `coaches`). The `coach` text column is not the
+source of truth.
+
+### Default views
+
+Statistics, Total TOP, Game Highs, Players, and Trivia offer filters for the
+stat version. The default view should be `AM`.
+
+### Partial or missing match stats
+
+Matches may have full, partial, or no player stats. Stats that are unavailable
+for a match are listed in `match_unavailable_stats`.
+
+## Scripts
+
+| Command | Description |
+| --- | --- |
+| `bun run dev` | Start the Vite development server |
+| `bun run build` | Create a production build |
+| `bun run build:dev` | Create a development-mode build |
+| `bun run preview` | Preview a production build locally |
+| `bun run lint` | Run ESLint |
+| `bun run format` | Format files with Prettier |
+
+There is currently no test script in `package.json`.
+
+## Project structure
+
+| Path | Purpose |
+| --- | --- |
+| [`src/routes`](./src/routes) | File-based TanStack routes and page components |
+| [`src/lib`](./src/lib) | Data queries, statistics, and shared application logic |
+| [`src/components`](./src/components) | Shared UI and feature components |
+| [`src/i18n`](./src/i18n) | English and Estonian translations |
+| [`src/integrations/supabase`](./src/integrations/supabase) | Supabase clients and authentication middleware |
+| [`supabase/migrations`](./supabase/migrations) | Database schema and policy migrations |
+
+Routes are defined by files under `src/routes`; see
+[`src/routes/README.md`](./src/routes/README.md) for route naming conventions.
+`src/routeTree.gen.ts` is generated by TanStack Router and should not be edited
+by hand.
