@@ -93,6 +93,8 @@ function MatchStatsAllPage() {
 
     const formatStat = (value: number | null): string => {
         if (value == null) return "";
+        // Zero counts are shown blank to keep the table clean; percentages use formatPercent and keep 0%.
+        if (value === 0) return "";
         if (typeof value === "number") {
             if (value > 100) return Math.round(value).toString();
             return value % 1 === 0 ? Math.round(value).toString() : value.toFixed(1);
