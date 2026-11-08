@@ -174,6 +174,10 @@ function MatchStatsAllPage() {
 
     const blockColumns = [{ field: "block_points", label: "PTS" }];
 
+    const hasAnyPlayerStats = players.some((p: any) => (p.player_match_stats ?? []).length > 0);
+    const statFieldCount =
+        setColumns.length + statColumns.length + serveColumns.length + receptionColumns.length + attackColumns.length + blockColumns.length;
+
     const calculateTotals = () => {
         const totals: Record<string, number> = {};
         const counts: Record<string, number> = {};
@@ -485,6 +489,8 @@ function MatchStatsAllPage() {
                                                     : `${player.players?.first_name} ${player.players?.last_name}`}
                                             </Link>
                                         </td>
+                                        {hasAnyPlayerStats ? (
+                                            <>
                                         {setColumns.map((set, idx) => (
                                             <td
                                                 key={`set-${set}`}
@@ -532,6 +538,15 @@ function MatchStatsAllPage() {
                                                 {stats ? renderPlayerStat(col.field, stats) : <UnknownStat />}
                                             </td>
                                         ))}
+                                            </>
+                                        ) : (
+                                            <td
+                                                colSpan={statFieldCount}
+                                                className="px-2 py-3 text-center text-sm italic text-slate-500"
+                                            >
+                                                {t("matches.noStatistics")}
+                                            </td>
+                                        )}
                                     </tr>
                                 );
                             })}

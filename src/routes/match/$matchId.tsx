@@ -233,6 +233,10 @@ function MatchStatsPage() {
 
     const blockColumns = [{ field: "block_points", label: "PTS" }];
 
+    const hasAnyPlayerStats = players.some((p: any) => (p.player_match_stats ?? []).length > 0);
+    const statFieldCount =
+        setColumns.length + statColumns.length + serveColumns.length + receptionColumns.length + attackColumns.length + blockColumns.length;
+
     // Number, name and set columns take their content width; the rest share the remaining width equally.
     const flexibleColumnCount =
         statColumns.length + serveColumns.length + receptionColumns.length + attackColumns.length + blockColumns.length;
@@ -629,6 +633,8 @@ function MatchStatsPage() {
                                             </Link>
                                         </td>
 
+                                        {hasAnyPlayerStats ? (
+                                            <>
                                         {/* Set appearances - showing if they played that set */}
                                         {setColumns.map((set, idx) => (
                                             <td
@@ -688,6 +694,15 @@ function MatchStatsPage() {
                                                 {stats ? renderPlayerStat(col.field, stats) : <UnknownStat />}
                                             </td>
                                         ))}
+                                            </>
+                                        ) : (
+                                            <td
+                                                colSpan={statFieldCount}
+                                                className="px-2 py-3 text-center text-sm italic text-slate-500"
+                                            >
+                                                {t("matches.noStatistics")}
+                                            </td>
+                                        )}
                                     </tr>
                                 );
                             })}

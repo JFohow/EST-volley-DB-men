@@ -240,6 +240,7 @@
         "additionalSetsInfo": "Matches with additional sets have two different statistics: one for the official part, the second for the full match.",
         "sourceLink": "Source for statistics",
         "partialStatisticsNotice": "NB! Partial Statistics!",
+        "noStatistics": "No statistics found for this match",
         "statsMode": {
             "official": "Official Match",
             "all": "Additional Sets Included"

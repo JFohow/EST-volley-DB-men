@@ -71,14 +71,17 @@ Some views may also depend on historical data that migrations do not provide.
 
 ### Match classification
 
-The Estonian Volleyball Federation decides which matches are official. The
-app stores this in three boolean columns on `matches`:
+The app stores match classification in three boolean columns on `matches`:
 
-- `vm`: competitive match. Only official federation competitions count.
-  Friendlies, friendly tournaments, and show games are excluded.
-- `am`: official match. Every VM match is also AM, but an AM match need not be
-  VM (an official match that is not competitive).
-- `mam`: non-competitive match. Exclusive: a MAM match is never VM or AM.
+- `vm`: competitive game.
+- `am`: official game. Every VM game is also AM, but an AM game need not be
+  VM.
+- `mam`: non-official game. A MAM game is never VM or AM.
+
+### Venue
+
+`matches.venue` is the name of the sports hall or venue where the match took
+place.
 
 ### Official sets and additional sets
 

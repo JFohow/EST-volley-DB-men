@@ -241,7 +241,6 @@ export type Database = {
           additional_sets_count: number
           city: string | null
           city_en: string | null
-          coach: string | null
           coach_id: number | null
           competition: string | null
           competition_en: string | null
@@ -263,7 +262,6 @@ export type Database = {
           additional_sets_count?: number
           city?: string | null
           city_en?: string | null
-          coach?: string | null
           coach_id?: number | null
           competition?: string | null
           competition_en?: string | null
@@ -285,7 +283,6 @@ export type Database = {
           additional_sets_count?: number
           city?: string | null
           city_en?: string | null
-          coach?: string | null
           coach_id?: number | null
           competition?: string | null
           competition_en?: string | null
