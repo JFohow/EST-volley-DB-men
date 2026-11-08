@@ -178,6 +178,10 @@ function MatchStatsAllPage() {
     const statFieldCount =
         setColumns.length + statColumns.length + serveColumns.length + receptionColumns.length + attackColumns.length + blockColumns.length;
 
+    // With no player stats, the note also covers the totals row (this page has no team totals row).
+    const totalsUnderNote = !hasAnyPlayerStats;
+    const noStatsRowSpan = players.length + (totalsUnderNote ? 1 : 0);
+
     const calculateTotals = () => {
         const totals: Record<string, number> = {};
         const counts: Record<string, number> = {};
@@ -539,14 +543,15 @@ function MatchStatsAllPage() {
                                             </td>
                                         ))}
                                             </>
-                                        ) : (
+                                        ) : idx === 0 ? (
                                             <td
+                                                rowSpan={noStatsRowSpan}
                                                 colSpan={statFieldCount}
                                                 className="px-2 py-3 text-center text-sm italic text-slate-500"
                                             >
                                                 {t("matches.noStatistics")}
                                             </td>
-                                        )}
+                                        ) : null}
                                     </tr>
                                 );
                             })}
@@ -558,6 +563,8 @@ function MatchStatsAllPage() {
                                 <td className="border-r-2 border-slate-300 px-4 py-3 text-left text-slate-900">
                                     TOTALS
                                 </td>
+                                {!totalsUnderNote && (
+                                    <>
                                 {setColumns.map((set, idx) => (
                                     <td
                                         key={`set-total-${set}`}
@@ -606,6 +613,8 @@ function MatchStatsAllPage() {
                                         {getStatValue(col.field)}
                                     </td>
                                 ))}
+                                    </>
+                                )}
                             </tr>
                         </tbody>
                     </table>

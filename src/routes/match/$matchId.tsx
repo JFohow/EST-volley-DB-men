@@ -237,6 +237,10 @@ function MatchStatsPage() {
     const statFieldCount =
         setColumns.length + statColumns.length + serveColumns.length + receptionColumns.length + attackColumns.length + blockColumns.length;
 
+    // With no player stats and no team totals row, the note also covers the totals row.
+    const totalsUnderNote = !hasAnyPlayerStats && !hasTeamTotalRow;
+    const noStatsRowSpan = players.length + (totalsUnderNote ? 1 : 0);
+
     // Number, name and set columns take their content width; the rest share the remaining width equally.
     const flexibleColumnCount =
         statColumns.length + serveColumns.length + receptionColumns.length + attackColumns.length + blockColumns.length;
@@ -695,14 +699,15 @@ function MatchStatsPage() {
                                             </td>
                                         ))}
                                             </>
-                                        ) : (
+                                        ) : idx === 0 ? (
                                             <td
+                                                rowSpan={noStatsRowSpan}
                                                 colSpan={statFieldCount}
                                                 className="px-2 py-3 text-center text-sm italic text-slate-500"
                                             >
                                                 {t("matches.noStatistics")}
                                             </td>
-                                        )}
+                                        ) : null}
                                     </tr>
                                 );
                             })}
@@ -716,6 +721,8 @@ function MatchStatsPage() {
                                     TOTALS
                                 </td>
 
+                                {!totalsUnderNote && (
+                                    <>
                                 {/* Set totals - not applicable */}
                                 {setColumns.map((set, idx) => (
                                     <td
@@ -776,6 +783,8 @@ function MatchStatsPage() {
                                         {getStatValue(col.field)}
                                     </td>
                                 ))}
+                                    </>
+                                )}
                             </tr>
                         </tbody>
                     </table>
