@@ -1,6 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { MatchUnavailableStatRow } from "@/lib/match-unavailable-stats";
+import { getUnavailableStatSet, type MatchUnavailableStatRow } from "@/lib/match-unavailable-stats";
 
 export type MatchListItem = {
   match_id: number;
@@ -21,7 +21,7 @@ export type MatchListItem = {
   additional_sets_count: number;
   statsCoverage: "full" | "playersOnly" | "none";
   statisticsCoverage: "full" | "partial" | "none";
-  match_unavailable_stats: MatchUnavailableStatRow[];
+  match_unavailable_stats: MatchUnavailableStatRow | MatchUnavailableStatRow[] | null;
   match_sets: {
     set_number: number;
     estonia_points: number;
@@ -93,7 +93,7 @@ async function fetchAllMatches(): Promise<MatchListItem[]> {
     const { data: page, error } = await supabase
       .from("matches")
       .select(
-        "match_id, match_date, opponent, opponent_en, competition, competition_en, city, city_en, notes, estonia_sets, opponent_sets, vm, am, mam, has_additional_sets, additional_sets_count, match_sets(set_number, estonia_points, opponent_points), match_unavailable_stats(stat_field)",
+        "match_id, match_date, opponent, opponent_en, competition, competition_en, city, city_en, notes, estonia_sets, opponent_sets, vm, am, mam, has_additional_sets, additional_sets_count, match_sets(set_number, estonia_points, opponent_points), match_unavailable_stats(points_unavailable, block_points_unavailable, plus_minus_unavailable, break_points_unavailable, serve_total_unavailable, serve_aces_unavailable, serve_errors_unavailable, reception_total_unavailable, reception_errors_unavailable, reception_positive_pct_unavailable, reception_excellent_pct_unavailable, attack_total_unavailable, attack_errors_unavailable, attack_blocked_unavailable, attack_kills_unavailable)",
       )
       .order("match_date", { ascending: false })
       .order("match_id", { ascending: false })
@@ -160,7 +160,7 @@ async function fetchAllMatches(): Promise<MatchListItem[]> {
         ? "playersOnly"
         : "none";
     const statisticsCoverage = coverage?.hasFullStats
-      ? (match.match_unavailable_stats.length > 0 ? "partial" : "full")
+      ? (getUnavailableStatSet(match.match_unavailable_stats).size > 0 ? "partial" : "full")
       : "none";
 
     return {

@@ -145,21 +145,63 @@ export type Database = {
       match_unavailable_stats: {
         Row: {
           match_id: number
-          stat_field: string
+          points_unavailable: boolean
+          block_points_unavailable: boolean
+          plus_minus_unavailable: boolean
+          break_points_unavailable: boolean
+          serve_total_unavailable: boolean
+          serve_aces_unavailable: boolean
+          serve_errors_unavailable: boolean
+          reception_total_unavailable: boolean
+          reception_errors_unavailable: boolean
+          reception_positive_pct_unavailable: boolean
+          reception_excellent_pct_unavailable: boolean
+          attack_total_unavailable: boolean
+          attack_errors_unavailable: boolean
+          attack_blocked_unavailable: boolean
+          attack_kills_unavailable: boolean
         }
         Insert: {
           match_id: number
-          stat_field: string
+          points_unavailable?: boolean
+          block_points_unavailable?: boolean
+          plus_minus_unavailable?: boolean
+          break_points_unavailable?: boolean
+          serve_total_unavailable?: boolean
+          serve_aces_unavailable?: boolean
+          serve_errors_unavailable?: boolean
+          reception_total_unavailable?: boolean
+          reception_errors_unavailable?: boolean
+          reception_positive_pct_unavailable?: boolean
+          reception_excellent_pct_unavailable?: boolean
+          attack_total_unavailable?: boolean
+          attack_errors_unavailable?: boolean
+          attack_blocked_unavailable?: boolean
+          attack_kills_unavailable?: boolean
         }
         Update: {
           match_id?: number
-          stat_field?: string
+          points_unavailable?: boolean
+          block_points_unavailable?: boolean
+          plus_minus_unavailable?: boolean
+          break_points_unavailable?: boolean
+          serve_total_unavailable?: boolean
+          serve_aces_unavailable?: boolean
+          serve_errors_unavailable?: boolean
+          reception_total_unavailable?: boolean
+          reception_errors_unavailable?: boolean
+          reception_positive_pct_unavailable?: boolean
+          reception_excellent_pct_unavailable?: boolean
+          attack_total_unavailable?: boolean
+          attack_errors_unavailable?: boolean
+          attack_blocked_unavailable?: boolean
+          attack_kills_unavailable?: boolean
         }
         Relationships: [
           {
             foreignKeyName: "match_unavailable_stats_match_id_fkey"
             columns: ["match_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "matches"
             referencedColumns: ["match_id"]
           },

@@ -3,6 +3,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import MultiSelect from "@/components/ui/multi-select";
 import { fetchPlayer } from "@/lib/players.queries";
+import { getUnavailableStatSet, type MatchUnavailableStatRow } from "@/lib/match-unavailable-stats";
 import { useTranslation } from "react-i18next";
 
 type RawMatchRecord = {
@@ -17,7 +18,7 @@ type RawMatchRecord = {
     vm: boolean | null;
     am: boolean | null;
     mam: boolean | null;
-    match_unavailable_stats: { stat_field: string }[] | null;
+    match_unavailable_stats: MatchUnavailableStatRow | MatchUnavailableStatRow[] | null;
 };
 
 type MatchRecord = RawMatchRecord & {
@@ -402,7 +403,7 @@ function PlayerPage() {
             const stats = pickStatsRowForMode(a.player_match_stats);
             if (!stats) return;
             const rawMatch = Array.isArray(a.matches) ? a.matches[0] : a.matches;
-            const unavailableStats = new Set(rawMatch?.match_unavailable_stats?.map((row) => row.stat_field) ?? []);
+            const unavailableStats = getUnavailableStatSet(rawMatch?.match_unavailable_stats);
 
             statColumns.forEach((column) => {
                 if (

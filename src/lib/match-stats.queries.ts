@@ -96,7 +96,7 @@ export function matchOptions(matchId: number) {
           match_sets (
             *
                     ),
-                    match_unavailable_stats(stat_field)
+                    match_unavailable_stats(points_unavailable, block_points_unavailable, plus_minus_unavailable, break_points_unavailable, serve_total_unavailable, serve_aces_unavailable, serve_errors_unavailable, reception_total_unavailable, reception_errors_unavailable, reception_positive_pct_unavailable, reception_excellent_pct_unavailable, attack_total_unavailable, attack_errors_unavailable, attack_blocked_unavailable, attack_kills_unavailable)
         `)
                 .eq("match_id", matchId)
                 .single();

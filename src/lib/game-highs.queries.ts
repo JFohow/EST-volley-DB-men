@@ -118,7 +118,7 @@ type MatchRow = {
   vm: boolean | null;
   am: boolean | null;
   mam: boolean | null;
-  match_unavailable_stats: MatchUnavailableStatRow[] | null;
+  match_unavailable_stats: MatchUnavailableStatRow | MatchUnavailableStatRow[] | null;
 };
 
 type MatchSetRow = {
@@ -220,7 +220,7 @@ async function fetchGameHighs(): Promise<GameHighRow[]> {
   const { data: matchesData, error: matchError } = await supabase
     .from("matches")
     .select(
-      "match_id, match_date, opponent, opponent_en, competition, competition_en, estonia_sets, opponent_sets, vm, am, mam, match_unavailable_stats(stat_field)",
+      "match_id, match_date, opponent, opponent_en, competition, competition_en, estonia_sets, opponent_sets, vm, am, mam, match_unavailable_stats(points_unavailable, block_points_unavailable, plus_minus_unavailable, break_points_unavailable, serve_total_unavailable, serve_aces_unavailable, serve_errors_unavailable, reception_total_unavailable, reception_errors_unavailable, reception_positive_pct_unavailable, reception_excellent_pct_unavailable, attack_total_unavailable, attack_errors_unavailable, attack_blocked_unavailable, attack_kills_unavailable)",
     )
     .in("match_id", matchIds);
 

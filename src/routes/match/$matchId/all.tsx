@@ -1,6 +1,7 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { matchOptions } from "@/lib/match-stats.queries";
+import { getUnavailableStatSet } from "@/lib/match-unavailable-stats";
 import { useTranslation } from "react-i18next";
 
 export const Route = createFileRoute("/match/$matchId/all")({
@@ -18,9 +19,7 @@ function MatchStatsAllPage() {
 
     const match = data.match;
     const players = data.players;
-    const unavailableStats = new Set<string>(
-        (match.match_unavailable_stats ?? []).map((row: { stat_field: string }) => row.stat_field),
-    );
+    const unavailableStats = getUnavailableStatSet(match.match_unavailable_stats);
     const currentLanguage = i18n.language?.startsWith("et") ? "et" : "en";
 
     const opponent =
@@ -303,7 +302,7 @@ function MatchStatsAllPage() {
                                 <div className="mt-2 text-sm font-mono text-slate-700">{officialSetScores}</div>
                             )}
 
-                            {match.match_unavailable_stats?.length > 0 && (
+                            {unavailableStats.size > 0 && (
                                 <p className="mt-1 text-xs font-semibold text-amber-700">
                                     {t("matches.partialStatisticsNotice")}
                                 </p>

@@ -88,6 +88,9 @@ app stores this in three boolean columns on `matches`:
 - Additional sets (when `has_additional_sets` is true, with the count in
   `additional_sets_count`) are stored in `match_sets` as set_number 6, 7, and 8.
   They are not part of the official scoreline.
+- Technical results (`matches.technical_result`) are matches decided by a
+  forfeit or technical loss. They have no set scores, so `match_sets` stays
+  empty for them. Do not invent set scores for these matches.
 
 ### Statistics versions
 
@@ -95,12 +98,18 @@ app stores this in three boolean columns on `matches`:
 covers:
 
 - `AM`: official part of the match only. These rows use the first
-  `estonia_sets + opponent_sets` sets.
+  `estonia_sets + opponent_sets` sets. This also applies to MAM matches with
+  additional sets: the federation doesn't count them as official, but their
+  official part is still tagged `AM`.
 - `ALL`: full match, including additional sets.
 
 For matches with additional sets there are two rows per appearance, one `AM`
-and one `ALL`. Matches without additional sets have only an `ALL` row. Some rows
-may be mis-tagged as `AM` because of data-entry typos.
+and one `ALL`. Matches without additional sets normally have only an `ALL` row,
+but some have duplicate rows (see partial statistics below). Some rows may be
+mis-tagged as `AM` because of data-entry typos.
+
+`NULL` means the match has no stats. Such matches only have player names
+(`first_name`, `last_name`); every other column is null.
 
 Position columns are not tied to set_number. They follow the order of play: the
 first additional set uses the next free column after the official sets. For a
@@ -120,8 +129,23 @@ stat version. The default view should be `AM`.
 
 ### Partial or missing match stats
 
-Matches may have full, partial, or no player stats. Stats that are unavailable
-for a match are listed in `match_unavailable_stats`.
+Matches may have full, partial, or no player stats. `match_unavailable_stats`
+has one row per match (`match_id` is the primary key), with one boolean column
+per stat field named `<field>_unavailable` (for example, `serve_total_unavailable`).
+A column set to `true` means that stat is unavailable for the whole match. A
+match with no row, or a row with all columns `false`, has no unavailable stats.
+The 15 covered fields are points, block_points, plus_minus, break_points,
+serve_total, serve_aces, serve_errors, reception_total, reception_errors,
+reception_positive_pct, reception_excellent_pct, attack_total, attack_errors,
+attack_blocked, and attack_kills.
+
+Partial matches (for example, 145–150 and 165–167) have stats for some players
+and only points for others. Historical records do not contain the full data
+for these matches, and this cannot be fixed from the database. Their
+`player_match_stats` rows come in `ALL` and `NULL` pairs for each appearance.
+The `ALL` row holds the data (for example, match 145 has points for 10 of 12
+appearances and serve totals for 2). The `NULL` row is an empty placeholder
+with no stats.
 
 ## Scripts
 

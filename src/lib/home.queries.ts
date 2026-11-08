@@ -1,6 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-
+import { getUnavailableStatSet, type MatchUnavailableStatRow } from "@/lib/match-unavailable-stats";
 export type RecentMatch = {
   match_id: number;
   match_date: string;
@@ -58,7 +58,7 @@ type MatchFlagRow = {
   am: boolean | null;
   vm: boolean | null;
   mam: boolean | null;
-  match_unavailable_stats: { stat_field: string }[] | null;
+  match_unavailable_stats: MatchUnavailableStatRow | MatchUnavailableStatRow[] | null;
 };
 
 const PAGE_SIZE = 1000;
@@ -68,7 +68,7 @@ async function fetchAllMatchFlags() {
   for (let from = 0; ; from += PAGE_SIZE) {
     const { data, error } = await supabase
       .from("matches")
-      .select("match_id, am, vm, mam, match_unavailable_stats(stat_field)")
+      .select("match_id, am, vm, mam, match_unavailable_stats(points_unavailable, block_points_unavailable, plus_minus_unavailable, break_points_unavailable, serve_total_unavailable, serve_aces_unavailable, serve_errors_unavailable, reception_total_unavailable, reception_errors_unavailable, reception_positive_pct_unavailable, reception_excellent_pct_unavailable, attack_total_unavailable, attack_errors_unavailable, attack_blocked_unavailable, attack_kills_unavailable)")
       .order("match_id", { ascending: true })
       .range(from, from + PAGE_SIZE - 1);
     if (error) throw error;
@@ -152,7 +152,7 @@ async function fetchHomeSummary(): Promise<HomeSummary> {
       const hasStatistics = matchesWithStatistics.has(match.match_id);
       if (!hasStatistics) {
         counts.withoutStatistics += 1;
-      } else if ((match.match_unavailable_stats?.length ?? 0) > 0) {
+      } else if (getUnavailableStatSet(match.match_unavailable_stats).size > 0) {
         counts.partialStatistics += 1;
       } else {
         counts.fullStatistics += 1;

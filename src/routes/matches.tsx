@@ -1,6 +1,7 @@
 import { useSuspenseQuery, useQueryErrorResetBoundary } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { allMatchesOptions, type MatchListItem } from "@/lib/matches.queries";
+import { getUnavailableStatSet } from "@/lib/match-unavailable-stats";
 import { useTranslation } from "react-i18next";
 import { FileText } from "lucide-react";
 import MultiSelect from "@/components/ui/multi-select";
@@ -538,7 +539,7 @@ function MatchRow({
       : `/match/${match.match_id}`;
   const detailLine = match.notes;
   const statsIconClass =
-    match.match_unavailable_stats.length > 0
+    getUnavailableStatSet(match.match_unavailable_stats).size > 0
       ? "text-amber-600 hover:text-amber-700"
       : match.statsCoverage === "full"
         ? "text-emerald-600 hover:text-emerald-700"

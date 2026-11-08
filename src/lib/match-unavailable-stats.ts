@@ -18,9 +18,9 @@ export const unavailableStatFields = [
 
 export type UnavailableStatField = (typeof unavailableStatFields)[number];
 
-export type MatchUnavailableStatRow = {
-    stat_field: string;
-};
+export type MatchUnavailableStatRow = Partial<
+    Record<`${UnavailableStatField}_unavailable`, boolean | null>
+>;
 
 export type StatCoverage = Record<UnavailableStatField, number>;
 
@@ -42,13 +42,12 @@ export function addStatCoverage(
 
 export function getUnavailableStatSet(
     value: MatchUnavailableStatRow | MatchUnavailableStatRow[] | null | undefined,
-): Set<UnavailableStatField> {
+): ReadonlySet<string> {
     const rows = Array.isArray(value) ? value : value ? [value] : [];
-    const allowedFields = new Set<string>(unavailableStatFields);
-    return new Set(
-        rows
-            .map((row) => row.stat_field)
-            .filter((field): field is UnavailableStatField => allowedFields.has(field)),
+    return new Set<string>(
+        rows.flatMap((row) =>
+            unavailableStatFields.filter((field) => row[`${field}_unavailable`] === true),
+        ),
     );
 }
 

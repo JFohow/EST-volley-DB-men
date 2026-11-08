@@ -1,6 +1,7 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { matchOptions } from "@/lib/match-stats.queries";
+import { getUnavailableStatSet } from "@/lib/match-unavailable-stats";
 import { useTranslation } from "react-i18next";
 import { useState } from "react";
 
@@ -26,9 +27,7 @@ function MatchStatsPage() {
 
     const match = data.match;
     const players = data.players;
-    const unavailableStats = new Set<string>(
-        (match.match_unavailable_stats ?? []).map((row: { stat_field: string }) => row.stat_field),
-    );
+    const unavailableStats = getUnavailableStatSet(match.match_unavailable_stats);
     const teamTotals: Record<string, number | null> = data.teamTotals ?? {};
     const hasTeamTotalRow = data.hasTeamTotalRow;
 
@@ -418,7 +417,7 @@ function MatchStatsPage() {
                                 )}
                             </div>
 
-                            {match.match_unavailable_stats?.length > 0 && (
+                            {unavailableStats.size > 0 && (
                                 <p className="mt-1 text-xs font-semibold text-amber-700">
                                     {t("matches.partialStatisticsNotice")}
                                 </p>
