@@ -33,6 +33,7 @@ export type Database = {
         Row: {
           appearance_id: number
           captain: boolean
+          last_name: string
           match_id: number
           on_the_bench: boolean
           player_id: number
@@ -44,6 +45,7 @@ export type Database = {
         Insert: {
           appearance_id?: number
           captain?: boolean
+          last_name?: string
           match_id: number
           on_the_bench?: boolean
           player_id: number
@@ -55,6 +57,7 @@ export type Database = {
         Update: {
           appearance_id?: number
           captain?: boolean
+          last_name?: string
           match_id?: number
           on_the_bench?: boolean
           player_id?: number
