@@ -1,8 +1,10 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { matchOptions } from "@/lib/match-stats.queries";
-import { getUnavailableStatSet } from "@/lib/match-unavailable-stats";
+import { UnknownStat } from "@/components/unknown-stat";
+import { getUnavailableStatSet, isStatUnavailable } from "@/lib/match-unavailable-stats";
 import { useTranslation } from "react-i18next";
+import { type ReactNode } from "react";
 
 export const Route = createFileRoute("/match/$matchId/all")({
     loader: ({ context, params }) =>
@@ -225,28 +227,22 @@ function MatchStatsAllPage() {
 
     const { totals, counts, receptionPositiveCount, receptionExcellentCount } = calculateTotals();
 
-    const getStatValue = (fieldName: string): string => {
-        if (unavailableStats.has(fieldName)) return "";
-        if (
-            fieldName === "attack_kill_pct" &&
-            ["attack_total", "attack_kills"].some((field) => unavailableStats.has(field))
-        )
-            return "";
-        if (
-            fieldName === "attack_efficiency" &&
-            ["attack_total", "attack_kills", "attack_blocked", "attack_errors"].some((field) =>
-                unavailableStats.has(field),
-            )
-        )
-            return "";
-        if (
-            (fieldName === "reception_positive_pct" && unavailableStats.has("reception_positive_pct")) ||
-            (fieldName === "reception_excellent_pct" &&
-                unavailableStats.has("reception_excellent_pct")) ||
-            ((fieldName === "reception_positive_pct" || fieldName === "reception_excellent_pct") &&
-                unavailableStats.has("reception_total"))
-        )
-            return "";
+    const renderPlayerStat = (fieldName: string, stats: Record<string, unknown> | null | undefined): ReactNode => {
+        if (!stats || isStatUnavailable(fieldName, unavailableStats)) return <UnknownStat />;
+
+        const isPercentField = fieldName.includes("pct") || fieldName === "attack_efficiency";
+        let value: number | null;
+        if (fieldName === "attack_kill_pct") value = computeAttackKillPct(stats);
+        else if (fieldName === "attack_efficiency") value = computeAttackEff(stats);
+        else value = toNumber(stats[fieldName]);
+
+        // A percentage with no base (total 0) stays blank; any other missing value is unknown.
+        if (value == null) return isPercentField ? "" : <UnknownStat />;
+        return isPercentField ? formatPercent(value) : formatStat(value);
+    };
+
+    const getStatValue = (fieldName: string): ReactNode => {
+        if (isStatUnavailable(fieldName, unavailableStats)) return <UnknownStat />;
 
         const value = totals[fieldName];
         if (value === undefined) return "-";
@@ -504,9 +500,7 @@ function MatchStatsAllPage() {
                                                 key={col.field}
                                                 className={`px-2 py-3 text-center text-sm text-slate-700 ${idx === statColumns.length - 1 ? "border-r-2 border-slate-300" : "border-r border-slate-200"}`}
                                             >
-                                                {stats
-                                                    ? formatStat(stats[col.field as keyof typeof stats] as number | null)
-                                                    : "-"}
+                                                {stats ? renderPlayerStat(col.field, stats) : <UnknownStat />}
                                             </td>
                                         ))}
                                         {serveColumns.map((col) => (
@@ -514,9 +508,7 @@ function MatchStatsAllPage() {
                                                 key={col.field}
                                                 className="px-2 py-3 text-center text-sm text-slate-700 border-r-2 border-slate-300"
                                             >
-                                                {stats
-                                                    ? formatStat(stats[col.field as keyof typeof stats] as number | null)
-                                                    : "-"}
+                                                {stats ? renderPlayerStat(col.field, stats) : <UnknownStat />}
                                             </td>
                                         ))}
                                         {receptionColumns.map((col) => (
@@ -524,9 +516,7 @@ function MatchStatsAllPage() {
                                                 key={col.field}
                                                 className="px-2 py-3 text-center text-sm text-slate-700 border-r-2 border-slate-300"
                                             >
-                                                {stats
-                                                    ? formatStat(stats[col.field as keyof typeof stats] as number | null)
-                                                    : "-"}
+                                                {stats ? renderPlayerStat(col.field, stats) : <UnknownStat />}
                                             </td>
                                         ))}
                                         {attackColumns.map((col) => (
@@ -534,27 +524,12 @@ function MatchStatsAllPage() {
                                                 key={col.field}
                                                 className="px-2 py-3 text-center text-sm text-slate-700 border-r-2 border-slate-300"
                                             >
-                                                {stats
-                                                    ? col.field === "attack_kill_pct"
-                                                        ? formatPercent(computeAttackKillPct(stats as Record<string, unknown>))
-                                                        : col.field === "attack_efficiency"
-                                                            ? formatPercent(computeAttackEff(stats as Record<string, unknown>))
-                                                            : col.field === "reception_positive_pct" ||
-                                                                col.field === "reception_excellent_pct"
-                                                                ? formatPercent(
-                                                                    stats[col.field as keyof typeof stats] as number | null,
-                                                                )
-                                                                : formatStat(
-                                                                    stats[col.field as keyof typeof stats] as number | null,
-                                                                )
-                                                    : "-"}
+                                                {stats ? renderPlayerStat(col.field, stats) : <UnknownStat />}
                                             </td>
                                         ))}
                                         {blockColumns.map((col) => (
                                             <td key={col.field} className="px-2 py-3 text-center text-sm text-slate-700">
-                                                {stats
-                                                    ? formatStat(stats[col.field as keyof typeof stats] as number | null)
-                                                    : "-"}
+                                                {stats ? renderPlayerStat(col.field, stats) : <UnknownStat />}
                                             </td>
                                         ))}
                                     </tr>

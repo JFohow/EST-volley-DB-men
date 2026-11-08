@@ -1,9 +1,10 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { matchOptions } from "@/lib/match-stats.queries";
-import { getUnavailableStatSet } from "@/lib/match-unavailable-stats";
+import { UnknownStat } from "@/components/unknown-stat";
+import { getUnavailableStatSet, isStatUnavailable } from "@/lib/match-unavailable-stats";
 import { useTranslation } from "react-i18next";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 const PERCENT_FIELDS = new Set([
     "reception_positive_pct",
@@ -302,34 +303,28 @@ function MatchStatsPage() {
 
     const { totals, receptionPositiveCount, receptionExcellentCount } = calculateTotals();
 
-    const getStatValue = (fieldName: string): string => {
+    // Player cell: "?" when the value is unknown, blank when a percentage has no base (total 0).
+    const renderPlayerStat = (fieldName: string, stats: any): ReactNode => {
+        if (!stats || isStatUnavailable(fieldName, unavailableStats)) return <UnknownStat />;
+
+        const isPercentField = fieldName.includes("pct") || fieldName === "attack_efficiency";
+        let value: number | null;
+        if (fieldName === "attack_kill_pct") value = computeAttackKillPct(stats);
+        else if (fieldName === "attack_efficiency") value = computeAttackEff(stats);
+        else value = stats[fieldName] ?? null;
+
+        if (value == null) return isPercentField ? "" : <UnknownStat />;
+        return formatField(fieldName, value);
+    };
+
+    const getStatValue = (fieldName: string): ReactNode => {
         // A team totals row is authoritative: a null there means unavailable, never a player sum.
         if (hasTeamTotalRow && fieldName in teamTotals) {
             const teamValue = teamTotals[fieldName];
-            if (teamValue == null) return "";
+            if (teamValue == null) return <UnknownStat />;
             return PERCENT_FIELDS.has(fieldName) ? formatPercent(teamValue) : formatStat(teamValue);
         }
-        if (unavailableStats.has(fieldName)) return "";
-        if (
-            fieldName === "attack_efficiency" &&
-            ["attack_total", "attack_kills", "attack_blocked", "attack_errors"].some((field) =>
-                unavailableStats.has(field),
-            )
-        )
-            return "";
-        if (
-            fieldName === "attack_kill_pct" &&
-            ["attack_total", "attack_kills"].some((field) => unavailableStats.has(field))
-        )
-            return "";
-        if (
-            ((fieldName === "reception_positive_pct" && unavailableStats.has("reception_positive_pct")) ||
-                (fieldName === "reception_excellent_pct" &&
-                    unavailableStats.has("reception_excellent_pct")) ||
-                ((fieldName === "reception_positive_pct" || fieldName === "reception_excellent_pct") &&
-                    unavailableStats.has("reception_total")))
-        )
-            return "";
+        if (isStatUnavailable(fieldName, unavailableStats)) return <UnknownStat />;
 
         const value = totals[fieldName];
         if (value === undefined) return "-";
@@ -653,12 +648,7 @@ function MatchStatsPage() {
                                                         : "border-r border-slate-200"
                                                     }`}
                                             >
-                                                {stats
-                                                    ? formatField(
-                                                        col.field,
-                                                        stats[col.field as keyof typeof stats] as number | null,
-                                                    )
-                                                    : "-"}
+                                                {stats ? renderPlayerStat(col.field, stats) : <UnknownStat />}
                                             </td>
                                         ))}
 
@@ -668,12 +658,7 @@ function MatchStatsPage() {
                                                 key={col.field}
                                                 className={`px-2 py-3 text-center text-sm text-slate-700 ${col === serveColumns[serveColumns.length - 1] ? "border-r-2 border-slate-300" : "border-r border-slate-200"}`}
                                             >
-                                                {stats
-                                                    ? formatField(
-                                                        col.field,
-                                                        stats[col.field as keyof typeof stats] as number | null,
-                                                    )
-                                                    : "-"}
+                                                {stats ? renderPlayerStat(col.field, stats) : <UnknownStat />}
                                             </td>
                                         ))}
 
@@ -683,12 +668,7 @@ function MatchStatsPage() {
                                                 key={col.field}
                                                 className={`px-2 py-3 text-center text-sm text-slate-700 ${col === receptionColumns[receptionColumns.length - 1] ? "border-r-2 border-slate-300" : "border-r border-slate-200"}`}
                                             >
-                                                {stats
-                                                    ? formatField(
-                                                        col.field,
-                                                        stats[col.field as keyof typeof stats] as number | null,
-                                                    )
-                                                    : "-"}
+                                                {stats ? renderPlayerStat(col.field, stats) : <UnknownStat />}
                                             </td>
                                         ))}
 
@@ -698,39 +678,14 @@ function MatchStatsPage() {
                                                 key={col.field}
                                                 className={`px-2 py-3 text-center text-sm text-slate-700 ${col === attackColumns[attackColumns.length - 1] ? "border-r-2 border-slate-300" : "border-r border-slate-200"}`}
                                             >
-                                                {stats
-                                                    ? col.field === "attack_efficiency"
-                                                        ? [
-                                                            "attack_total",
-                                                            "attack_kills",
-                                                            "attack_blocked",
-                                                            "attack_errors",
-                                                        ].some((field) => unavailableStats.has(field))
-                                                            ? ""
-                                                            : formatField("attack_efficiency", computeAttackEff(stats))
-                                                        : col.field === "attack_kill_pct"
-                                                            ? ["attack_total", "attack_kills"].some((field) =>
-                                                                unavailableStats.has(field),
-                                                            )
-                                                                ? ""
-                                                                : formatField("attack_kill_pct", computeAttackKillPct(stats))
-                                                            : formatField(
-                                                                col.field,
-                                                                stats[col.field as keyof typeof stats] as number | null,
-                                                            )
-                                                    : "-"}
+                                                {stats ? renderPlayerStat(col.field, stats) : <UnknownStat />}
                                             </td>
                                         ))}
 
                                         {/* Block Stats */}
                                         {blockColumns.map((col) => (
                                             <td key={col.field} className="px-2 py-3 text-center text-sm text-slate-700">
-                                                {stats
-                                                    ? formatField(
-                                                        col.field,
-                                                        stats[col.field as keyof typeof stats] as number | null,
-                                                    )
-                                                    : "-"}
+                                                {stats ? renderPlayerStat(col.field, stats) : <UnknownStat />}
                                             </td>
                                         ))}
                                     </tr>

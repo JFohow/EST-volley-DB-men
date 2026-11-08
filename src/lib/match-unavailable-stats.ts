@@ -51,6 +51,23 @@ export function getUnavailableStatSet(
     );
 }
 
+// Covers derived stats (attack efficiency, kill %, reception %) whose value depends on flagged fields.
+export function isStatUnavailable(field: string, unavailableStats: ReadonlySet<string>): boolean {
+    if (unavailableStats.has(field)) return true;
+    if (field === "attack_kill_pct") {
+        return ["attack_total", "attack_kills"].some((f) => unavailableStats.has(f));
+    }
+    if (field === "attack_efficiency") {
+        return ["attack_total", "attack_kills", "attack_blocked", "attack_errors"].some((f) =>
+            unavailableStats.has(f),
+        );
+    }
+    if (field === "reception_positive_pct" || field === "reception_excellent_pct") {
+        return unavailableStats.has("reception_total");
+    }
+    return false;
+}
+
 export function maskUnavailableStatValues<T extends Record<string, unknown>>(
     stats: T,
     unavailableStats: ReadonlySet<string>,
