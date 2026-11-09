@@ -6,7 +6,12 @@ import { supabase } from "@/integrations/supabase/client";
 
 const ADMIN_EMAILS = new Set(["karl_juhkami@hotmail.com", "mjuhkami@gmail.com"]);
 
-function isAdminUser(user: { app_metadata?: Record<string, unknown> | null; user_metadata?: Record<string, unknown> | null } | null) {
+function isAdminUser(
+  user: {
+    app_metadata?: Record<string, unknown> | null;
+    user_metadata?: Record<string, unknown> | null;
+  } | null,
+) {
   if (!user) return false;
 
   const appRole = user.app_metadata?.role;
@@ -14,6 +19,35 @@ function isAdminUser(user: { app_metadata?: Record<string, unknown> | null; user
   const email = (user as { email?: string | null }).email?.toLowerCase() ?? "";
 
   return appRole === "admin" || appAdmin === true || ADMIN_EMAILS.has(email);
+}
+
+function GameHighsMenu() {
+  const { t } = useTranslation();
+  const menuLinkClass =
+    "block whitespace-nowrap px-4 py-2 text-xs font-medium uppercase tracking-wide transition-colors hover:bg-white/10 hover:text-estonia-blue sm:text-sm";
+
+  return (
+    <div className="group relative">
+      <Link
+        to="/game-highs"
+        search={{ view: "players" }}
+        className="transition-colors hover:text-estonia-blue"
+        activeProps={{ className: "text-estonia-blue" }}
+      >
+        {t("nav.gameHighs")}
+      </Link>
+      <div className="invisible absolute left-0 top-full z-50 pt-3 opacity-0 transition group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
+        <div className="rounded-md border border-white/10 bg-estonia-dark py-2 shadow-lg">
+          <Link to="/game-highs" search={{ view: "players" }} className={menuLinkClass}>
+            {t("nav.gameHighsByPlayers")}
+          </Link>
+          <Link to="/game-highs" search={{ view: "team" }} className={menuLinkClass}>
+            {t("nav.gameHighsByNation")}
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function SiteNav() {
@@ -67,13 +101,7 @@ export function SiteNav() {
               {t("nav.coaches")}
             </Link>
 
-            <Link
-              to="/game-highs"
-              className="transition-colors hover:text-estonia-blue"
-              activeProps={{ className: "text-estonia-blue" }}
-            >
-              {t("nav.gameHighs")}
-            </Link>
+            <GameHighsMenu />
 
             <Link
               to="/total-top"
@@ -98,27 +126,24 @@ export function SiteNav() {
             >
               {t("nav.trivia")}
             </Link>
-
           </div>
         </div>
 
         <div className="ml-auto flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-2 py-1">
           <button
             onClick={() => i18n.changeLanguage("en")}
-            className={`flex items-center gap-1 rounded-full px-2 py-1 text-xs transition ${i18n.language === "en"
-              ? "bg-estonia-blue text-white"
-              : "hover:bg-white/10"
-              }`}
+            className={`flex items-center gap-1 rounded-full px-2 py-1 text-xs transition ${
+              i18n.language === "en" ? "bg-estonia-blue text-white" : "hover:bg-white/10"
+            }`}
           >
             🇬🇧 EN
           </button>
 
           <button
             onClick={() => i18n.changeLanguage("et")}
-            className={`flex items-center gap-1 rounded-full px-2 py-1 text-xs transition ${i18n.language === "et"
-              ? "bg-estonia-blue text-white"
-              : "hover:bg-white/10"
-              }`}
+            className={`flex items-center gap-1 rounded-full px-2 py-1 text-xs transition ${
+              i18n.language === "et" ? "bg-estonia-blue text-white" : "hover:bg-white/10"
+            }`}
           >
             🇪🇪 ET
           </button>
@@ -215,7 +240,9 @@ export function SiteFooter() {
         </div>
 
         <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-          <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/70">Admin Access</div>
+          <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/70">
+            Admin Access
+          </div>
           <p className="mt-2 text-xs text-slate-400">{footerStatus}</p>
 
           {!userEmail ? (

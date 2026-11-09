@@ -21,6 +21,12 @@ export type GameHighRow = {
   receptionErrors: number | null;
   receptionPositivePct: number | null;
   receptionExcellentPct: number | null;
+  receptionPositive: number | null;
+  receptionExcellent: number | null;
+  receptionNegative: number | null;
+  receptionErrorPct: number | null;
+  receptionNegativePct: number | null;
+  receptionEfficiency: number | null;
   attackTotal: number | null;
   attackErrors: number | null;
   attackBlocked: number | null;
@@ -81,6 +87,12 @@ type GameHighAppearanceRow = {
         attack_kills: number | null;
         attack_kill_pct: number | null;
         attack_efficiency: number | null;
+        reception_positive: number | null;
+        reception_excellent: number | null;
+        reception_negative: number | null;
+        reception_error_pct: number | null;
+        reception_negative_pct: number | null;
+        reception_efficiency: number | null;
         block_points: number | null;
       }
     | Array<{
@@ -101,6 +113,12 @@ type GameHighAppearanceRow = {
         attack_kills: number | null;
         attack_kill_pct: number | null;
         attack_efficiency: number | null;
+        reception_positive: number | null;
+        reception_excellent: number | null;
+        reception_negative: number | null;
+        reception_error_pct: number | null;
+        reception_negative_pct: number | null;
+        reception_efficiency: number | null;
         block_points: number | null;
       }>
     | null;
@@ -135,6 +153,14 @@ function normalizeRelation<T>(value: T | T[] | null): T | null {
     return value[0] ?? null;
   }
   return value;
+}
+
+function maskIfUnavailable(
+  unavailableStats: ReadonlySet<string>,
+  fields: string[],
+  value: number | null,
+): number | null {
+  return fields.some((field) => unavailableStats.has(field)) ? null : value;
 }
 
 function deriveAttackKillPct(stats: {
@@ -185,7 +211,7 @@ async function fetchGameHighs(): Promise<GameHighRow[]> {
     const { data, error } = await supabase
       .from("appearances")
       .select(
-        `appearance_id, player_position_in_match, match_id, players(player_id, first_name, last_name, position), player_match_stats!inner(stats_version, points, plus_minus, break_points, serve_total, serve_aces, serve_errors, reception_total, reception_errors, reception_positive_pct, reception_excellent_pct, attack_total, attack_errors, attack_blocked, attack_kills, attack_kill_pct, attack_efficiency, block_points)`,
+        `appearance_id, player_position_in_match, match_id, players(player_id, first_name, last_name, position), player_match_stats!inner(stats_version, points, plus_minus, break_points, serve_total, serve_aces, serve_errors, reception_total, reception_errors, reception_positive_pct, reception_excellent_pct, reception_positive, reception_excellent, reception_negative, reception_error_pct, reception_negative_pct, reception_efficiency, attack_total, attack_errors, attack_blocked, attack_kills, attack_kill_pct, attack_efficiency, block_points)`,
       )
       .gt("appearance_id", lastAppearanceId)
       .order("appearance_id", { ascending: true })
@@ -313,6 +339,36 @@ async function fetchGameHighs(): Promise<GameHighRow[]> {
           unavailableStats.has("reception_total") || unavailableStats.has("reception_excellent_pct")
             ? null
             : stats.reception_excellent_pct,
+        receptionPositive: maskIfUnavailable(
+          unavailableStats,
+          ["reception_total", "reception_positive_pct"],
+          stats.reception_positive,
+        ),
+        receptionExcellent: maskIfUnavailable(
+          unavailableStats,
+          ["reception_total", "reception_excellent_pct"],
+          stats.reception_excellent,
+        ),
+        receptionNegative: maskIfUnavailable(
+          unavailableStats,
+          ["reception_total", "reception_errors", "reception_positive_pct"],
+          stats.reception_negative,
+        ),
+        receptionErrorPct: maskIfUnavailable(
+          unavailableStats,
+          ["reception_total", "reception_errors"],
+          stats.reception_error_pct,
+        ),
+        receptionNegativePct: maskIfUnavailable(
+          unavailableStats,
+          ["reception_total", "reception_errors", "reception_positive_pct"],
+          stats.reception_negative_pct,
+        ),
+        receptionEfficiency: maskIfUnavailable(
+          unavailableStats,
+          ["reception_total", "reception_errors", "reception_excellent_pct"],
+          stats.reception_efficiency,
+        ),
         attackTotal: unavailableStats.has("attack_total") ? null : stats.attack_total,
         attackErrors: unavailableStats.has("attack_errors") ? null : stats.attack_errors,
         attackBlocked: unavailableStats.has("attack_blocked") ? null : stats.attack_blocked,

@@ -1,6 +1,7 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { ChevronDown } from "lucide-react";
 import {
   gameHighsOptions,
   matchTeamTotalsOptions,
@@ -24,17 +25,28 @@ type GameHighCategory =
   | "pointsPerGame"
   | "plusMinusBest"
   | "plusMinusWorst"
+  | "blockPoints"
   | "serveTotal"
   | "serveAces"
+  | "serveAcePct"
   | "serveErrorsMost"
+  | "serveErrorPct"
   | "serveErrorsLeast"
+  | "errorsPerAce"
   | "receptionTotal"
   | "receptionErrors"
   | "receptionErrorsLeast"
-  | "receptionPositivePctBest"
-  | "receptionPositivePctWorst"
-  | "receptionExcellentPctBest"
-  | "receptionExcellentPctWorst"
+  | "receptionErrorPct"
+  | "receptionNegativeMost"
+  | "receptionNegativeLeast"
+  | "receptionNegativePct"
+  | "receptionPositiveMost"
+  | "receptionPositiveLeast"
+  | "receptionPositivePct"
+  | "receptionExcellentMost"
+  | "receptionExcellentLeast"
+  | "receptionExcellentPct"
+  | "receptionEfficiencyPct"
   | "attackTotal"
   | "attackErrors"
   | "attackBlocked"
@@ -42,101 +54,77 @@ type GameHighCategory =
   | "attackKillPctBest"
   | "attackKillPctWorst"
   | "attackEfficiencyBest"
-  | "attackEfficiencyWorst"
-  | "blockPoints";
+  | "attackEfficiencyWorst";
 
 type CategoryRule = {
-  minAttemptsField?: "serveTotal" | "receptionTotal" | "attackTotal";
+  minAttemptsField?: "serveTotal" | "serveAces" | "receptionTotal" | "attackTotal";
   minAttempts?: number;
   isPercent?: boolean;
   sortDirection?: "asc" | "desc";
 };
 
+const RECEPTION_MIN_ATTEMPTS = { minAttemptsField: "receptionTotal", minAttempts: 10 } as const;
+const ATTACK_MIN_ATTEMPTS = { minAttemptsField: "attackTotal", minAttempts: 10 } as const;
+
 const categoryRules: Record<GameHighCategory, CategoryRule> = {
   pointsPerGame: { sortDirection: "desc" },
   plusMinusBest: { sortDirection: "desc" },
   plusMinusWorst: { sortDirection: "asc" },
+  blockPoints: { sortDirection: "desc" },
   serveTotal: { sortDirection: "desc" },
   serveAces: { sortDirection: "desc" },
+  serveAcePct: {
+    minAttemptsField: "serveTotal",
+    minAttempts: 5,
+    isPercent: true,
+    sortDirection: "desc",
+  },
   serveErrorsMost: { sortDirection: "desc" },
-  serveErrorsLeast: { minAttemptsField: "serveTotal", minAttempts: 10, sortDirection: "asc" },
-  receptionTotal: { sortDirection: "desc" },
-  receptionErrors: { sortDirection: "desc" },
-  receptionErrorsLeast: {
-    minAttemptsField: "receptionTotal",
-    minAttempts: 10,
-    sortDirection: "asc",
-  },
-  receptionPositivePctBest: {
-    minAttemptsField: "receptionTotal",
-    minAttempts: 10,
+  serveErrorPct: {
+    minAttemptsField: "serveTotal",
+    minAttempts: 1,
     isPercent: true,
     sortDirection: "desc",
   },
-  receptionPositivePctWorst: {
-    minAttemptsField: "receptionTotal",
-    minAttempts: 10,
-    isPercent: true,
-    sortDirection: "asc",
-  },
-  receptionExcellentPctBest: {
-    minAttemptsField: "receptionTotal",
-    minAttempts: 10,
-    isPercent: true,
-    sortDirection: "desc",
-  },
-  receptionExcellentPctWorst: {
-    minAttemptsField: "receptionTotal",
-    minAttempts: 10,
-    isPercent: true,
-    sortDirection: "asc",
-  },
-  attackTotal: { sortDirection: "desc" },
-  attackErrors: { sortDirection: "desc" },
-  attackBlocked: { sortDirection: "desc" },
-  attackKills: { sortDirection: "desc" },
-  attackKillPctBest: {
-    minAttemptsField: "attackTotal",
-    minAttempts: 10,
-    isPercent: true,
-    sortDirection: "desc",
-  },
-  attackKillPctWorst: {
-    minAttemptsField: "attackTotal",
-    minAttempts: 10,
-    isPercent: true,
-    sortDirection: "asc",
-  },
-  attackEfficiencyBest: {
-    minAttemptsField: "attackTotal",
-    minAttempts: 10,
-    isPercent: true,
-    sortDirection: "desc",
-  },
-  attackEfficiencyWorst: {
-    minAttemptsField: "attackTotal",
-    minAttempts: 10,
-    isPercent: true,
-    sortDirection: "asc",
-  },
-  blockPoints: { sortDirection: "desc" },
+  serveErrorsLeast: { minAttemptsField: "serveTotal", minAttempts: 1, sortDirection: "asc" },
+  errorsPerAce: { minAttemptsField: "serveAces", minAttempts: 1, sortDirection: "asc" },
+  receptionTotal: { ...RECEPTION_MIN_ATTEMPTS, sortDirection: "desc" },
+  receptionErrors: { ...RECEPTION_MIN_ATTEMPTS, sortDirection: "desc" },
+  receptionErrorsLeast: { ...RECEPTION_MIN_ATTEMPTS, sortDirection: "asc" },
+  receptionErrorPct: { ...RECEPTION_MIN_ATTEMPTS, isPercent: true, sortDirection: "desc" },
+  receptionNegativeMost: { ...RECEPTION_MIN_ATTEMPTS, sortDirection: "desc" },
+  receptionNegativeLeast: { ...RECEPTION_MIN_ATTEMPTS, sortDirection: "asc" },
+  receptionNegativePct: { ...RECEPTION_MIN_ATTEMPTS, isPercent: true, sortDirection: "desc" },
+  receptionPositiveMost: { ...RECEPTION_MIN_ATTEMPTS, sortDirection: "desc" },
+  receptionPositiveLeast: { ...RECEPTION_MIN_ATTEMPTS, sortDirection: "asc" },
+  receptionPositivePct: { ...RECEPTION_MIN_ATTEMPTS, isPercent: true, sortDirection: "desc" },
+  receptionExcellentMost: { ...RECEPTION_MIN_ATTEMPTS, sortDirection: "desc" },
+  receptionExcellentLeast: { ...RECEPTION_MIN_ATTEMPTS, sortDirection: "asc" },
+  receptionExcellentPct: { ...RECEPTION_MIN_ATTEMPTS, isPercent: true, sortDirection: "desc" },
+  receptionEfficiencyPct: { ...RECEPTION_MIN_ATTEMPTS, isPercent: true, sortDirection: "desc" },
+  attackTotal: { ...ATTACK_MIN_ATTEMPTS, sortDirection: "desc" },
+  attackErrors: { ...ATTACK_MIN_ATTEMPTS, sortDirection: "desc" },
+  attackBlocked: { ...ATTACK_MIN_ATTEMPTS, sortDirection: "desc" },
+  attackKills: { ...ATTACK_MIN_ATTEMPTS, sortDirection: "desc" },
+  attackKillPctBest: { ...ATTACK_MIN_ATTEMPTS, isPercent: true, sortDirection: "desc" },
+  attackKillPctWorst: { ...ATTACK_MIN_ATTEMPTS, isPercent: true, sortDirection: "asc" },
+  attackEfficiencyBest: { ...ATTACK_MIN_ATTEMPTS, isPercent: true, sortDirection: "desc" },
+  attackEfficiencyWorst: { ...ATTACK_MIN_ATTEMPTS, isPercent: true, sortDirection: "asc" },
 };
 
 type ServeContextKey =
-  | "serveTotal"
-  | "serveErrors"
-  | "serveAces"
-  | "serveAcePct"
-  | "serveErrorPct"
-  | "errorsPerAce";
+  "serveTotal" | "serveErrors" | "serveAces" | "serveAcePct" | "serveErrorPct" | "errorsPerAce";
 type ReceptionContextKey =
   | "receptionTotal"
   | "receptionErrors"
   | "receptionErrorPct"
+  | "receptionNegativeTotal"
+  | "receptionNegativePct"
   | "receptionPositiveTotal"
   | "receptionPositivePct"
   | "receptionIdealTotal"
-  | "receptionExcellentPct";
+  | "receptionExcellentPct"
+  | "receptionEfficiency";
 type AttackContextKey =
   | "attackTotal"
   | "attackKills"
@@ -152,7 +140,6 @@ function getServeContextKeys(metric: string): ServeContextKey[] {
     case "serveErrors":
     case "serveErrorsMost":
     case "serveErrorsLeast":
-    case "bestAceErrorRatio":
       return ["serveTotal", "serveErrors", "serveAces"];
     case "serveAcePct":
       return ["serveTotal", "serveErrors", "serveAces", "serveAcePct"];
@@ -202,8 +189,6 @@ function isServeContextHighlighted(metric: string, key: ServeContextKey): boolea
     case "serveErrorsMost":
     case "serveErrorsLeast":
       return key === "serveErrors";
-    case "bestAceErrorRatio":
-      return key === "serveAces" || key === "serveErrors";
     default:
       return false;
   }
@@ -232,20 +217,25 @@ function isReceptionContextHighlighted(metric: string, key: ReceptionContextKey)
     case "receptionErrors":
     case "receptionErrorsLeast":
       return key === "receptionErrors";
-    case "receptionPositivePct":
-    case "receptionPositivePctBest":
-    case "receptionPositivePctWorst":
-      return key === "receptionPositivePct";
-    case "receptionExcellentPct":
-    case "receptionExcellentPctBest":
-    case "receptionExcellentPctWorst":
-      return key === "receptionExcellentPct";
     case "receptionErrorPct":
       return key === "receptionErrorPct";
-    case "receptionPositiveTotal":
+    case "receptionNegativeMost":
+    case "receptionNegativeLeast":
+      return key === "receptionNegativeTotal";
+    case "receptionNegativePct":
+      return key === "receptionNegativePct";
+    case "receptionPositiveMost":
+    case "receptionPositiveLeast":
       return key === "receptionPositiveTotal";
-    case "receptionIdealTotal":
+    case "receptionPositivePct":
+      return key === "receptionPositivePct";
+    case "receptionExcellentMost":
+    case "receptionExcellentLeast":
       return key === "receptionIdealTotal";
+    case "receptionExcellentPct":
+      return key === "receptionExcellentPct";
+    case "receptionEfficiencyPct":
+      return key === "receptionEfficiency";
     default:
       return false;
   }
@@ -258,12 +248,24 @@ function getReceptionDerivedFields(
   idealPct: number | null | undefined,
 ) {
   const hasTotal = total != null && total > 0;
+  const positiveTotal =
+    total != null && positivePct != null ? Math.round((total * positivePct) / 100) : null;
+  const idealTotal =
+    total != null && idealPct != null ? Math.round((total * idealPct) / 100) : null;
+  const negativeTotal =
+    total != null && errors != null && positiveTotal != null
+      ? total - errors - positiveTotal
+      : null;
   return {
     receptionErrorPct: hasTotal && errors != null ? (errors / total) * 100 : null,
-    receptionPositiveTotal:
-      total != null && positivePct != null ? Math.round((total * positivePct) / 100) : null,
-    receptionIdealTotal:
-      total != null && idealPct != null ? Math.round((total * idealPct) / 100) : null,
+    receptionPositiveTotal: positiveTotal,
+    receptionIdealTotal: idealTotal,
+    receptionNegativeTotal: negativeTotal,
+    receptionNegativePct: hasTotal && negativeTotal != null ? (negativeTotal / total) * 100 : null,
+    receptionEfficiency:
+      hasTotal && errors != null && idealTotal != null
+        ? ((idealTotal - errors) / total) * 100
+        : null,
   };
 }
 
@@ -271,10 +273,13 @@ const RECEPTION_COLUMN_ORDER: ReceptionContextKey[] = [
   "receptionTotal",
   "receptionErrors",
   "receptionErrorPct",
+  "receptionNegativeTotal",
+  "receptionNegativePct",
   "receptionPositiveTotal",
   "receptionPositivePct",
   "receptionIdealTotal",
   "receptionExcellentPct",
+  "receptionEfficiency",
 ];
 
 function getReceptionContextKeys(metric: string): ReceptionContextKey[] {
@@ -289,10 +294,13 @@ const receptionContextLabels: Record<ReceptionContextKey, string> = {
   receptionTotal: "R TOT",
   receptionErrors: "R ERR",
   receptionErrorPct: "R ERR%",
+  receptionNegativeTotal: "R NEG",
+  receptionNegativePct: "R NEG%",
   receptionPositiveTotal: "R POS",
   receptionPositivePct: "R POS%",
   receptionIdealTotal: "R EXC",
   receptionExcellentPct: "R EXC%",
+  receptionEfficiency: "R EFF%",
 };
 
 function formatReceptionContextValue(
@@ -301,8 +309,10 @@ function formatReceptionContextValue(
 ): string {
   if (value == null) return "—";
   return key === "receptionErrorPct" ||
+    key === "receptionNegativePct" ||
     key === "receptionPositivePct" ||
-    key === "receptionExcellentPct"
+    key === "receptionExcellentPct" ||
+    key === "receptionEfficiency"
     ? `${Math.round(value)}%`
     : String(value);
 }
@@ -364,6 +374,9 @@ function formatAttackContextValue(key: AttackContextKey, value: number | null | 
 }
 
 export const Route = createFileRoute("/game-highs")({
+  validateSearch: (search: Record<string, unknown>): { view: "players" | "team" } => ({
+    view: search.view === "team" ? "team" : "players",
+  }),
   head: () => ({
     meta: [
       { title: "Game Highs — Eesti Võrkpall DB" },
@@ -402,13 +415,134 @@ function GameHighsError({ error, reset }: { error: Error; reset: () => void }) {
 
 const TEAM_HIGHS_EXCLUDED_MATCH_IDS = new Set<number>([478]);
 
+type GameHighBlock = "general" | "serve" | "reception" | "attacks";
+
+const GAME_HIGH_BLOCK_BY_KEY: Record<string, GameHighBlock> = {
+  pointsPerGame: "general",
+  plusMinusBest: "general",
+  plusMinusWorst: "general",
+  blockPoints: "general",
+  points: "general",
+  oppErrors: "general",
+  maxEstoniaSetPoints: "general",
+  breakPoints: "general",
+  plusMinus: "general",
+  serveTotal: "serve",
+  serveAces: "serve",
+  serveAcePct: "serve",
+  serveErrorsMost: "serve",
+  serveErrors: "serve",
+  serveErrorPct: "serve",
+  serveErrorsLeast: "serve",
+  errorsPerAce: "serve",
+  receptionTotal: "reception",
+  receptionErrors: "reception",
+  receptionErrorsLeast: "reception",
+  receptionErrorPct: "reception",
+  receptionNegativeMost: "reception",
+  receptionNegativeLeast: "reception",
+  receptionNegativeTotal: "reception",
+  receptionNegativePct: "reception",
+  receptionPositiveMost: "reception",
+  receptionPositiveLeast: "reception",
+  receptionPositiveTotal: "reception",
+  receptionPositivePct: "reception",
+  receptionExcellentMost: "reception",
+  receptionExcellentLeast: "reception",
+  receptionIdealTotal: "reception",
+  receptionExcellentPct: "reception",
+  receptionEfficiencyPct: "reception",
+  receptionEfficiency: "reception",
+  attackTotal: "attacks",
+  attackErrors: "attacks",
+  attackBlocked: "attacks",
+  attackKills: "attacks",
+  attackKillPctBest: "attacks",
+  attackKillPctWorst: "attacks",
+  attackEfficiencyBest: "attacks",
+  attackEfficiencyWorst: "attacks",
+  attackKillPct: "attacks",
+  attackEfficiency: "attacks",
+};
+
+function isGameHighBlockStart(rows: readonly { key: string }[], index: number) {
+  return (
+    index === 0 ||
+    GAME_HIGH_BLOCK_BY_KEY[rows[index - 1].key] !== GAME_HIGH_BLOCK_BY_KEY[rows[index].key]
+  );
+}
+
+function GameHighBlockHeader({
+  label,
+  isOpen,
+  colSpan,
+  onToggle,
+}: {
+  label: string;
+  isOpen: boolean;
+  colSpan: number;
+  onToggle: () => void;
+}) {
+  return (
+    <TableRow className="bg-slate-100 hover:bg-slate-200">
+      <TableCell colSpan={colSpan} className="p-0">
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={isOpen}
+          className="flex w-full items-center justify-center gap-2 px-3 py-3 text-sm font-bold uppercase tracking-[0.2em] text-slate-600"
+        >
+          <span>{label}</span>
+          <ChevronDown
+            aria-hidden="true"
+            className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          />
+        </button>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+function getTeamMinAttempts(
+  key: string,
+): { field: "serveTotal" | "receptionTotal" | "attackTotal"; min: number } | null {
+  if (key === "serveAcePct") return { field: "serveTotal", min: 5 };
+  if (key.startsWith("reception")) return { field: "receptionTotal", min: 10 };
+  if (key.startsWith("attack")) return { field: "attackTotal", min: 10 };
+  return null;
+}
+
+const thresholdNouns: Record<"serveTotal" | "receptionTotal" | "attackTotal", [string, string]> = {
+  serveTotal: ["Serves", "servi"],
+  receptionTotal: ["Receptions", "vastuvõttu"],
+  attackTotal: ["Attacks", "rünnet"],
+};
+
+function getThresholdLabel(key: string, isEstonian: boolean): string | null {
+  const threshold = getTeamMinAttempts(key);
+  if (!threshold) return null;
+  const [en, et] = thresholdNouns[threshold.field];
+  return `Min ${threshold.min} ${isEstonian ? et : en}`;
+}
+
+function getFormulaLabel(key: string, isEstonian: boolean): string | null {
+  if (key !== "receptionEfficiency" && key !== "receptionEfficiencyPct") return null;
+  return isEstonian
+    ? "R EFF% = (Väga hea − Vead) ÷ Vastuvõtud × 100"
+    : "R EFF% = (Excellent − Errors) ÷ Receptions × 100";
+}
+
 const TEAM_METRIC_REQUIRED_FIELDS: Record<string, string[]> = {
   serveAcePct: ["serve_total", "serve_aces"],
   serveErrorPct: ["serve_total", "serve_errors"],
   errorsPerAce: ["serve_aces", "serve_errors"],
   receptionErrorPct: ["reception_total", "reception_errors"],
+  receptionErrorsLeast: ["reception_total", "reception_errors"],
+  receptionNegativeTotal: ["reception_total", "reception_errors", "reception_positive_pct"],
+  receptionNegativePct: ["reception_total", "reception_errors", "reception_positive_pct"],
   receptionPositiveTotal: ["reception_total", "reception_positive_pct"],
   receptionIdealTotal: ["reception_total", "reception_excellent_pct"],
+  receptionEfficiency: ["reception_total", "reception_errors", "reception_excellent_pct"],
 };
 
 function GameHighsPage() {
@@ -430,7 +564,8 @@ function GameHighsPage() {
     }
     return { teamTotalsByMatch: teamTotals, oppErrorsByMatch: oppErrors };
   }, [teamTotalRows]);
-  const [viewMode, setViewMode] = useState<"PLAYERS" | "TEAM">("PLAYERS");
+  const { view } = Route.useSearch();
+  const viewMode = view === "team" ? "TEAM" : "PLAYERS";
   const [selectedPosition, setSelectedPosition] = useState<string>("ALL");
   const [matchType, setMatchType] = useState<"ALL" | "OFFICIAL" | "COMPETITIVE" | "NON_OFFICIAL">(
     "OFFICIAL",
@@ -664,15 +799,25 @@ function GameHighsPage() {
       plusMinusWorst: t("gameHighs.categories.plusMinusWorstInMatch"),
       serveTotal: t("gameHighs.categories.servesInMatch"),
       serveAces: t("gameHighs.categories.acesInMatch"),
+      serveAcePct: t("gameHighs.categories.serveAcePct"),
       serveErrorsMost: t("gameHighs.categories.serveMistakesMostInMatch"),
+      serveErrorPct: t("gameHighs.categories.serveErrorPct"),
       serveErrorsLeast: t("gameHighs.categories.serveMistakesLeastInMatch"),
+      errorsPerAce: t("gameHighs.categories.errorsPerAce"),
       receptionTotal: t("gameHighs.categories.receptionsInMatch"),
       receptionErrors: t("gameHighs.categories.receptionMistakesMostInMatch"),
       receptionErrorsLeast: t("gameHighs.categories.receptionMistakesLeastInMatch"),
-      receptionPositivePctBest: t("gameHighs.categories.receptionPctBestInMatch"),
-      receptionPositivePctWorst: t("gameHighs.categories.receptionPctWorstInMatch"),
-      receptionExcellentPctBest: t("gameHighs.categories.receptionIdealPctBestInMatch"),
-      receptionExcellentPctWorst: t("gameHighs.categories.receptionIdealPctWorstInMatch"),
+      receptionErrorPct: t("gameHighs.categories.receptionErrorPct"),
+      receptionNegativeMost: t("gameHighs.categories.receptionNegativeMost"),
+      receptionNegativeLeast: t("gameHighs.categories.receptionNegativeLeast"),
+      receptionNegativePct: t("gameHighs.categories.receptionNegativePct"),
+      receptionPositiveMost: t("gameHighs.categories.receptionPositiveMost"),
+      receptionPositiveLeast: t("gameHighs.categories.receptionPositiveLeast"),
+      receptionPositivePct: t("gameHighs.categories.receptionPositivePct"),
+      receptionExcellentMost: t("gameHighs.categories.receptionExcellentMost"),
+      receptionExcellentLeast: t("gameHighs.categories.receptionExcellentLeast"),
+      receptionExcellentPct: t("gameHighs.categories.receptionExcellentPct"),
+      receptionEfficiencyPct: t("gameHighs.categories.receptionEfficiencyPct"),
       attackTotal: t("gameHighs.categories.attacksInMatch"),
       attackErrors: t("gameHighs.categories.attackOutInMatch"),
       attackBlocked: t("gameHighs.categories.attackBlockedInMatch"),
@@ -695,16 +840,25 @@ function GameHighsPage() {
         "blockPoints",
         "serveTotal",
         "serveAces",
+        "serveAcePct",
         "serveErrorsMost",
+        "serveErrorPct",
         "serveErrorsLeast",
-        "bestAceErrorRatio",
+        "errorsPerAce",
         "receptionTotal",
         "receptionErrors",
         "receptionErrorsLeast",
-        "receptionPositivePctBest",
-        "receptionPositivePctWorst",
-        "receptionExcellentPctBest",
-        "receptionExcellentPctWorst",
+        "receptionErrorPct",
+        "receptionNegativeMost",
+        "receptionNegativeLeast",
+        "receptionNegativePct",
+        "receptionPositiveMost",
+        "receptionPositiveLeast",
+        "receptionPositivePct",
+        "receptionExcellentMost",
+        "receptionExcellentLeast",
+        "receptionExcellentPct",
+        "receptionEfficiencyPct",
         "attackTotal",
         "attackErrors",
         "attackBlocked",
@@ -726,16 +880,25 @@ function GameHighsPage() {
       plusMinusWorst: categoryLabel.plusMinusWorst,
       serveTotal: categoryLabel.serveTotal,
       serveAces: categoryLabel.serveAces,
+      serveAcePct: categoryLabel.serveAcePct,
       serveErrorsMost: categoryLabel.serveErrorsMost,
+      serveErrorPct: categoryLabel.serveErrorPct,
       serveErrorsLeast: categoryLabel.serveErrorsLeast,
-      bestAceErrorRatio: isEstonian ? "Ässade-vigade suhe" : "Ace to Error Ratio",
+      errorsPerAce: categoryLabel.errorsPerAce,
       receptionTotal: categoryLabel.receptionTotal,
       receptionErrors: categoryLabel.receptionErrors,
       receptionErrorsLeast: categoryLabel.receptionErrorsLeast,
-      receptionPositivePctBest: categoryLabel.receptionPositivePctBest,
-      receptionPositivePctWorst: categoryLabel.receptionPositivePctWorst,
-      receptionExcellentPctBest: categoryLabel.receptionExcellentPctBest,
-      receptionExcellentPctWorst: categoryLabel.receptionExcellentPctWorst,
+      receptionErrorPct: categoryLabel.receptionErrorPct,
+      receptionNegativeMost: categoryLabel.receptionNegativeMost,
+      receptionNegativeLeast: categoryLabel.receptionNegativeLeast,
+      receptionNegativePct: categoryLabel.receptionNegativePct,
+      receptionPositiveMost: categoryLabel.receptionPositiveMost,
+      receptionPositiveLeast: categoryLabel.receptionPositiveLeast,
+      receptionPositivePct: categoryLabel.receptionPositivePct,
+      receptionExcellentMost: categoryLabel.receptionExcellentMost,
+      receptionExcellentLeast: categoryLabel.receptionExcellentLeast,
+      receptionExcellentPct: categoryLabel.receptionExcellentPct,
+      receptionEfficiencyPct: categoryLabel.receptionEfficiencyPct,
       attackTotal: categoryLabel.attackTotal,
       attackErrors: categoryLabel.attackErrors,
       attackBlocked: isEstonian ? "Rünnakud blokki" : "Attacks Blocked",
@@ -766,21 +929,48 @@ function GameHighsPage() {
       receptionErrorsLeast: isEstonian
         ? "Võrdsete vastuvõtuvigade korral eelistatakse suuremat vastuvõttude koguarvu."
         : "For equal reception-error counts, more receptions rank higher.",
-      receptionPositivePctBest: isEstonian
+      serveAcePct: isEstonian
+        ? "Võrdse ässade % korral eelistatakse suuremat servide koguarvu (S TOT)."
+        : "For equal ace %, more total serve attempts (S TOT) rank higher.",
+      serveErrorPct: isEstonian
+        ? "Võrdse servivigade % korral eelistatakse suuremat servide koguarvu (S TOT)."
+        : "For equal serve error %, more total serve attempts (S TOT) rank higher.",
+      errorsPerAce: isEstonian
+        ? "Võrdse vigade ja ässade suhte korral eelistatakse suuremat ässade arvu."
+        : "For equal errors per ace, more aces rank higher.",
+      receptionErrorPct: isEstonian
+        ? "Võrdse vastuvõtuvigade % korral eelistatakse suuremat vastuvõttude koguarvu (R TOT)."
+        : "For equal reception error %, more total receptions (R TOT) rank higher.",
+      receptionNegativeMost: isEstonian
+        ? "Võrdse negatiivsete vastuvõttude arvu korral eelistatakse väiksemat vastuvõttude koguarvu (R TOT)."
+        : "For equal negative receptions, fewer total receptions (R TOT) rank higher.",
+      receptionNegativeLeast: isEstonian
+        ? "Võrdse negatiivsete vastuvõttude arvu korral eelistatakse suuremat vastuvõttude koguarvu (R TOT)."
+        : "For equal negative receptions, more total receptions (R TOT) rank higher.",
+      receptionNegativePct: isEstonian
+        ? "Võrdse negatiivse vastuvõtu % korral eelistatakse suuremat vastuvõttude koguarvu (R TOT)."
+        : "For equal negative reception %, more total receptions (R TOT) rank higher.",
+      receptionPositiveMost: isEstonian
+        ? "Võrdse positiivsete vastuvõttude arvu korral eelistatakse suuremat vastuvõttude koguarvu (R TOT)."
+        : "For equal positive receptions, more total receptions (R TOT) rank higher.",
+      receptionPositiveLeast: isEstonian
+        ? "Võrdse positiivsete vastuvõttude arvu korral eelistatakse väiksemat vastuvõttude koguarvu (R TOT)."
+        : "For equal positive receptions, fewer total receptions (R TOT) rank higher.",
+      receptionPositivePct: isEstonian
         ? "Võrdse positiivse vastuvõtu % korral eelistatakse suuremat vastuvõttude koguarvu (R TOT). Kui ka see on võrdne, eelistatakse väiksemat vastuvõttuvigade arvu (R ERR)."
         : "For equal positive reception %, more total receptions (R TOT) rank higher. If still equal, fewer reception errors (R ERR) rank higher.",
-      receptionPositivePctWorst: isEstonian
-        ? "Võrdse positiivse vastuvõtu % korral eelistatakse väiksemat vastuvõttude koguarvu (R TOT). Kui ka see on võrdne, eelistatakse suuremat vastuvõttuvigade arvu (R ERR)."
-        : "For equal positive reception %, fewer total receptions (R TOT) rank higher. If still equal, more reception errors (R ERR) rank higher.",
-      receptionExcellentPctBest: isEstonian
+      receptionExcellentMost: isEstonian
+        ? "Võrdse ideaalsete vastuvõttude arvu korral eelistatakse suuremat vastuvõttude koguarvu (R TOT)."
+        : "For equal excellent receptions, more total receptions (R TOT) rank higher.",
+      receptionExcellentLeast: isEstonian
+        ? "Võrdse ideaalsete vastuvõttude arvu korral eelistatakse väiksemat vastuvõttude koguarvu (R TOT)."
+        : "For equal excellent receptions, fewer total receptions (R TOT) rank higher.",
+      receptionExcellentPct: isEstonian
         ? "Võrdse ideaalse vastuvõtu % korral eelistatakse suuremat vastuvõttude koguarvu (R TOT)."
-        : "For equal ideal reception %, more total receptions (R TOT) rank higher.",
-      receptionExcellentPctWorst: isEstonian
-        ? "Võrdse ideaalse vastuvõtu % korral eelistatakse suuremat vastuvõttude koguarvu (R TOT)."
-        : "For equal ideal reception %, more total receptions (R TOT) rank higher.",
-      bestAceErrorRatio: isEstonian
-        ? "Võrdse ässade-vigade suhte korral eelistatakse suuremat servide koguarvu (S TOT)."
-        : "For equal ace-to-error ratios, more total serve attempts (S TOT) rank higher.",
+        : "For equal excellent reception %, more total receptions (R TOT) rank higher.",
+      receptionEfficiencyPct: isEstonian
+        ? "Võrdse vastuvõtuefektiivsuse korral eelistatakse suuremat vastuvõttude koguarvu (R TOT)."
+        : "For equal reception efficiency, more total receptions (R TOT) rank higher.",
       attackKillPctBest: isEstonian
         ? "Võrdse rünnaku % korral eelistatakse suuremat rünnakute koguarvu (A TOT)."
         : "For equal attack percentages, more total attacks (A TOT) rank higher.",
@@ -804,24 +994,42 @@ function GameHighsPage() {
         : "For equal successful attacks, fewer total attacks (A TOT) rank higher.",
     };
 
-    const receptionTieBreakers: Partial<
-      Record<
-        PlayerMetricKey,
-        { field: "receptionTotal" | "receptionErrors"; direction: "asc" | "desc" }[]
-      >
-    > = {
+    type TieBreaker = {
+      field: "receptionTotal" | "receptionErrors" | "serveTotal" | "serveAces" | "attackTotal";
+      direction: "asc" | "desc";
+    };
+
+    const tieBreakers: Partial<Record<PlayerMetricKey, TieBreaker[]>> = {
+      pointsPerGame: [{ field: "attackTotal", direction: "asc" }],
+      serveAces: [{ field: "serveTotal", direction: "asc" }],
+      serveAcePct: [{ field: "serveTotal", direction: "desc" }],
+      serveErrorsMost: [{ field: "serveTotal", direction: "asc" }],
+      serveErrorPct: [{ field: "serveTotal", direction: "desc" }],
+      serveErrorsLeast: [{ field: "serveTotal", direction: "desc" }],
+      errorsPerAce: [{ field: "serveAces", direction: "desc" }],
       receptionErrors: [{ field: "receptionTotal", direction: "asc" }],
       receptionErrorsLeast: [{ field: "receptionTotal", direction: "desc" }],
-      receptionPositivePctBest: [
+      receptionErrorPct: [{ field: "receptionTotal", direction: "desc" }],
+      receptionNegativeMost: [{ field: "receptionTotal", direction: "asc" }],
+      receptionNegativeLeast: [{ field: "receptionTotal", direction: "desc" }],
+      receptionNegativePct: [{ field: "receptionTotal", direction: "desc" }],
+      receptionPositiveMost: [{ field: "receptionTotal", direction: "desc" }],
+      receptionPositiveLeast: [{ field: "receptionTotal", direction: "asc" }],
+      receptionPositivePct: [
         { field: "receptionTotal", direction: "desc" },
         { field: "receptionErrors", direction: "asc" },
       ],
-      receptionPositivePctWorst: [
-        { field: "receptionTotal", direction: "asc" },
-        { field: "receptionErrors", direction: "desc" },
-      ],
-      receptionExcellentPctBest: [{ field: "receptionTotal", direction: "desc" }],
-      receptionExcellentPctWorst: [{ field: "receptionTotal", direction: "desc" }],
+      receptionExcellentMost: [{ field: "receptionTotal", direction: "desc" }],
+      receptionExcellentLeast: [{ field: "receptionTotal", direction: "asc" }],
+      receptionExcellentPct: [{ field: "receptionTotal", direction: "desc" }],
+      receptionEfficiencyPct: [{ field: "receptionTotal", direction: "desc" }],
+      attackErrors: [{ field: "attackTotal", direction: "asc" }],
+      attackBlocked: [{ field: "attackTotal", direction: "asc" }],
+      attackKills: [{ field: "attackTotal", direction: "asc" }],
+      attackKillPctBest: [{ field: "attackTotal", direction: "desc" }],
+      attackKillPctWorst: [{ field: "attackTotal", direction: "desc" }],
+      attackEfficiencyBest: [{ field: "attackTotal", direction: "desc" }],
+      attackEfficiencyWorst: [{ field: "attackTotal", direction: "desc" }],
     };
 
     const isSameDisplayedRank = (
@@ -829,15 +1037,6 @@ function GameHighsPage() {
       current: GameHighRow,
       previous: GameHighRow,
     ) => {
-      if (metric === "bestAceErrorRatio") {
-        const currentRatio = (current.serveAces ?? 0) / Math.max(current.serveErrors ?? 0, 1);
-        const previousRatio = (previous.serveAces ?? 0) / Math.max(previous.serveErrors ?? 0, 1);
-        return (
-          Math.abs(currentRatio - previousRatio) < 0.0001 &&
-          (current.serveTotal ?? 0) === (previous.serveTotal ?? 0)
-        );
-      }
-
       const currentPrimary = getCategoryValue(current, metric);
       const previousPrimary = getCategoryValue(previous, metric);
       if (currentPrimary == null || previousPrimary == null) {
@@ -848,57 +1047,14 @@ function GameHighsPage() {
         return false;
       }
 
-      if (metric === "pointsPerGame") {
-        return (
-          (current.attackTotal ?? Number.MAX_SAFE_INTEGER) ===
-          (previous.attackTotal ?? Number.MAX_SAFE_INTEGER)
-        );
-      }
-
-      if (metric === "serveAces" || metric === "serveErrorsMost") {
-        return (
-          (current.serveTotal ?? Number.MAX_SAFE_INTEGER) ===
-          (previous.serveTotal ?? Number.MAX_SAFE_INTEGER)
-        );
-      }
-
-      if (metric === "serveErrorsLeast") {
-        return (current.serveTotal ?? 0) === (previous.serveTotal ?? 0);
-      }
-
-      const tieBreakers = receptionTieBreakers[metric];
-      if (tieBreakers) {
-        return tieBreakers.every(({ field }) => (current[field] ?? 0) === (previous[field] ?? 0));
-      }
-
-      if (
-        metric === "attackKillPctBest" ||
-        metric === "attackKillPctWorst" ||
-        metric === "attackEfficiencyBest" ||
-        metric === "attackEfficiencyWorst" ||
-        metric === "attackErrors" ||
-        metric === "attackBlocked" ||
-        metric === "attackKills"
-      ) {
-        return (current.attackTotal ?? 0) === (previous.attackTotal ?? 0);
-      }
-
-      return true;
+      return (tieBreakers[metric] ?? []).every(
+        ({ field }) => (current[field] ?? 0) === (previous[field] ?? 0),
+      );
     };
 
     return playerMetrics.map((metric) => {
       const ranked = [...playerFilteredRows]
         .filter((row) => {
-          if (metric === "bestAceErrorRatio") {
-            return (
-              !row.unavailableStats.includes("serve_aces") &&
-              !row.unavailableStats.includes("serve_errors") &&
-              !row.unavailableStats.includes("serve_total") &&
-              (row.serveAces ?? 0) > 0 &&
-              (row.serveTotal ?? 0) >= 5
-            );
-          }
-
           const value = getCategoryValue(row, metric);
           if (value == null) {
             return false;
@@ -915,21 +1071,6 @@ function GameHighsPage() {
           return true;
         })
         .sort((left, right) => {
-          if (metric === "bestAceErrorRatio") {
-            const leftRatio = (left.serveAces ?? 0) / Math.max(left.serveErrors ?? 0, 1);
-            const rightRatio = (right.serveAces ?? 0) / Math.max(right.serveErrors ?? 0, 1);
-
-            if (leftRatio !== rightRatio) {
-              return rightRatio - leftRatio;
-            }
-
-            if ((left.serveTotal ?? 0) !== (right.serveTotal ?? 0)) {
-              return (right.serveTotal ?? 0) - (left.serveTotal ?? 0);
-            }
-
-            return new Date(right.matchDate).getTime() - new Date(left.matchDate).getTime();
-          }
-
           const leftValue = getCategoryValue(left, metric) ?? 0;
           const rightValue = getCategoryValue(right, metric) ?? 0;
           const direction = categoryRules[metric].sortDirection ?? "desc";
@@ -938,52 +1079,7 @@ function GameHighsPage() {
             return direction === "asc" ? leftValue - rightValue : rightValue - leftValue;
           }
 
-          if (
-            metric === "attackKillPctBest" ||
-            metric === "attackKillPctWorst" ||
-            metric === "attackEfficiencyBest" ||
-            metric === "attackEfficiencyWorst"
-          ) {
-            const leftAttackTotal = left.attackTotal ?? 0;
-            const rightAttackTotal = right.attackTotal ?? 0;
-            if (leftAttackTotal !== rightAttackTotal) {
-              return rightAttackTotal - leftAttackTotal;
-            }
-          }
-
-          if (metric === "attackErrors" || metric === "attackBlocked" || metric === "attackKills") {
-            const leftAttackTotal = left.attackTotal ?? Number.MAX_SAFE_INTEGER;
-            const rightAttackTotal = right.attackTotal ?? Number.MAX_SAFE_INTEGER;
-            if (leftAttackTotal !== rightAttackTotal) {
-              return leftAttackTotal - rightAttackTotal;
-            }
-          }
-
-          if (metric === "pointsPerGame") {
-            const leftAttackTotal = left.attackTotal ?? Number.MAX_SAFE_INTEGER;
-            const rightAttackTotal = right.attackTotal ?? Number.MAX_SAFE_INTEGER;
-            if (leftAttackTotal !== rightAttackTotal) {
-              return leftAttackTotal - rightAttackTotal;
-            }
-          }
-
-          if (metric === "serveAces" || metric === "serveErrorsMost") {
-            const leftServeTotal = left.serveTotal ?? Number.MAX_SAFE_INTEGER;
-            const rightServeTotal = right.serveTotal ?? Number.MAX_SAFE_INTEGER;
-            if (leftServeTotal !== rightServeTotal) {
-              return leftServeTotal - rightServeTotal;
-            }
-          }
-
-          if (metric === "serveErrorsLeast") {
-            const leftServeTotal = left.serveTotal ?? 0;
-            const rightServeTotal = right.serveTotal ?? 0;
-            if (leftServeTotal !== rightServeTotal) {
-              return rightServeTotal - leftServeTotal;
-            }
-          }
-
-          for (const { field, direction } of receptionTieBreakers[metric] ?? []) {
+          for (const { field, direction } of tieBreakers[metric] ?? []) {
             const leftField = left[field] ?? 0;
             const rightField = right[field] ?? 0;
             if (leftField !== rightField) {
@@ -1017,6 +1113,9 @@ function GameHighsPage() {
           serveErrors:
             metric === "serveErrorsLeast" ? getCategoryValue(row, metric) : row.serveErrors,
           serveAces: row.serveAces,
+          serveAcePct: getCategoryValue(row, "serveAcePct"),
+          serveErrorPct: getCategoryValue(row, "serveErrorPct"),
+          errorsPerAce: getCategoryValue(row, "errorsPerAce"),
           receptionTotal: row.receptionTotal,
           receptionErrors:
             metric === "receptionErrorsLeast" ? getCategoryValue(row, metric) : row.receptionErrors,
@@ -1034,10 +1133,7 @@ function GameHighsPage() {
           attackKills: row.attackKills,
           attackKillPct: row.attackKillPct,
           attackEfficiency: row.attackEfficiency,
-          value:
-            metric === "bestAceErrorRatio"
-              ? `${row.serveAces ?? 0} : ${row.serveErrors ?? 0}`
-              : formatCategoryValue(getCategoryValue(row, metric), metric),
+          value: formatCategoryValue(getCategoryValue(row, metric), metric),
           opponent: getLocalizedOpponent(row),
           score: row.score,
           date: new Date(row.matchDate).toLocaleDateString("en-GB", {
@@ -1051,37 +1147,10 @@ function GameHighsPage() {
       });
 
       const best = topTenWithRanks[0] ?? null;
-      const minAttemptsLabel = [
-        "receptionPositivePctBest",
-        "receptionPositivePctWorst",
-        "receptionExcellentPctBest",
-        "receptionExcellentPctWorst",
-      ].includes(metric)
-        ? isEstonian
-          ? "min 10 vastuvõttu"
-          : "minimum 10 receptions"
-        : [
-              "attackKillPctBest",
-              "attackKillPctWorst",
-              "attackEfficiencyBest",
-              "attackEfficiencyWorst",
-            ].includes(metric)
-          ? isEstonian
-            ? "min 10 rünnakut"
-            : "minimum 10 attacks"
-          : null;
-
       return {
         key: metric,
         metric: metricLabel[metric],
-        topTenMetric:
-          metric === "bestAceErrorRatio"
-            ? `${metricLabel[metric]} (${isEstonian ? "min 5 servi" : "minimum 5 serves"})`
-            : metric === "receptionErrorsLeast"
-              ? `${metricLabel[metric]} (${isEstonian ? "min 10 vastuvõttu" : "minimum 10 receptions"})`
-              : minAttemptsLabel
-                ? `${metricLabel[metric]} (${minAttemptsLabel})`
-                : metricLabel[metric],
+        topTenMetric: metricLabel[metric],
         best,
         topTen: topTenWithRanks,
         tieBreakerDescription: tieBreakerDescription[metric] ?? null,
@@ -1097,12 +1166,6 @@ function GameHighsPage() {
     getLocalizedOpponent,
   ]);
 
-  const playerSectionHeaders = {
-    serveTotal: isEstonian ? "SERV" : "SERVE",
-    receptionTotal: isEstonian ? "VASTUVOTT" : "RECEPTION",
-    attackTotal: isEstonian ? "RUNNAK" : "ATTACKS",
-  } as const;
-
   const playerSectionToneClass = {
     pointsPerGame: "bg-slate-50/60",
     plusMinusBest: "bg-slate-50/60",
@@ -1110,16 +1173,25 @@ function GameHighsPage() {
     blockPoints: "bg-slate-50/60",
     serveTotal: "bg-amber-50/60",
     serveAces: "bg-amber-50/60",
+    serveAcePct: "bg-amber-50/60",
     serveErrorsMost: "bg-amber-50/60",
+    serveErrorPct: "bg-amber-50/60",
     serveErrorsLeast: "bg-amber-50/60",
-    bestAceErrorRatio: "bg-amber-50/60",
+    errorsPerAce: "bg-amber-50/60",
     receptionTotal: "bg-sky-50/60",
     receptionErrors: "bg-sky-50/60",
     receptionErrorsLeast: "bg-sky-50/60",
-    receptionPositivePctBest: "bg-sky-50/60",
-    receptionPositivePctWorst: "bg-sky-50/60",
-    receptionExcellentPctBest: "bg-sky-50/60",
-    receptionExcellentPctWorst: "bg-sky-50/60",
+    receptionErrorPct: "bg-sky-50/60",
+    receptionNegativeMost: "bg-sky-50/60",
+    receptionNegativeLeast: "bg-sky-50/60",
+    receptionNegativePct: "bg-sky-50/60",
+    receptionPositiveMost: "bg-sky-50/60",
+    receptionPositiveLeast: "bg-sky-50/60",
+    receptionPositivePct: "bg-sky-50/60",
+    receptionExcellentMost: "bg-sky-50/60",
+    receptionExcellentLeast: "bg-sky-50/60",
+    receptionExcellentPct: "bg-sky-50/60",
+    receptionEfficiencyPct: "bg-sky-50/60",
     attackTotal: "bg-rose-50/60",
     attackErrors: "bg-rose-50/60",
     attackBlocked: "bg-rose-50/60",
@@ -1331,7 +1403,9 @@ function GameHighsPage() {
           : derivedReceptionExcellentPct;
       const attackKillPct = teamTotals
         ? teamValue("attack_kill_pct")
-        : !unavailable.has("attack_total") && !unavailable.has("attack_kills") && match.attackTotal > 0
+        : !unavailable.has("attack_total") &&
+            !unavailable.has("attack_kills") &&
+            match.attackTotal > 0
           ? (match.attackKills / match.attackTotal) * 100
           : null;
       const attackEfficiency =
@@ -1357,18 +1431,12 @@ function GameHighsPage() {
           : null;
       const errorsPerAce =
         serveErrors != null && serveAces != null && serveAces > 0 ? serveErrors / serveAces : null;
-      const receptionErrorPct =
-        receptionTotal != null && receptionErrors != null && receptionTotal > 0
-          ? (receptionErrors / receptionTotal) * 100
-          : null;
-      const receptionPositiveTotal =
-        receptionTotal != null && receptionPositivePct != null
-          ? Math.round((receptionTotal * receptionPositivePct) / 100)
-          : null;
-      const receptionIdealTotal =
-        receptionTotal != null && receptionExcellentPct != null
-          ? Math.round((receptionTotal * receptionExcellentPct) / 100)
-          : null;
+      const receptionDerived = getReceptionDerivedFields(
+        unavailable.has("reception_total") ? null : receptionTotal,
+        unavailable.has("reception_errors") ? null : receptionErrors,
+        unavailable.has("reception_positive_pct") ? null : receptionPositivePct,
+        unavailable.has("reception_excellent_pct") ? null : receptionExcellentPct,
+      );
 
       return {
         ...match,
@@ -1390,10 +1458,7 @@ function GameHighsPage() {
         attackKills,
         blockPoints,
         receptionErrorsLeast:
-          unavailable.has("reception_total") ||
-          unavailable.has("reception_errors") ||
-          receptionTotal == null ||
-          receptionTotal < 10
+          unavailable.has("reception_total") || unavailable.has("reception_errors")
             ? null
             : receptionErrors,
         receptionPositivePct,
@@ -1408,9 +1473,7 @@ function GameHighsPage() {
         serveAcePct,
         serveErrorPct,
         errorsPerAce,
-        receptionErrorPct,
-        receptionPositiveTotal,
-        receptionIdealTotal,
+        ...receptionDerived,
         unavailableStats: unavailable,
       };
     });
@@ -1469,8 +1532,13 @@ function GameHighsPage() {
       },
       {
         key: "serveErrorPct",
-        label: isEstonian ? "Servivigade %" : "Serve Error %",
+        label: isEstonian ? "Servivigade %" : "Error %",
         direction: "desc" as const,
+      },
+      {
+        key: "serveErrors",
+        label: isEstonian ? "Servivead (vähim)" : "Errors (least)",
+        direction: "asc" as const,
       },
       {
         key: "errorsPerAce",
@@ -1494,38 +1562,58 @@ function GameHighsPage() {
       },
       {
         key: "receptionErrorPct",
-        label: isEstonian ? "Vastuvõtuvigade %" : "Reception Mistake %",
+        label: isEstonian ? "Vastuvõtuvigade %" : "Error %",
+        direction: "desc" as const,
+      },
+      {
+        key: "receptionNegativeTotal",
+        label: isEstonian ? "Negatiivsed (enim)" : "Negative (most)",
+        direction: "desc" as const,
+      },
+      {
+        key: "receptionNegativeTotal",
+        label: isEstonian ? "Negatiivsed (vähim)" : "Negative (least)",
+        direction: "asc" as const,
+      },
+      {
+        key: "receptionNegativePct",
+        label: isEstonian ? "Negatiivsed %" : "Negative %",
         direction: "desc" as const,
       },
       {
         key: "receptionPositiveTotal",
-        label: isEstonian ? "Positiivsed vastuvõtud" : "Positive Receptions",
+        label: isEstonian ? "Positiivsed (enim)" : "Positive (most)",
         direction: "desc" as const,
       },
       {
-        key: "receptionPositivePct",
-        label: isEstonian ? "Vastuvõtu % (parim)" : "Reception % (best)",
-        direction: "desc" as const,
-      },
-      {
-        key: "receptionPositivePct",
-        label: isEstonian ? "Vastuvõtu % (halvim)" : "Reception % (worst)",
+        key: "receptionPositiveTotal",
+        label: isEstonian ? "Positiivsed (vähim)" : "Positive (least)",
         direction: "asc" as const,
+      },
+      {
+        key: "receptionPositivePct",
+        label: isEstonian ? "Positiivsed %" : "Positive %",
+        direction: "desc" as const,
       },
       {
         key: "receptionIdealTotal",
-        label: isEstonian ? "Ideaalsed vastuvõtud" : "Ideal Receptions",
+        label: isEstonian ? "Ideaalsed (enim)" : "Excellent (most)",
         direction: "desc" as const,
       },
       {
-        key: "receptionExcellentPct",
-        label: isEstonian ? "Ideaalse vastuvõtu % (parim)" : "Ideal Reception % (best)",
-        direction: "desc" as const,
-      },
-      {
-        key: "receptionExcellentPct",
-        label: isEstonian ? "Ideaalse vastuvõtu % (halvim)" : "Ideal Reception % (worst)",
+        key: "receptionIdealTotal",
+        label: isEstonian ? "Ideaalsed (vähim)" : "Excellent (least)",
         direction: "asc" as const,
+      },
+      {
+        key: "receptionExcellentPct",
+        label: isEstonian ? "Ideaalsed %" : "Excellent %",
+        direction: "desc" as const,
+      },
+      {
+        key: "receptionEfficiency",
+        label: isEstonian ? "Efektiivsus %" : "Efficiency %",
+        direction: "desc" as const,
       },
       {
         key: "attackTotal",
@@ -1544,7 +1632,7 @@ function GameHighsPage() {
       },
       {
         key: "attackKills",
-        label: isEstonian ? "Resultatiivsed rünnakud" : "Successful Attacks",
+        label: isEstonian ? "Resultatiivsed rünnakud" : "Kills",
         direction: "desc" as const,
       },
       {
@@ -1576,6 +1664,8 @@ function GameHighsPage() {
         key === "receptionPositivePct" ||
         key === "receptionExcellentPct" ||
         key === "receptionErrorPct" ||
+        key === "receptionNegativePct" ||
+        key === "receptionEfficiency" ||
         key === "serveAcePct" ||
         key === "serveErrorPct" ||
         key === "attackKillPct" ||
@@ -1591,18 +1681,15 @@ function GameHighsPage() {
       const requiredStatFields = TEAM_METRIC_REQUIRED_FIELDS[metric.key];
       const ranked = [...teamMatches]
         .filter((match) => {
+          const minAttempts = getTeamMinAttempts(metric.key);
+          if (minAttempts && (match[minAttempts.field] ?? 0) < minAttempts.min) {
+            return false;
+          }
+
           if (requiredStatFields) {
             return (
               requiredStatFields.every((field) => !match.unavailableStats.has(field)) &&
               match[metric.key as keyof typeof match] != null
-            );
-          }
-
-          if (metric.key === "receptionErrorsLeast") {
-            return (
-              !match.unavailableStats.has("reception_total") &&
-              !match.unavailableStats.has("reception_errors") &&
-              (match.receptionTotal ?? 0) >= 10
             );
           }
 
@@ -1625,7 +1712,7 @@ function GameHighsPage() {
               (metric.key !== "attackEfficiency" ||
                 (!match.unavailableStats.has("attack_blocked") &&
                   !match.unavailableStats.has("attack_errors"))) &&
-              (match.attackTotal ?? 0) >= 10
+              match[metric.key] != null
             );
           }
 
@@ -1787,12 +1874,6 @@ function GameHighsPage() {
         };
       });
 
-      const minAttemptsLabel =
-        metric.key === "attackKillPct" || metric.key === "attackEfficiency"
-          ? isEstonian
-            ? "min 10 rünnakut"
-            : "minimum 10 attacks"
-          : null;
       let tieBreakerDescription: string | null = null;
       if (metric.key === "receptionErrorsLeast") {
         tieBreakerDescription = isEstonian
@@ -1836,7 +1917,7 @@ function GameHighsPage() {
         key: metric.key,
         rowId: `${metric.key}-${metric.direction}`,
         metric: metric.label,
-        topTenMetric: `${metric.label}${minAttemptsLabel ? ` (${minAttemptsLabel})` : ""}`,
+        topTenMetric: metric.label,
         tieBreakerDescription,
         value: formatTeamValue(
           best ? ((best[metric.key as keyof typeof best] as number | null) ?? null) : null,
@@ -1864,15 +1945,32 @@ function GameHighsPage() {
         topTen: topTenWithRanks,
       };
     });
-  }, [teamFilteredRows, t, isEstonian, showAdditionalSetsInScore, teamTotalsByMatch, oppErrorsByMatch]);
+  }, [
+    teamFilteredRows,
+    t,
+    isEstonian,
+    showAdditionalSetsInScore,
+    teamTotalsByMatch,
+    oppErrorsByMatch,
+  ]);
 
   const positionButtonsDisabled = viewMode === "TEAM";
 
-  const teamSectionHeaders = {
-    serveTotal: isEstonian ? "SERV" : "SERVE",
-    receptionTotal: isEstonian ? "VASTUVOTT" : "RECEPTION",
-    attackTotal: isEstonian ? "RUNNAK" : "ATTACKS",
-  } as const;
+  const gameHighBlockLabels: Record<GameHighBlock, string> = {
+    general: t("gameHighs.categories.blockGeneral"),
+    serve: t("gameHighs.categories.blockServe"),
+    reception: t("gameHighs.categories.blockReception"),
+    attacks: t("gameHighs.categories.blockAttacks"),
+  };
+
+  const [openBlocks, setOpenBlocks] = useState<Record<GameHighBlock, boolean>>({
+    general: false,
+    serve: false,
+    reception: false,
+    attacks: false,
+  });
+  const toggleBlock = (block: GameHighBlock) =>
+    setOpenBlocks((current) => ({ ...current, [block]: !current[block] }));
 
   const teamSectionToneClass: Record<string, string> = {
     points: "bg-slate-50/60",
@@ -1891,10 +1989,13 @@ function GameHighsPage() {
     receptionErrors: "bg-sky-50/60",
     receptionErrorsLeast: "bg-sky-50/60",
     receptionErrorPct: "bg-sky-50/60",
+    receptionNegativeTotal: "bg-sky-50/60",
+    receptionNegativePct: "bg-sky-50/60",
     receptionPositiveTotal: "bg-sky-50/60",
     receptionPositivePct: "bg-sky-50/60",
     receptionIdealTotal: "bg-sky-50/60",
     receptionExcellentPct: "bg-sky-50/60",
+    receptionEfficiency: "bg-sky-50/60",
     attackTotal: "bg-rose-50/60",
     attackErrors: "bg-rose-50/60",
     attackBlocked: "bg-rose-50/60",
@@ -1919,32 +2020,6 @@ function GameHighsPage() {
   return (
     <main className="mx-auto w-full max-w-[1400px] px-6 py-10 text-slate-900">
       <div className="mb-6 rounded-2xl bg-estonia-dark p-6 text-white shadow-sm md:p-8">
-        <div className="mx-auto mb-5 grid w-full max-w-[520px] grid-cols-2 gap-2">
-          {[
-            {
-              value: "PLAYERS",
-              label: isEstonian ? "Mängu maksimumid mängijate lõikes" : "Game Highs by Players",
-            },
-            {
-              value: "TEAM",
-              label: isEstonian ? "Mängu maksimumid koondise lõikes" : "Game Highs by Team",
-            },
-          ].map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => setViewMode(option.value as typeof viewMode)}
-              className={`h-10 w-full rounded-md border px-3 text-xs font-semibold uppercase tracking-[0.14em] transition ${
-                viewMode === option.value
-                  ? "border-estonia-blue bg-estonia-blue text-white"
-                  : "border-white/30 bg-white/10 text-white/90 hover:bg-white/20"
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-
         <div className="grid gap-5 lg:grid-cols-3">
           <div className="text-center">
             <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/60">
@@ -2104,26 +2179,20 @@ function GameHighsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {playerGameHighRows.map((row) => (
+                  {playerGameHighRows.map((row, index) => (
                     <Fragment key={row.key}>
-                      {(row.key === "serveTotal" ||
-                        row.key === "receptionTotal" ||
-                        row.key === "attackTotal") && (
-                        <TableRow className="bg-slate-100">
-                          <TableCell
-                            colSpan={8}
-                            className="py-2 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-slate-600"
-                          >
-                            {row.key === "serveTotal"
-                              ? playerSectionHeaders.serveTotal
-                              : row.key === "receptionTotal"
-                                ? playerSectionHeaders.receptionTotal
-                                : playerSectionHeaders.attackTotal}
-                          </TableCell>
-                        </TableRow>
+                      {isGameHighBlockStart(playerGameHighRows, index) && (
+                        <GameHighBlockHeader
+                          label={gameHighBlockLabels[GAME_HIGH_BLOCK_BY_KEY[row.key]]}
+                          isOpen={openBlocks[GAME_HIGH_BLOCK_BY_KEY[row.key]]}
+                          colSpan={8}
+                          onToggle={() => toggleBlock(GAME_HIGH_BLOCK_BY_KEY[row.key])}
+                        />
                       )}
 
-                      <TableRow className={playerSectionToneClass[row.key]}>
+                      <TableRow
+                        className={`${playerSectionToneClass[row.key]} ${openBlocks[GAME_HIGH_BLOCK_BY_KEY[row.key]] ? "" : "hidden"}`}
+                      >
                         <TableCell className="p-3 text-sm text-slate-700">{row.metric}</TableCell>
                         <TableCell className="p-3 text-sm text-slate-700">
                           {row.best ? (
@@ -2197,6 +2266,16 @@ function GameHighsPage() {
                               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-700">
                                 {row.topTenMetric}
                               </p>
+                              {getThresholdLabel(row.key, isEstonian) && (
+                                <p className="mt-1 text-[11px] text-slate-500">
+                                  {getThresholdLabel(row.key, isEstonian)}
+                                </p>
+                              )}
+                              {getFormulaLabel(row.key, isEstonian) && (
+                                <p className="mt-1 text-[11px] text-slate-500">
+                                  {getFormulaLabel(row.key, isEstonian)}
+                                </p>
+                              )}
                             </div>
                             <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
                               <table className="min-w-[1240px] w-full border-collapse">
@@ -2292,7 +2371,10 @@ function GameHighsPage() {
                                           key={key}
                                           className={`px-2 py-2 text-center text-sm ${isServeContextHighlighted(row.key, key) ? "bg-amber-100 font-semibold text-estonia-dark" : "text-slate-700"}`}
                                         >
-                                          {formatServeContextValue(key, item[key as "serveTotal" | "serveErrors" | "serveAces"])}
+                                          {formatServeContextValue(
+                                            key,
+                                            item[key as "serveTotal" | "serveErrors" | "serveAces"],
+                                          )}
                                         </td>
                                       ))}
                                       {getAttackContextKeys(row.key).map((key) => (
@@ -2383,26 +2465,20 @@ function GameHighsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {teamGameHighRows.map((row) => (
+                  {teamGameHighRows.map((row, index) => (
                     <Fragment key={row.rowId}>
-                      {(row.key === "serveTotal" ||
-                        row.key === "receptionTotal" ||
-                        row.key === "attackTotal") && (
-                        <TableRow className="bg-slate-100">
-                          <TableCell
-                            colSpan={7}
-                            className="py-2 text-center text-[11px] font-bold uppercase tracking-[0.2em] text-slate-600"
-                          >
-                            {row.key === "serveTotal"
-                              ? teamSectionHeaders.serveTotal
-                              : row.key === "receptionTotal"
-                                ? teamSectionHeaders.receptionTotal
-                                : teamSectionHeaders.attackTotal}
-                          </TableCell>
-                        </TableRow>
+                      {isGameHighBlockStart(teamGameHighRows, index) && (
+                        <GameHighBlockHeader
+                          label={gameHighBlockLabels[GAME_HIGH_BLOCK_BY_KEY[row.key]]}
+                          isOpen={openBlocks[GAME_HIGH_BLOCK_BY_KEY[row.key]]}
+                          colSpan={7}
+                          onToggle={() => toggleBlock(GAME_HIGH_BLOCK_BY_KEY[row.key])}
+                        />
                       )}
 
-                      <TableRow className={teamSectionToneClass[row.key] ?? "bg-white"}>
+                      <TableRow
+                        className={`${teamSectionToneClass[row.key] ?? "bg-white"} ${openBlocks[GAME_HIGH_BLOCK_BY_KEY[row.key]] ? "" : "hidden"}`}
+                      >
                         <TableCell className="p-3 text-sm text-slate-700">{row.metric}</TableCell>
                         <TableCell className="p-3 text-center font-semibold text-estonia-dark">
                           {row.value}
@@ -2475,6 +2551,16 @@ function GameHighsPage() {
                                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-700">
                                   {row.topTenMetric}
                                 </p>
+                                {getThresholdLabel(row.key, isEstonian) && (
+                                  <p className="mt-1 text-[11px] text-slate-500">
+                                    {getThresholdLabel(row.key, isEstonian)}
+                                  </p>
+                                )}
+                                {getFormulaLabel(row.key, isEstonian) && (
+                                  <p className="mt-1 text-[11px] text-slate-500">
+                                    {getFormulaLabel(row.key, isEstonian)}
+                                  </p>
+                                )}
                               </div>
                               <table className="min-w-[980px] w-full border-collapse">
                                 <thead className="bg-slate-50">
@@ -2627,6 +2713,17 @@ function GameHighsPage() {
   );
 }
 
+function percentOf(part: number | null, total: number | null): number | null {
+  if (part == null || total == null || total <= 0) {
+    return null;
+  }
+  return (part / total) * 100;
+}
+
+function hasUnavailableStat(row: GameHighRow, fields: string[]): boolean {
+  return fields.some((field) => row.unavailableStats.includes(field));
+}
+
 function getCategoryValue(row: GameHighRow, category: GameHighCategory): number | null {
   switch (category) {
     case "pointsPerGame":
@@ -2640,6 +2737,26 @@ function getCategoryValue(row: GameHighRow, category: GameHighCategory): number 
       return row.serveAces;
     case "serveErrorsMost":
       return row.serveErrors;
+    case "serveAcePct":
+      if (hasUnavailableStat(row, ["serve_total", "serve_aces"])) {
+        return null;
+      }
+      return percentOf(row.serveAces, row.serveTotal);
+    case "serveErrorPct":
+      if (hasUnavailableStat(row, ["serve_total", "serve_errors"])) {
+        return null;
+      }
+      return percentOf(row.serveErrors, row.serveTotal);
+    case "errorsPerAce":
+      if (
+        hasUnavailableStat(row, ["serve_aces", "serve_errors"]) ||
+        row.serveAces == null ||
+        row.serveAces <= 0 ||
+        row.serveErrors == null
+      ) {
+        return null;
+      }
+      return row.serveErrors / row.serveAces;
     case "serveErrorsLeast":
       if (row.unavailableStats.includes("serve_errors") || row.serveTotal == null) {
         return null;
@@ -2658,12 +2775,49 @@ function getCategoryValue(row: GameHighRow, category: GameHighCategory): number 
         return null;
       }
       return row.receptionErrors ?? 0;
-    case "receptionPositivePctBest":
-    case "receptionPositivePctWorst":
+    case "receptionErrorPct":
+      if (hasUnavailableStat(row, ["reception_total", "reception_errors"])) {
+        return null;
+      }
+      return row.receptionErrorPct;
+    case "receptionNegativeMost":
+    case "receptionNegativeLeast":
+      if (
+        hasUnavailableStat(row, ["reception_total", "reception_errors", "reception_positive_pct"])
+      ) {
+        return null;
+      }
+      return row.receptionNegative;
+    case "receptionNegativePct":
+      if (
+        hasUnavailableStat(row, ["reception_total", "reception_errors", "reception_positive_pct"])
+      ) {
+        return null;
+      }
+      return row.receptionNegativePct;
+    case "receptionPositiveMost":
+    case "receptionPositiveLeast":
+      if (hasUnavailableStat(row, ["reception_total", "reception_positive_pct"])) {
+        return null;
+      }
+      return row.receptionPositive;
+    case "receptionPositivePct":
       return row.receptionPositivePct;
-    case "receptionExcellentPctBest":
-    case "receptionExcellentPctWorst":
+    case "receptionExcellentMost":
+    case "receptionExcellentLeast":
+      if (hasUnavailableStat(row, ["reception_total", "reception_excellent_pct"])) {
+        return null;
+      }
+      return row.receptionExcellent;
+    case "receptionExcellentPct":
       return row.receptionExcellentPct;
+    case "receptionEfficiencyPct":
+      if (
+        hasUnavailableStat(row, ["reception_total", "reception_errors", "reception_excellent_pct"])
+      ) {
+        return null;
+      }
+      return row.receptionEfficiency;
     case "attackTotal":
       return row.attackTotal;
     case "attackErrors":
@@ -2703,15 +2857,22 @@ function getTopTenValueLabel(metric: string): string {
     serveErrorsMost: "S ERR",
     serveErrorsLeast: "S ERR",
     serveErrors: "S ERR",
-    bestAceErrorRatio: "Ratio",
     receptionTotal: "R TOT",
     receptionErrors: "R ERR",
-    receptionPositivePctBest: "R POS%",
-    receptionPositivePctWorst: "R POS%",
+    receptionErrorPct: "R ERR%",
+    receptionNegativeMost: "R NEG",
+    receptionNegativeLeast: "R NEG",
+    receptionNegative: "R NEG",
+    receptionNegativePct: "R NEG%",
+    receptionPositiveMost: "R POS",
+    receptionPositiveLeast: "R POS",
+    receptionPositive: "R POS",
     receptionPositivePct: "R POS%",
-    receptionExcellentPctBest: "R EXC%",
-    receptionExcellentPctWorst: "R EXC%",
+    receptionExcellentMost: "R EXC",
+    receptionExcellentLeast: "R EXC",
+    receptionExcellent: "R EXC",
     receptionExcellentPct: "R EXC%",
+    receptionEfficiencyPct: "R EFF%",
     attackTotal: "A TOT",
     attackErrors: "A ERR",
     attackBlocked: "A BLK",
