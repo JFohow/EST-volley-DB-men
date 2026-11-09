@@ -318,8 +318,14 @@ export type Database = {
           break_points: number | null
           plus_minus: number | null
           points: number | null
+          reception_efficiency: number | null
           reception_errors: number | null
+          reception_error_pct: number | null
+          reception_excellent: number | null
           reception_excellent_pct: number | null
+          reception_negative: number | null
+          reception_negative_pct: number | null
+          reception_positive: number | null
           reception_positive_pct: number | null
           reception_total: number | null
           serve_aces: number | null
