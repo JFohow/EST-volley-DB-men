@@ -112,26 +112,26 @@ export type Database = {
       }
       match_sets: {
         Row: {
-          estonia_points: number
+          estonia_points: number | null
           match_id: number
           match_set_id: number
-          opponent_points: number
+          opponent_points: number | null
           set_duration: number | null
           set_number: number
         }
         Insert: {
-          estonia_points: number
+          estonia_points: number | null
           match_id: number
           match_set_id?: number
-          opponent_points: number
+          opponent_points: number | null
           set_duration?: number | null
           set_number: number
         }
         Update: {
-          estonia_points?: number
+          estonia_points?: number | null
           match_id?: number
           match_set_id?: number
-          opponent_points?: number
+          opponent_points?: number | null
           set_duration?: number | null
           set_number?: number
         }

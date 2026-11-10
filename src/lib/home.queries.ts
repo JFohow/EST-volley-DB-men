@@ -19,8 +19,8 @@ export type RecentMatch = {
   additional_sets_count: number;
   match_sets: {
     set_number: number;
-    estonia_points: number;
-    opponent_points: number;
+    estonia_points: number | null;
+    opponent_points: number | null;
   }[];
 };
 

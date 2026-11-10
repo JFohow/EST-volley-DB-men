@@ -1,5 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { isKnownSetScore } from "@/lib/set-scores";
 
 type TriviaMatchBase = {
     match_id: number;
@@ -21,8 +22,8 @@ type TriviaMatchBase = {
 type MatchSetRow = {
     match_id: number;
     set_number: number;
-    estonia_points: number;
-    opponent_points: number;
+    estonia_points: number | null;
+    opponent_points: number | null;
     set_duration: number | null;
 };
 
@@ -318,7 +319,7 @@ export function buildTriviaModeData(raw: TriviaRawData, filters: TriviaFilters):
     const allSetRows = sets
         .map((set) => {
             const match = matchesById.get(set.match_id);
-            if (!match) return null;
+            if (!match || !isKnownSetScore(set)) return null;
 
             return {
                 matchId: match.match_id,
@@ -416,6 +417,8 @@ export function buildTriviaModeData(raw: TriviaRawData, filters: TriviaFilters):
         for (const match of filteredMatches) {
             const matchSets = setsByMatch.get(match.match_id) ?? [];
             if (matchSets.length === 0) continue;
+            // Totals would be incomplete if any set score is unknown.
+            if (!matchSets.every(isKnownSetScore)) continue;
 
             const estoniaPoints = matchSets.reduce((sum, set) => sum + (set.estonia_points ?? 0), 0);
             const opponentPoints = matchSets.reduce((sum, set) => sum + (set.opponent_points ?? 0), 0);

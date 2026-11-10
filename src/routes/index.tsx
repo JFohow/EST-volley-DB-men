@@ -6,6 +6,7 @@ import { totalTopOptions, type TotalTopRow } from "@/lib/total-top.queries";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
+import { formatSetScore } from "@/lib/set-scores";
 import {
   homeCardConfigOptions,
   homeCardConfigQueryKey,
@@ -725,27 +726,29 @@ function HomePage() {
     let rows: Array<{
       match_id: number;
       set_number: number;
-      estonia_points: number;
-      opponent_points: number;
+      estonia_points: number | null;
+      opponent_points: number | null;
     }>;
     try {
       rows = parsed.map((item, index) => {
         const row = item as Record<string, unknown>;
         const setNumber = Number(row.set_number);
-        const estoniaPoints = Number(row.estonia_points);
-        const opponentPoints = Number(row.opponent_points);
+        const isUnknownSet = row.estonia_points == null && row.opponent_points == null;
+        const estoniaPoints = isUnknownSet ? null : Number(row.estonia_points);
+        const opponentPoints = isUnknownSet ? null : Number(row.opponent_points);
 
         if (!Number.isInteger(setNumber) || setNumber <= 0) {
           throw new Error(`Row ${index + 1}: set_number must be a positive integer.`);
         }
         if (
-          !Number.isFinite(estoniaPoints) ||
-          estoniaPoints < 0 ||
-          !Number.isFinite(opponentPoints) ||
-          opponentPoints < 0
+          !isUnknownSet &&
+          (!Number.isFinite(estoniaPoints) ||
+            (estoniaPoints as number) < 0 ||
+            !Number.isFinite(opponentPoints) ||
+            (opponentPoints as number) < 0)
         ) {
           throw new Error(
-            `Row ${index + 1}: estonia_points and opponent_points must be non-negative numbers.`,
+            `Row ${index + 1}: estonia_points and opponent_points must be non-negative numbers, or both null for an unknown set.`,
           );
         }
 
@@ -1282,7 +1285,7 @@ function HomePage() {
                       Step 2: Match sets
                     </h3>
                     <p className="mt-1 text-xs text-slate-500">
-                      JSON array with set_number, estonia_points, opponent_points.
+                      JSON array with set_number, estonia_points, opponent_points. Use null for both points when a set's score is unknown.
                     </p>
                     <textarea
                       value={setsPayloadText}
@@ -1482,15 +1485,11 @@ function MatchRow({ match }: { match: RecentMatch }) {
   const officialSets = match.match_sets
     .filter((s) => s.set_number <= match.estonia_sets + match.opponent_sets)
     .sort((a, b) => a.set_number - b.set_number);
-  const officialSetScores = officialSets
-    .map((s) => `${s.estonia_points}:${s.opponent_points}`)
-    .join(" · ");
+  const officialSetScores = officialSets.map(formatSetScore).join(" · ");
   const additionalSets = match.match_sets
     .filter((s) => s.set_number > match.estonia_sets + match.opponent_sets)
     .sort((a, b) => a.set_number - b.set_number);
-  const additionalSetScores = additionalSets
-    .map((s) => `${s.estonia_points}:${s.opponent_points}`)
-    .join(" · ");
+  const additionalSetScores = additionalSets.map(formatSetScore).join(" · ");
   const additionalSetCount = additionalSets.length;
   const additionalSetsLabel =
     currentLanguage === "et"

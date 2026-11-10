@@ -24,8 +24,8 @@ export type MatchListItem = {
   match_unavailable_stats: MatchUnavailableStatRow | MatchUnavailableStatRow[] | null;
   match_sets: {
     set_number: number;
-    estonia_points: number;
-    opponent_points: number;
+    estonia_points: number | null;
+    opponent_points: number | null;
   }[];
 };
 

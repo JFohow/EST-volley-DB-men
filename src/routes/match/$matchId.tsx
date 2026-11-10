@@ -3,6 +3,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { matchOptions } from "@/lib/match-stats.queries";
 import { UnknownStat } from "@/components/unknown-stat";
 import { getUnavailableStatSet, isStatUnavailable } from "@/lib/match-unavailable-stats";
+import { bySetNumber, formatSetScore } from "@/lib/set-scores";
 import { useTranslation } from "react-i18next";
 import { useState, type ReactNode } from "react";
 
@@ -99,26 +100,21 @@ function MatchStatsPage() {
         (p.player_match_stats ?? []).some((r: any) => Boolean(r?.set6_position)),
     );
 
-    const officialSetScores = (match.match_sets ?? [])
+    const setsInOrder = [...(match.match_sets ?? [])].sort(bySetNumber);
+    const officialSetScores = setsInOrder
         .filter(
-            (set: { set_number: number; estonia_points: number; opponent_points: number }) =>
+            (set: { set_number: number; estonia_points: number | null; opponent_points: number | null }) =>
                 set.set_number <= 5,
         )
-        .map(
-            (set: { estonia_points: number; opponent_points: number }) =>
-                `${set.estonia_points}:${set.opponent_points}`,
-        )
+        .map(formatSetScore)
         .join(" • ");
 
-    const additionalSetScores = (match.match_sets ?? [])
+    const additionalSetScores = setsInOrder
         .filter(
-            (set: { set_number: number; estonia_points: number; opponent_points: number }) =>
+            (set: { set_number: number; estonia_points: number | null; opponent_points: number | null }) =>
                 set.set_number > 5,
         )
-        .map(
-            (set: { estonia_points: number; opponent_points: number }) =>
-                `${set.estonia_points}:${set.opponent_points}`,
-        )
+        .map(formatSetScore)
         .join(" • ");
 
     const formatStat = (value: number | null): string => {

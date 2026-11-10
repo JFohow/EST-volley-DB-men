@@ -1,6 +1,7 @@
 import { useSuspenseQuery, useQueryErrorResetBoundary } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { allMatchesOptions, type MatchListItem } from "@/lib/matches.queries";
+import { bySetNumber, formatSetScore } from "@/lib/set-scores";
 import { getUnavailableStatSet } from "@/lib/match-unavailable-stats";
 import { useTranslation } from "react-i18next";
 import { FileText } from "lucide-react";
@@ -524,13 +525,14 @@ function MatchRow({
     currentLanguage === "et" ? match.competition : (match.competition_en ?? match.competition);
   const city = currentLanguage === "et" ? match.city : (match.city_en ?? match.city);
   const officialSetsPlayed = match.estonia_sets + match.opponent_sets;
-  const officialSetScores = (match.match_sets ?? [])
+  const setsInOrder = [...(match.match_sets ?? [])].sort(bySetNumber);
+  const officialSetScores = setsInOrder
     .filter((set) => set.set_number <= 5)
-    .map((set) => `${set.estonia_points}:${set.opponent_points}`)
+    .map(formatSetScore)
     .join(" • ");
-  const additionalSetScores = (match.match_sets ?? [])
+  const additionalSetScores = setsInOrder
     .filter((set) => set.set_number > 5)
-    .map((set) => `${set.estonia_points}:${set.opponent_points}`)
+    .map(formatSetScore)
     .join(" • ");
   const hasAdditionalSets = match.has_additional_sets && additionalSetScores !== "";
   const scoreTarget =

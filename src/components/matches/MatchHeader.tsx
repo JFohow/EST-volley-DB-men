@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { bySetNumber, formatSetScore } from "@/lib/set-scores";
 
 type MatchHeaderProps = {
     match: any;
@@ -7,8 +8,8 @@ type MatchHeaderProps = {
 
 type MatchSet = {
     set_number: number;
-    estonia_points: number;
-    opponent_points: number;
+    estonia_points: number | null;
+    opponent_points: number | null;
 };
 
 export function MatchHeader({
@@ -35,14 +36,16 @@ export function MatchHeader({
             ? match.city
             : match.city_en ?? match.city;
 
-    const officialSetScores = (match.match_sets ?? [])
+    const setsInOrder = [...(match.match_sets ?? [])].sort(bySetNumber);
+
+    const officialSetScores = setsInOrder
         .filter((set: MatchSet) => set.set_number <= 5)
-        .map((set: MatchSet) => `${set.estonia_points}:${set.opponent_points}`)
+        .map(formatSetScore)
         .join(" • ");
 
-    const additionalSetScores = (match.match_sets ?? [])
+    const additionalSetScores = setsInOrder
         .filter((set: MatchSet) => set.set_number > 5)
-        .map((set: MatchSet) => `${set.estonia_points}:${set.opponent_points}`)
+        .map(formatSetScore)
         .join(" • ");
 
     return (

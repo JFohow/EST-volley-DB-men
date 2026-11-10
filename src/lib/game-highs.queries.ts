@@ -2,6 +2,7 @@ import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { getUnavailableStatSet, type MatchUnavailableStatRow } from "@/lib/match-unavailable-stats";
+import { formatSetScore, isKnownSetScore } from "@/lib/set-scores";
 
 export type GameHighRow = {
   appearanceId: number;
@@ -142,8 +143,8 @@ type MatchRow = {
 type MatchSetRow = {
   match_id: number;
   set_number: number;
-  estonia_points: number;
-  opponent_points: number;
+  estonia_points: number | null;
+  opponent_points: number | null;
 };
 
 const OFFICIAL_SET_COUNT = 5;
@@ -261,8 +262,20 @@ async function fetchGameHighs(): Promise<GameHighRow[]> {
 
   const maxSetByMatch = new Map<number, { estonia: number; opponent: number }>();
   const estoniaSetTotalByMatch = new Map<number, number>();
+  const matchesWithUnknownSets = new Set<number>();
   const additionalSetsByMatch = new Map<number, MatchSetRow[]>();
   for (const setRow of (matchSetsData ?? []) as MatchSetRow[]) {
+    if (setRow.set_number > OFFICIAL_SET_COUNT) {
+      const sets = additionalSetsByMatch.get(setRow.match_id) ?? [];
+      sets.push(setRow);
+      additionalSetsByMatch.set(setRow.match_id, sets);
+    }
+
+    if (!isKnownSetScore(setRow)) {
+      matchesWithUnknownSets.add(setRow.match_id);
+      continue;
+    }
+
     estoniaSetTotalByMatch.set(
       setRow.match_id,
       (estoniaSetTotalByMatch.get(setRow.match_id) ?? 0) + setRow.estonia_points,
@@ -275,12 +288,6 @@ async function fetchGameHighs(): Promise<GameHighRow[]> {
         opponent: setRow.opponent_points,
       });
     }
-
-    if (setRow.set_number > OFFICIAL_SET_COUNT) {
-      const sets = additionalSetsByMatch.get(setRow.match_id) ?? [];
-      sets.push(setRow);
-      additionalSetsByMatch.set(setRow.match_id, sets);
-    }
   }
 
   const additionalSetScoresByMatch = new Map<number, string[]>();
@@ -289,7 +296,7 @@ async function fetchGameHighs(): Promise<GameHighRow[]> {
       matchId,
       [...sets]
         .sort((a, b) => a.set_number - b.set_number)
-        .map((set) => `${set.estonia_points}:${set.opponent_points}`),
+        .map(formatSetScore),
     );
   }
 
@@ -391,7 +398,9 @@ async function fetchGameHighs(): Promise<GameHighRow[]> {
         competitionEn: match.competition_en,
         maxEstoniaSetPoints: maxSetByMatch.get(item.match_id)?.estonia ?? null,
         maxSetOpponentPoints: maxSetByMatch.get(item.match_id)?.opponent ?? null,
-        estoniaSetPointsTotal: estoniaSetTotalByMatch.get(item.match_id) ?? null,
+        estoniaSetPointsTotal: matchesWithUnknownSets.has(item.match_id)
+          ? null
+          : (estoniaSetTotalByMatch.get(item.match_id) ?? null),
         additionalSetScores: additionalSetScoresByMatch.get(item.match_id) ?? [],
         matchDate: match.match_date,
         score: `${match.estonia_sets}-${match.opponent_sets}`,
