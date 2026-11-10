@@ -312,19 +312,22 @@ function MatchStatsPage() {
     const { totals, receptionPositiveCount, receptionExcellentCount } = calculateTotals();
 
     // Stats a libero cannot produce in a match: shown as "—" (not applicable).
-    const LIBERO_NOT_APPLICABLE_FIELDS = new Set([
+    const LIBERO_NEVER_FIELDS = new Set([
         "points",
         "break_points",
         "serve_total",
         "serve_errors",
         "serve_aces",
+        "block_points",
+    ]);
+    const LIBERO_NOT_APPLICABLE_FIELDS = new Set([
+        ...LIBERO_NEVER_FIELDS,
         "attack_total",
         "attack_errors",
         "attack_blocked",
         "attack_kills",
         "attack_kill_pct",
         "attack_efficiency",
-        "block_points",
     ]);
 
     // Player cell: "—" for libero not-applicable stats, blank for players who sat on the bench
@@ -333,16 +336,20 @@ function MatchStatsPage() {
         if (!stats) return <UnknownStat />;
         const playedSets = [1, 2, 3, 4, 5, 6].some((set) => getSetPosition(stats, set) !== "");
         if (!playedSets) return "";
-        if (stats.player_position_in_match === "LIB" && LIBERO_NOT_APPLICABLE_FIELDS.has(fieldName)) return "—";
-        if (isStatUnavailable(fieldName, unavailableStats)) return <UnknownStat />;
-
         const isPercentField = fieldName.includes("pct") || fieldName === "attack_efficiency";
         let value: number | null;
-        if (fieldName === "attack_kill_pct") value = computeAttackKillPct(stats);
-        else if (fieldName === "attack_efficiency") value = computeAttackEff(stats);
+        if (fieldName === "attack_kill_pct") value = stats.attack_kill_pct ?? computeAttackKillPct(stats);
+        else if (fieldName === "attack_efficiency") value = stats.attack_efficiency ?? computeAttackEff(stats);
         else value = stats[fieldName] ?? null;
 
-        if (value == null) return isPercentField ? "" : <UnknownStat />;
+        if (value == null && stats.player_position_in_match === "LIB" && LIBERO_NOT_APPLICABLE_FIELDS.has(fieldName)) {
+            // Liberos never score, serve or block. Attack NULLs are "—" unless the libero attacked, then "?".
+            const liberoNotApplicable = LIBERO_NEVER_FIELDS.has(fieldName) || stats.attack_total == null;
+            return liberoNotApplicable ? "—" : <UnknownStat />;
+        }
+        if (isStatUnavailable(fieldName, unavailableStats)) return <UnknownStat />;
+
+        if (value === 0 && !isPercentField) return <span className="zero-stat">0</span>;
         return formatField(fieldName, value);
     };
 
@@ -646,7 +653,7 @@ function MatchStatsPage() {
                                 return (
                                     <tr
                                         key={player.appearance_id}
-                                        className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}
+                                        className={idx % 2 === 0 ? "bg-white [&_.zero-stat]:text-white" : "bg-slate-50 [&_.zero-stat]:text-slate-50"}
                                     >
                                         <td className="border-r border-slate-200 px-4 py-3 text-center font-bold text-slate-900">
                                             {player.shirt_number || "—"}
