@@ -311,9 +311,30 @@ function MatchStatsPage() {
 
     const { totals, receptionPositiveCount, receptionExcellentCount } = calculateTotals();
 
-    // Player cell: "?" when the value is unknown, blank when a percentage has no base (total 0).
+    // Stats a libero cannot produce in a match: shown as "—" (not applicable).
+    const LIBERO_NOT_APPLICABLE_FIELDS = new Set([
+        "points",
+        "break_points",
+        "serve_total",
+        "serve_errors",
+        "serve_aces",
+        "attack_total",
+        "attack_errors",
+        "attack_blocked",
+        "attack_kills",
+        "attack_kill_pct",
+        "attack_efficiency",
+        "block_points",
+    ]);
+
+    // Player cell: "—" for libero not-applicable stats, blank for players who sat on the bench
+    // (no set positions), "?" when the value is unknown, blank when a percentage has no base (total 0).
     const renderPlayerStat = (fieldName: string, stats: any): ReactNode => {
-        if (!stats || isStatUnavailable(fieldName, unavailableStats)) return <UnknownStat />;
+        if (!stats) return <UnknownStat />;
+        const playedSets = [1, 2, 3, 4, 5, 6].some((set) => getSetPosition(stats, set) !== "");
+        if (!playedSets) return "";
+        if (stats.player_position_in_match === "LIB" && LIBERO_NOT_APPLICABLE_FIELDS.has(fieldName)) return "—";
+        if (isStatUnavailable(fieldName, unavailableStats)) return <UnknownStat />;
 
         const isPercentField = fieldName.includes("pct") || fieldName === "attack_efficiency";
         let value: number | null;
@@ -612,10 +633,15 @@ function MatchStatsPage() {
                             {/* Player Rows */}
                             {players.map((player, idx) => {
                                 const statsRows = player.player_match_stats ?? [];
-                                const stats =
+                                const statsRow =
                                     statsMode === "official"
                                         ? (statsRows.find((r) => r?.stats_version === "AM") ?? statsRows[0])
                                         : (statsRows.find((r) => r?.stats_version === "ALL") ?? statsRows[0]);
+                                // Position in this match (not the usual one) decides the libero rules.
+                                const stats = {
+                                    ...(statsRow ?? {}),
+                                    player_position_in_match: player.player_position_in_match,
+                                };
 
                                 return (
                                     <tr
