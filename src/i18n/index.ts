@@ -36,7 +36,8 @@ i18n.use(initReactI18next).init({
     },
   },
 
-  lng: typeof window !== "undefined" ? normalizeLanguage(localStorage.getItem("lang")) : "et",
+  // Always start in "et" so server and client render identically; the saved language is applied after mount.
+  lng: "et",
   fallbackLng: "en",
   supportedLngs: ["en", "et"],
   nonExplicitSupportedLngs: true,
@@ -52,5 +53,17 @@ i18n.on("languageChanged", (lng) => {
     localStorage.setItem("lang", normalizeLanguage(lng));
   }
 });
+
+export function applyStoredLanguage() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const stored = normalizeLanguage(localStorage.getItem("lang"));
+
+  if (i18n.language !== stored) {
+    void i18n.changeLanguage(stored);
+  }
+}
 
 export default i18n;

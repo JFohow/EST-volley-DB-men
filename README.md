@@ -20,13 +20,13 @@ player, coach, and performance data together in a searchable web app.
 - TanStack Start and TanStack Router
 - Vite and Tailwind CSS
 - Supabase for database access and authentication
-- Bun for dependency installation and project scripts
+- npm for dependency installation and project scripts
 
 ## Getting started
 
 ### Prerequisites
 
-- [Bun](https://bun.sh/)
+- [Node.js](https://nodejs.org/) with npm
 - Access to the Supabase project used by this app, with its schema and data
 
 ### Install and run
@@ -34,7 +34,7 @@ player, coach, and performance data together in a searchable web app.
 1. Install dependencies:
 
    ```sh
-   bun install
+   npm ci
    ```
 
 2. Create a `.env.local` file in the project root and configure Supabase:
@@ -57,7 +57,7 @@ player, coach, and performance data together in a searchable web app.
 3. Start the development server:
 
    ```sh
-   bun run dev
+   npm run dev
    ```
 
    Open the local URL printed by Vite.
@@ -154,11 +154,11 @@ with no stats.
 
 | Command | Description |
 | --- | --- |
-| `bun run dev` | Start the Vite development server |
-| `bun run build` | Create a production build |
-| `bun run build:dev` | Create a development-mode build |
-| `bun run preview` | Preview a production build locally |
-| `bun run lint` | Run ESLint |
+| `npm run dev` | Start the Vite development server |
+| `npm run build` | Create a production build |
+| `npm run build:dev` | Create a development-mode build |
+| `npm run preview` | Preview a production build locally |
+| `npm run lint` | Run ESLint |
 | `bun run format` | Format files with Prettier |
 
 There is currently no test script in `package.json`.
