@@ -326,12 +326,10 @@ function MatchStatsPage() {
         "attack_efficiency",
     ]);
 
-    // Player cell: "—" for libero not-applicable stats, blank for players who sat on the bench
-    // (no set positions), "?" when the value is unknown, blank when a percentage has no base (total 0).
+    // Player cell: "—" for libero not-applicable stats, "?" when the value is unknown (including
+    // matches without set positions), blank when a percentage has no base (total 0).
     const renderPlayerStat = (fieldName: string, stats: any): ReactNode => {
         if (!stats) return <UnknownStat />;
-        const playedSets = [1, 2, 3, 4, 5, 6].some((set) => getSetPosition(stats, set) !== "");
-        if (!playedSets) return "";
         const isPercentField = fieldName.includes("pct") || fieldName === "attack_efficiency";
         let value: number | null;
         if (fieldName === "attack_kill_pct") value = stats.attack_kill_pct ?? computeAttackKillPct(stats);
@@ -346,6 +344,7 @@ function MatchStatsPage() {
         if (isStatUnavailable(fieldName, unavailableStats)) return <UnknownStat />;
 
         if (value === 0 && !isPercentField) return <span className="zero-stat">0</span>;
+        if (value == null) return <UnknownStat />;
         return formatField(fieldName, value);
     };
 
