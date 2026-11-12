@@ -68,6 +68,34 @@ export function isStatUnavailable(field: string, unavailableStats: ReadonlySet<s
     return false;
 }
 
+const recordedStatFields = [
+    "points",
+    "block_points",
+    "plus_minus",
+    "serve_total",
+    "serve_aces",
+    "serve_errors",
+    "reception_total",
+    "reception_errors",
+    "attack_total",
+    "attack_errors",
+    "attack_blocked",
+    "attack_kills",
+    "break_points",
+] as const;
+
+// Used for matches without set positions: a non-zero stat is the only evidence the player took part.
+export function hasRecordedStat(
+    stats: Record<string, unknown>,
+    unavailableStats: ReadonlySet<string>,
+): boolean {
+    return recordedStatFields.some((field) => {
+        if (unavailableStats.has(field)) return false;
+        const value = stats[field];
+        return typeof value === "number" && value !== 0;
+    });
+}
+
 export function maskUnavailableStatValues<T extends Record<string, unknown>>(
     stats: T,
     unavailableStats: ReadonlySet<string>,

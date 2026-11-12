@@ -16,7 +16,7 @@ import {
     type StatisticsField,
     type StatisticsMode,
 } from "@/lib/statistics.queries";
-import { getUnavailableStatSet } from "@/lib/match-unavailable-stats";
+import { getUnavailableStatSet, hasRecordedStat } from "@/lib/match-unavailable-stats";
 import { useTranslation } from "react-i18next";
 
 type SortField = StatisticsField | "name" | "sets" | "setsStarted";
@@ -132,6 +132,19 @@ function StatisticsPage() {
             return true;
         });
     }, [data.appearances, mode]);
+
+    const matchIdsWithPositions = useMemo(() => {
+        const ids = new Set<number>();
+        modeFilteredAppearances.forEach((appearance) => {
+            const match = firstRelation(appearance.matches);
+            if (!match) return;
+            const stats = pickAppearanceStats(appearance.player_match_stats, mode);
+            if (stats && countSetsFromPositions(stats as Record<string, unknown>) > 0) {
+                ids.add(match.match_id);
+            }
+        });
+        return ids;
+    }, [modeFilteredAppearances, mode]);
 
     const yearOptions = useMemo(() => {
         const values = new Set<string>();
@@ -317,16 +330,23 @@ function StatisticsPage() {
             const setsFromPositions = stats
                 ? countSetsFromPositions(stats as Record<string, unknown>)
                 : 0;
+            const matchHasPositions = matchIdsWithPositions.has(
+                firstRelation(appearance.matches)?.match_id ?? -1,
+            );
 
             const appearanceSetsStarted = Math.min(appearance.sets_started_all ?? 0, 6);
             row[mode].setsStarted += appearanceSetsStarted;
 
             if (!stats) return;
 
+            const countsAsGame =
+                setsFromPositions > 0 ||
+                (!matchHasPositions && hasRecordedStat(stats as Record<string, unknown>, unavailableStats));
+
             addStats(row[mode], stats, unavailableStats);
             row[mode].sets += setsFromPositions;
 
-            if (setsFromPositions > 0) {
+            if (countsAsGame) {
                 entry.perGameGroup.appearances += 1;
                 entry.perGameGroup.sets += setsFromPositions;
                 entry.perGameGroup.setsStarted += appearanceSetsStarted;
@@ -380,8 +400,8 @@ function StatisticsPage() {
     }, [
         data.players,
         filteredAppearances,
+        matchIdsWithPositions,
         mode,
-        displayMode,
         sortDirection,
         sortField,
         selectedCompetition,

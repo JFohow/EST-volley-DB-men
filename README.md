@@ -135,6 +135,12 @@ rows, appearances, or player roles change.
   none of them counts as started.
 - Non-LIB `*` counts as played but not as started.
 
+Per-game averages count an appearance as a game when `sets_played_all` (or the
+`AM` equivalent) is above 0. In a match where no player has set positions, the
+set columns cannot show who played, so a player counts as a game only when at
+least one recorded stat (points, serves, receptions, attacks, blocks, etc.) is
+non-zero. Such matches still count toward totals.
+
 ### Coaches
 
 Use `matches.coach_id` (linked to `coaches`). The `coach` text column is not the

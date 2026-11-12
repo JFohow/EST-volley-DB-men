@@ -14,6 +14,7 @@ import MultiSelect from "@/components/ui/multi-select";
 import {
     addStatCoverage,
     createStatCoverage,
+    hasRecordedStat,
     type UnavailableStatField,
 } from "@/lib/match-unavailable-stats";
 import { useTranslation } from "react-i18next";
@@ -709,8 +710,12 @@ function TotalTopPage() {
                 6,
             );
             const setSummary = getSetSlotSummary(stats, totalSetsInMatch, appearance.hasPositionInfo);
+            const countsAsGame =
+                setSummary.setsPlayed > 0 ||
+                (!appearance.hasPositionInfo &&
+                    hasRecordedStat(stats, new Set(appearance.unavailableStats)));
 
-            if (displayMode === "perGame" && setSummary.setsPlayed === 0) {
+            if (displayMode === "perGame" && !countsAsGame) {
                 return;
             }
 
@@ -725,7 +730,7 @@ function TotalTopPage() {
                     ? Math.min(appearance.setsStarted, totalSetsInMatch)
                     : setSummary.setsPlayed;
 
-            if (setSummary.setsPlayed > 0) {
+            if (countsAsGame) {
                 bucket.totals.games += 1;
             }
 
