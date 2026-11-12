@@ -16,7 +16,7 @@ export type PlayerMatchStats = {
     appearance_id: number;
     player_id: number;
     shirt_number: number | null;
-    sets_played: number | null;
+    sets_played_all: number | null;
     on_the_bench: boolean;
     player_position_in_match: string | null;
     unavailableStats: UnavailableStatField[];
@@ -111,7 +111,7 @@ export function matchOptions(matchId: number) {
           appearance_id,
           player_id,
           shirt_number,
-          sets_played,
+          sets_played_all,
           on_the_bench,
                     player_position_in_match,
           players (

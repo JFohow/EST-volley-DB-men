@@ -422,7 +422,7 @@ function HomePage() {
     '[\n  { "set_number": 1, "estonia_points": 25, "opponent_points": 19 }\n]',
   );
   const [appearancesPayloadText, setAppearancesPayloadText] = useState(
-    '[\n  { "player_id": 1, "sets_played": 3, "sets_started": 3, "on_the_bench": false, "captain": false, "player_position_in_match": "OH", "shirt_number": 7 }\n]',
+    '[\n  { "player_id": 1, "on_the_bench": false, "captain": false, "player_position_in_match": "OH", "shirt_number": 7 }\n]',
   );
   const [statsPayloadText, setStatsPayloadText] = useState(
     '[\n  { "player_id": 1, "stats_version": "AM", "points": 12, "plus_minus": 8, "break_points": 4, "serve_total": 20, "serve_aces": 2, "serve_errors": 1, "reception_total": 15, "reception_errors": 1, "reception_positive_pct": 60, "reception_excellent_pct": 33, "attack_total": 18, "attack_kills": 9, "attack_errors": 2, "attack_blocked": 1, "attack_kill_pct": 50, "attack_efficiency": 33, "block_points": 1 }\n]',
@@ -831,8 +831,6 @@ function HomePage() {
     let rows: Array<{
       match_id: number;
       player_id: number;
-      sets_played: number;
-      sets_started: number;
       on_the_bench: boolean;
       captain: boolean;
       player_position_in_match: string | null;
@@ -849,8 +847,6 @@ function HomePage() {
         return {
           match_id: matchId,
           player_id: playerId,
-          sets_played: toNumberOrDefault(row.sets_played, 0),
-          sets_started: toNumberOrDefault(row.sets_started, 0),
           on_the_bench: row.on_the_bench === true,
           captain: row.captain === true,
           player_position_in_match:

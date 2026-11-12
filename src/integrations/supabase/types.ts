@@ -38,8 +38,10 @@ export type Database = {
           on_the_bench: boolean
           player_id: number
           player_position_in_match: string | null
-          sets_played: number
-          sets_started: number
+          sets_played_all: number | null
+          sets_played_am: number | null
+          sets_started_all: number | null
+          sets_started_am: number | null
           shirt_number: number | null
         }
         Insert: {
@@ -50,8 +52,10 @@ export type Database = {
           on_the_bench?: boolean
           player_id: number
           player_position_in_match?: string | null
-          sets_played?: number
-          sets_started?: number
+          sets_played_all?: number | null
+          sets_played_am?: number | null
+          sets_started_all?: number | null
+          sets_started_am?: number | null
           shirt_number?: number | null
         }
         Update: {
@@ -62,8 +66,10 @@ export type Database = {
           on_the_bench?: boolean
           player_id?: number
           player_position_in_match?: string | null
-          sets_played?: number
-          sets_started?: number
+          sets_played_all?: number | null
+          sets_played_am?: number | null
+          sets_started_all?: number | null
+          sets_started_am?: number | null
           shirt_number?: number | null
         }
         Relationships: [

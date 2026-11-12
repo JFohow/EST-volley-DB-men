@@ -29,7 +29,7 @@ type PlayerAppearance = {
     appearance_id: number;
     player_id: number;
     match_id: number;
-    sets_played: number;
+    sets_played_all: number | null;
     on_the_bench: boolean;
     player_position_in_match: string | null;
     shirt_number: number | null;
@@ -515,7 +515,7 @@ function PlayerPage() {
             statsRows[0];
 
         if (!stats) {
-            return appearance.sets_played ?? 0;
+            return appearance.sets_played_all ?? 0;
         }
 
         const row = stats as Record<string, string | null | undefined>;

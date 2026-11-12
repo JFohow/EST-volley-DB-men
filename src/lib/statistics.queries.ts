@@ -100,8 +100,8 @@ export type AppearanceStatsRow = {
 export type StatisticsAppearanceRow = {
     appearance_id: number;
     player_id: number;
-    sets_played: number | null;
-    sets_started: number | null;
+    sets_played_all: number | null;
+    sets_started_all: number | null;
     matches: StatisticsMatchRow | StatisticsMatchRow[] | null;
     player_match_stats: AppearanceStatsRow | AppearanceStatsRow[] | null;
 };
@@ -250,7 +250,7 @@ async function fetchStatisticsData(): Promise<StatisticsDataset> {
         const { data, error } = await supabase
             .from("appearances")
             .select(
-                `appearance_id, player_id, sets_played, sets_started, matches(match_id, match_date, opponent, opponent_en, competition, competition_en, estonia_sets, opponent_sets, vm, am, mam, match_unavailable_stats(points_unavailable, block_points_unavailable, plus_minus_unavailable, break_points_unavailable, serve_total_unavailable, serve_aces_unavailable, serve_errors_unavailable, reception_total_unavailable, reception_errors_unavailable, reception_positive_pct_unavailable, reception_excellent_pct_unavailable, attack_total_unavailable, attack_errors_unavailable, attack_blocked_unavailable, attack_kills_unavailable)), player_match_stats(points, block_points, plus_minus, serve_total, serve_aces, serve_errors, reception_total, reception_errors, reception_positive_pct, reception_excellent_pct, attack_total, attack_errors, attack_blocked, attack_kills, attack_kill_pct, attack_efficiency, break_points, stats_version, set1_position, set2_position, set3_position, set4_position, set5_position, set6_position)`,
+                `appearance_id, player_id, sets_played_all, sets_started_all, matches(match_id, match_date, opponent, opponent_en, competition, competition_en, estonia_sets, opponent_sets, vm, am, mam, match_unavailable_stats(points_unavailable, block_points_unavailable, plus_minus_unavailable, break_points_unavailable, serve_total_unavailable, serve_aces_unavailable, serve_errors_unavailable, reception_total_unavailable, reception_errors_unavailable, reception_positive_pct_unavailable, reception_excellent_pct_unavailable, attack_total_unavailable, attack_errors_unavailable, attack_blocked_unavailable, attack_kills_unavailable)), player_match_stats(points, block_points, plus_minus, serve_total, serve_aces, serve_errors, reception_total, reception_errors, reception_positive_pct, reception_excellent_pct, attack_total, attack_errors, attack_blocked, attack_kills, attack_kill_pct, attack_efficiency, break_points, stats_version, set1_position, set2_position, set3_position, set4_position, set5_position, set6_position)`,
             )
             .gt("appearance_id", lastAppearanceId)
             .order("appearance_id", { ascending: true })

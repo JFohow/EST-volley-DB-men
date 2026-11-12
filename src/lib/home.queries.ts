@@ -82,7 +82,7 @@ async function fetchAllAppearances() {
   const rows: {
     appearance_id: number;
     player_id: number;
-    sets_played: number | null;
+    sets_played_all: number | null;
     match_id: number;
     player_match_stats: Record<string, number | null>[] | Record<string, number | null> | null;
   }[] = [];
@@ -91,7 +91,7 @@ async function fetchAllAppearances() {
     const { data, error } = await supabase
       .from("appearances")
       .select(
-        "appearance_id, player_id, sets_played, match_id, player_match_stats(points, plus_minus, break_points, serve_total, reception_total, attack_total, attack_kills, block_points)",
+        "appearance_id, player_id, sets_played_all, match_id, player_match_stats(points, plus_minus, break_points, serve_total, reception_total, attack_total, attack_kills, block_points)",
       )
       .gt("appearance_id", lastId)
       .order("appearance_id", { ascending: true })
@@ -170,13 +170,13 @@ async function fetchHomeSummary(): Promise<HomeSummary> {
   };
 
   let topAppearance: HomeSummary["topAppearance"] = null;
-  const appsData = allApps as { player_id: number; sets_played: number | null }[];
+  const appsData = allApps as { player_id: number; sets_played_all: number | null }[];
   if (appsData && appsData.length) {
     const agg = new Map<number, { matches: number; sets: number }>();
     for (const a of appsData) {
       const cur = agg.get(a.player_id) ?? { matches: 0, sets: 0 };
       cur.matches += 1;
-      cur.sets += a.sets_played ?? 0;
+      cur.sets += a.sets_played_all ?? 0;
       agg.set(a.player_id, cur);
     }
     const sorted = [...agg.entries()].sort((a, b) => b[1].matches - a[1].matches);

@@ -42,7 +42,7 @@ type AppearanceMatchRow = {
 
 type AppearanceRow = {
     player_id: number;
-    sets_played: number | null;
+    sets_played_all: number | null;
     on_the_bench: boolean | null;
     player_match_stats:
     | {
@@ -196,7 +196,7 @@ async function fetchPlayers(): Promise<PlayerListItem[]> {
             .from("appearances")
             .select(`
                 player_id,
-                sets_played,
+                sets_played_all,
                 on_the_bench,
                 player_match_stats(
                     points,

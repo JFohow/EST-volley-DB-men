@@ -120,6 +120,21 @@ first additional set uses the next free column after the official sets. For a
 sets, `set4_position` and `set5_position`. The scoreline for the same sets is
 still stored in `match_sets` as set_number 6, 7, and 8.
 
+### Sets played and sets started
+
+`appearances.sets_played_all` and `appearances.sets_started_all` are derived
+from the `ALL` stats row. `sets_played_am` and `sets_started_am` are derived
+from the `AM` row. A value is NULL when that version has no row. Do not edit
+these columns by hand. A database trigger recalculates them whenever stats
+rows, appearances, or player roles change.
+
+- `sets_played`: number of set1–set6 positions that are not NULL. `*` counts.
+- `sets_started`: number of set1–set6 positions that are a number (1–6).
+- LIB: a `*` counts as started only when every other LIB in the same match and
+  version is NULL for that set. If two or more LIBs have `*` for the same set,
+  none of them counts as started.
+- Non-LIB `*` counts as played but not as started.
+
 ### Coaches
 
 Use `matches.coach_id` (linked to `coaches`). The `coach` text column is not the
