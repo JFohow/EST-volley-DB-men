@@ -230,6 +230,10 @@ function MatchStatsPage() {
     const blockColumns = [{ field: "block_points", label: "PTS" }];
 
     const hasAnyPlayerStats = players.some((p: any) => (p.player_match_stats ?? []).length > 0);
+    // Set positions are recorded per match: if any player has one, a player without one did not play.
+    const matchHasSetPositions = players.some((p: any) =>
+        (p.player_match_stats ?? []).some((r: any) => [1, 2, 3, 4, 5, 6].some((set) => getSetPosition(r, set) !== "")),
+    );
     const statFieldCount =
         setColumns.length + statColumns.length + serveColumns.length + receptionColumns.length + attackColumns.length + blockColumns.length;
 
@@ -326,10 +330,12 @@ function MatchStatsPage() {
         "attack_efficiency",
     ]);
 
-    // Player cell: "—" for libero not-applicable stats, "?" when the value is unknown (including
-    // matches without set positions), blank when a percentage has no base (total 0).
+    // Player cell: "—" for libero not-applicable stats, "?" when the value is unknown, blank when a
+    // percentage has no base (total 0), and blank when the match has set positions but this player has none (did not play).
     const renderPlayerStat = (fieldName: string, stats: any): ReactNode => {
         if (!stats) return <UnknownStat />;
+        const playerHasSetPositions = [1, 2, 3, 4, 5, 6].some((set) => getSetPosition(stats, set) !== "");
+        if (!playerHasSetPositions && matchHasSetPositions) return "";
         const isPercentField = fieldName.includes("pct") || fieldName === "attack_efficiency";
         let value: number | null;
         if (fieldName === "attack_kill_pct") value = stats.attack_kill_pct ?? computeAttackKillPct(stats);
