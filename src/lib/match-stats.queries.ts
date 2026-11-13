@@ -148,8 +148,7 @@ export function matchOptions(matchId: number) {
                         set6_position
                     )
         `)
-                .eq("match_id", matchId)
-                .order("shirt_number", { ascending: true, nullsFirst: false });
+                .eq("match_id", matchId);
 
             if (appearanceError) {
                 throw appearanceError;
@@ -173,7 +172,22 @@ export function matchOptions(matchId: number) {
 
 
             const unavailableStats = getUnavailableStatSet(match.match_unavailable_stats);
-            const playersWithMaskedStats = (appearances ?? []).map((appearance) => {
+            // Shirt number first (missing last), then alphabetically by first name, so matches
+            // without shirt numbers are listed by first name.
+            const sortedAppearances = [...(appearances ?? [])].sort((a, b) => {
+                const aShirt = a.shirt_number ?? Number.POSITIVE_INFINITY;
+                const bShirt = b.shirt_number ?? Number.POSITIVE_INFINITY;
+                if (aShirt !== bShirt) {
+                    return aShirt - bShirt;
+                }
+                const byFirst = (a.players?.first_name ?? "").localeCompare(b.players?.first_name ?? "", "et");
+                if (byFirst !== 0) {
+                    return byFirst;
+                }
+                return (a.players?.last_name ?? "").localeCompare(b.players?.last_name ?? "", "et");
+            });
+
+            const playersWithMaskedStats = sortedAppearances.map((appearance) => {
                 const statsRows = Array.isArray(appearance.player_match_stats)
                     ? appearance.player_match_stats
                     : appearance.player_match_stats
