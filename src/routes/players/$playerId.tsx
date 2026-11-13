@@ -1216,7 +1216,7 @@ function PlayerPage() {
                                             : "text-red-700";
 
                                 return (
-                                    <tr key={a.appearance_id} className="border-t border-slate-100">
+                                    <tr key={a.appearance_id} className={`border-t border-slate-100 ${match.am ? "bg-white" : "bg-slate-100"}`}>
                                         <td className="px-3 py-2.5 text-center text-sm text-slate-500">{index + 1}</td>
                                         <td className="px-3 py-2.5 text-sm text-slate-700">
                                             {new Date(match.match_date).toLocaleDateString("en-GB")}
