@@ -171,6 +171,13 @@ The `ALL` row holds the data (for example, match 145 has points for 10 of 12
 appearances and serve totals for 2). The `NULL` row is an empty placeholder
 with no stats.
 
+The match list icon uses this coverage rule (see
+`src/lib/match-stats-coverage.ts`):
+
+- **Full** (green): every player with set positions has points, serve, reception and attack totals.
+- **Partial** (amber): some numeric stats exist, but not the totals for every positioned player.
+- **Players only** (red): no numeric stats at all, so only the player list is known.
+
 ## Scripts
 
 | Command | Description |

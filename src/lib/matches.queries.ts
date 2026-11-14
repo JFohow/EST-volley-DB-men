@@ -1,5 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { getMatchStatsCoverage } from "@/lib/match-stats-coverage";
 import { getUnavailableStatSet, type MatchUnavailableStatRow } from "@/lib/match-unavailable-stats";
 
 export type MatchListItem = {
@@ -19,7 +20,7 @@ export type MatchListItem = {
   mam: boolean | null;
   has_additional_sets: boolean;
   additional_sets_count: number;
-  statsCoverage: "full" | "playersOnly" | "none";
+  statsCoverage: "full" | "partial" | "playersOnly" | "none";
   statisticsCoverage: "full" | "partial" | "none";
   match_unavailable_stats: MatchUnavailableStatRow | MatchUnavailableStatRow[] | null;
   match_sets: {
@@ -47,6 +48,12 @@ type MatchCoverageStatRow = {
   attack_kill_pct: number | null;
   attack_efficiency: number | null;
   break_points: number | null;
+  set1_position: string | null;
+  set2_position: string | null;
+  set3_position: string | null;
+  set4_position: string | null;
+  set5_position: string | null;
+  set6_position: string | null;
 };
 
 type MatchCoverageAppearanceRow = {
@@ -54,38 +61,6 @@ type MatchCoverageAppearanceRow = {
   match_id: number;
   player_match_stats: MatchCoverageStatRow | MatchCoverageStatRow[] | null;
 };
-
-function normalizeRelations<T>(value: T | T[] | null): T[] {
-  if (Array.isArray(value)) {
-    return value.filter((item): item is T => Boolean(item));
-  }
-
-  return value ? [value] : [];
-}
-
-function hasFullStats(stats: MatchCoverageStatRow): boolean {
-  const values: Array<number | null> = [
-    stats.points,
-    stats.block_points,
-    stats.plus_minus,
-    stats.serve_total,
-    stats.serve_aces,
-    stats.serve_errors,
-    stats.reception_total,
-    stats.reception_errors,
-    stats.reception_positive_pct,
-    stats.reception_excellent_pct,
-    stats.attack_total,
-    stats.attack_errors,
-    stats.attack_blocked,
-    stats.attack_kills,
-    stats.attack_kill_pct,
-    stats.attack_efficiency,
-    stats.break_points,
-  ];
-
-  return values.some((value) => typeof value === "number");
-}
 
 async function fetchAllMatches(): Promise<MatchListItem[]> {
   const data: Omit<MatchListItem, "statsCoverage" | "statisticsCoverage">[] = [];
@@ -105,7 +80,7 @@ async function fetchAllMatches(): Promise<MatchListItem[]> {
     if ((page ?? []).length < 1000) break;
   }
 
-  const coverageByMatch = new Map<number, { hasAppearances: boolean; hasFullStats: boolean }>();
+  const appearancesByMatch = new Map<number, MatchCoverageAppearanceRow[]>();
   const pageSize = 1000;
   let lastAppearanceId = 0;
 
@@ -113,7 +88,7 @@ async function fetchAllMatches(): Promise<MatchListItem[]> {
     const { data: appearancesData, error: appearancesError } = await supabase
       .from("appearances")
       .select(
-        "appearance_id, match_id, player_match_stats(points, block_points, plus_minus, serve_total, serve_aces, serve_errors, reception_total, reception_errors, reception_positive_pct, reception_excellent_pct, attack_total, attack_errors, attack_blocked, attack_kills, attack_kill_pct, attack_efficiency, break_points)",
+        "appearance_id, match_id, player_match_stats(points, block_points, plus_minus, serve_total, serve_aces, serve_errors, reception_total, reception_errors, reception_positive_pct, reception_excellent_pct, attack_total, attack_errors, attack_blocked, attack_kills, attack_kill_pct, attack_efficiency, break_points, set1_position, set2_position, set3_position, set4_position, set5_position, set6_position)",
       )
       .gt("appearance_id", lastAppearanceId)
       .order("appearance_id", { ascending: true })
@@ -129,19 +104,9 @@ async function fetchAllMatches(): Promise<MatchListItem[]> {
     }
 
     for (const appearance of chunk) {
-      const current = coverageByMatch.get(appearance.match_id) ?? {
-        hasAppearances: false,
-        hasFullStats: false,
-      };
-
-      current.hasAppearances = true;
-
-      const statsRows = normalizeRelations(appearance.player_match_stats);
-      if (!current.hasFullStats && statsRows.some((stats) => hasFullStats(stats))) {
-        current.hasFullStats = true;
-      }
-
-      coverageByMatch.set(appearance.match_id, current);
+      const current = appearancesByMatch.get(appearance.match_id) ?? [];
+      current.push(appearance);
+      appearancesByMatch.set(appearance.match_id, current);
     }
 
     const maxAppearanceId = Math.max(...chunk.map((row) => row.appearance_id));
@@ -153,15 +118,13 @@ async function fetchAllMatches(): Promise<MatchListItem[]> {
   }
 
   return ((data ?? []) as Omit<MatchListItem, "statsCoverage" | "statisticsCoverage">[]).map((match) => {
-    const coverage = coverageByMatch.get(match.match_id);
-    const statsCoverage = coverage?.hasFullStats
-      ? "full"
-      : coverage?.hasAppearances
-        ? "playersOnly"
-        : "none";
-    const statisticsCoverage = coverage?.hasFullStats
-      ? (getUnavailableStatSet(match.match_unavailable_stats).size > 0 ? "partial" : "full")
-      : "none";
+    const statsCoverage = getMatchStatsCoverage(appearancesByMatch.get(match.match_id) ?? []);
+    const statisticsCoverage =
+      statsCoverage === "full"
+        ? (getUnavailableStatSet(match.match_unavailable_stats).size > 0 ? "partial" : "full")
+        : statsCoverage === "partial"
+          ? "partial"
+          : "none";
 
     return {
       ...match,

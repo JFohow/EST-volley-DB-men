@@ -1,5 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { getMatchStatsCoverage } from "@/lib/match-stats-coverage";
 import {
     getUnavailableStatSet,
     maskUnavailableStatValues,
@@ -149,29 +150,6 @@ function countPlayedSetsFromPositions(stats: AppearanceStatsRow): number {
     return values.filter((value) => typeof value === "string" && value.trim() !== "").length;
 }
 
-function hasAnyNumericMatchStats(stats: AppearanceStatsRow): boolean {
-    const statValues: Array<number | null> = [
-        stats.points,
-        stats.block_points,
-        stats.plus_minus,
-        stats.serve_total,
-        stats.serve_aces,
-        stats.serve_errors,
-        stats.reception_total,
-        stats.reception_errors,
-        stats.reception_positive_pct,
-        stats.reception_excellent_pct,
-        stats.attack_total,
-        stats.attack_errors,
-        stats.attack_blocked,
-        stats.attack_kills,
-        stats.attack_kill_pct,
-        stats.attack_efficiency,
-        stats.break_points,
-    ];
-
-    return statValues.some((value) => typeof value === "number");
-}
 
 async function fetchPlayers(): Promise<PlayerListItem[]> {
     const playersResponse = await supabase
@@ -267,7 +245,7 @@ async function fetchPlayers(): Promise<PlayerListItem[]> {
         }
     >();
 
-    const matchHasFullStats = new Map<number, boolean>();
+    const appearancesByMatch = new Map<number, { player_match_stats: AppearanceRow["player_match_stats"] }[]>();
 
     (apps ?? []).forEach((a) => {
         const match = Array.isArray(a.matches)
@@ -276,10 +254,9 @@ async function fetchPlayers(): Promise<PlayerListItem[]> {
 
         if (!match) return;
 
-        const statsRows = normalizeRelations(a.player_match_stats);
-        const hasFullStatsForAppearance = statsRows.some((row) => hasAnyNumericMatchStats(row));
-        const current = matchHasFullStats.get(match.match_id) ?? false;
-        matchHasFullStats.set(match.match_id, current || hasFullStatsForAppearance);
+        const matchAppearances = appearancesByMatch.get(match.match_id) ?? [];
+        matchAppearances.push({ player_match_stats: a.player_match_stats });
+        appearancesByMatch.set(match.match_id, matchAppearances);
     });
 
     (apps ?? []).forEach((a) => {
@@ -309,7 +286,9 @@ async function fetchPlayers(): Promise<PlayerListItem[]> {
             0,
         );
 
-        const isPlayersListOnlyMatch = match ? !Boolean(matchHasFullStats.get(match.match_id)) : false;
+        const isPlayersListOnlyMatch = match
+            ? getMatchStatsCoverage(appearancesByMatch.get(match.match_id) ?? []) === "playersOnly"
+            : false;
         const wasPlayed = isPlayersListOnlyMatch || setsFromPositions > 0;
         const wasBench = !wasPlayed;
 

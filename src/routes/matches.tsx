@@ -541,7 +541,7 @@ function MatchRow({
       : `/match/${match.match_id}`;
   const detailLine = match.notes;
   const statsIconClass =
-    getUnavailableStatSet(match.match_unavailable_stats).size > 0
+    getUnavailableStatSet(match.match_unavailable_stats).size > 0 || match.statsCoverage === "partial"
       ? "text-amber-600 hover:text-amber-700"
       : match.statsCoverage === "full"
         ? "text-emerald-600 hover:text-emerald-700"
@@ -551,9 +551,11 @@ function MatchRow({
   const statsTitle =
     match.statsCoverage === "full"
       ? t("matches.stats_full")
-      : match.statsCoverage === "playersOnly"
-        ? t("matches.stats_players_only")
-        : t("matches.stats_none");
+      : match.statsCoverage === "partial"
+        ? t("matches.stats_partial")
+        : match.statsCoverage === "playersOnly"
+          ? t("matches.stats_players_only")
+          : t("matches.stats_none");
 
   return (
     <li

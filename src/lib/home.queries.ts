@@ -1,5 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { getMatchStatsCoverage, type MatchStatsCoverage } from "@/lib/match-stats-coverage";
 import { getUnavailableStatSet, type MatchUnavailableStatRow } from "@/lib/match-unavailable-stats";
 export type RecentMatch = {
   match_id: number;
@@ -84,14 +85,14 @@ async function fetchAllAppearances() {
     player_id: number;
     sets_played_all: number | null;
     match_id: number;
-    player_match_stats: Record<string, number | null>[] | Record<string, number | null> | null;
+    player_match_stats: Record<string, number | string | null>[] | Record<string, number | string | null> | null;
   }[] = [];
   let lastId = 0;
   while (true) {
     const { data, error } = await supabase
       .from("appearances")
       .select(
-        "appearance_id, player_id, sets_played_all, match_id, player_match_stats(points, plus_minus, break_points, serve_total, reception_total, attack_total, attack_kills, block_points)",
+        "appearance_id, player_id, sets_played_all, match_id, player_match_stats(points, plus_minus, break_points, serve_total, reception_total, attack_total, attack_kills, block_points, set1_position, set2_position, set3_position, set4_position, set5_position, set6_position)",
       )
       .gt("appearance_id", lastId)
       .order("appearance_id", { ascending: true })
@@ -128,16 +129,15 @@ async function fetchHomeSummary(): Promise<HomeSummary> {
   const totalAppearances = allApps.length;
   const totalSets = sets.count ?? 0;
 
-  const matchesWithStatistics = new Set<number>();
+  const appearancesByMatch = new Map<number, typeof allApps>();
   for (const appearance of allApps) {
-    const statsRows = Array.isArray(appearance.player_match_stats)
-      ? appearance.player_match_stats
-      : appearance.player_match_stats
-        ? [appearance.player_match_stats]
-        : [];
-    if (statsRows.some((stats) => Object.values(stats).some((value) => typeof value === "number"))) {
-      matchesWithStatistics.add(appearance.match_id);
-    }
+    const current = appearancesByMatch.get(appearance.match_id) ?? [];
+    current.push(appearance);
+    appearancesByMatch.set(appearance.match_id, current);
+  }
+  const coverageByMatch = new Map<number, MatchStatsCoverage>();
+  for (const [matchId, apps] of appearancesByMatch) {
+    coverageByMatch.set(matchId, getMatchStatsCoverage(apps));
   }
 
   const getMatchCoverageCounts = (matches: MatchFlagRow[]): MatchCoverageCounts => {
@@ -149,10 +149,10 @@ async function fetchHomeSummary(): Promise<HomeSummary> {
     };
 
     for (const match of matches) {
-      const hasStatistics = matchesWithStatistics.has(match.match_id);
-      if (!hasStatistics) {
+      const coverage = coverageByMatch.get(match.match_id) ?? "none";
+      if (coverage === "none" || coverage === "playersOnly") {
         counts.withoutStatistics += 1;
-      } else if (getUnavailableStatSet(match.match_unavailable_stats).size > 0) {
+      } else if (coverage === "partial" || getUnavailableStatSet(match.match_unavailable_stats).size > 0) {
         counts.partialStatistics += 1;
       } else {
         counts.fullStatistics += 1;
