@@ -57,6 +57,8 @@ type TotalTopStatKey =
 type MatchType = "OFFICIAL" | "COMPETITIVE" | "NON_OFFICIAL" | "ALL";
 type SortMode = "perGame" | "total";
 
+const PER_GAME_MIN_STATISTICS_GAMES = 5;
+
 export const Route = createFileRoute("/total-top")({
     head: () => ({
         meta: [
@@ -137,12 +139,12 @@ function getPerGameValue(group: PlayerTotals, stat: TotalTopStatKey) {
         return getStatValue(group, stat);
     }
 
-    if (group.games <= 0) {
+    if (group.statisticsGames <= 0) {
         return null;
     }
 
     const total = getStatValue(group, stat);
-    return total == null ? null : total / group.games;
+    return total == null ? null : total / group.statisticsGames;
 }
 
 function isPercentageMetric(stat: TotalTopStatKey): boolean {
@@ -318,6 +320,7 @@ function createEmptyTotals(): PlayerTotals {
         appearances: 0,
         matchesNotPlayed: 0,
         games: 0,
+        statisticsGames: 0,
         sets: 0,
         setsStarted: 0,
         setsBench: 0,
@@ -734,6 +737,10 @@ function TotalTopPage() {
                 bucket.totals.games += 1;
             }
 
+            if (countsAsGame && hasRecordedStat(stats, new Set(appearance.unavailableStats))) {
+                bucket.totals.statisticsGames += 1;
+            }
+
             if (appearance.onTheBench) {
                 bucket.totals.bench += 1;
             }
@@ -948,7 +955,11 @@ function TotalTopPage() {
     ]);
 
     const metricRows = useMemo(() => {
-        const rankableRows = playerRows.filter((row) => row.filteredTotals.appearances > 0);
+        const rankableRows = playerRows.filter((row) =>
+            displayMode === "perGame"
+                ? row.filteredTotals.statisticsGames >= PER_GAME_MIN_STATISTICS_GAMES
+                : row.filteredTotals.appearances > 0,
+        );
         const perGameHiddenMetrics = new Set<TotalTopStatKey>([
             "appearances",
             "matchesNotPlayed",
@@ -1274,8 +1285,8 @@ function TotalTopPage() {
 
             {displayMode === "perGame" ? (
                 <p className="mb-4 text-center text-sm italic text-slate-600">
-                    Calculations are done base off matches, where player actually played, not sat on the
-                    bench.
+                    Per game averages divide by games with statistics. Minimum {PER_GAME_MIN_STATISTICS_GAMES} such games.
+                    Bench appearances are not counted.
                 </p>
             ) : null}
 

@@ -13,6 +13,7 @@ export type PlayerTotals = {
   appearances: number;
   matchesNotPlayed: number;
   games: number;
+  statisticsGames: number;
   sets: number;
   setsStarted: number;
   setsBench: number;
@@ -266,6 +267,7 @@ function createTotals(): PlayerTotals {
     appearances: 0,
     matchesNotPlayed: 0,
     games: 0,
+    statisticsGames: 0,
     sets: 0,
     setsStarted: 0,
     setsBench: 0,
