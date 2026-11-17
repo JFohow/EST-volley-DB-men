@@ -2,7 +2,7 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { matchOptions } from "@/lib/match-stats.queries";
 import { UnknownStat } from "@/components/unknown-stat";
-import { getUnavailableStatSet, isStatUnavailable } from "@/lib/match-unavailable-stats";
+import { getUnavailableStatSet, isStatBaseZero, isStatUnavailable } from "@/lib/match-unavailable-stats";
 import { bySetNumber, formatSetScore } from "@/lib/set-scores";
 import { useTranslation } from "react-i18next";
 import { type ReactNode } from "react";
@@ -240,8 +240,8 @@ function MatchStatsAllPage() {
         else if (fieldName === "attack_efficiency") value = computeAttackEff(stats);
         else value = toNumber(stats[fieldName]);
 
-        // A percentage with no base (total 0) stays blank; any other missing value is unknown.
-        if (value == null) return isPercentField ? "" : <UnknownStat />;
+        // A dependent stat with a 0 base total stays blank; any other missing value is unknown.
+        if (value == null) return isPercentField || isStatBaseZero(fieldName, stats) ? "" : <UnknownStat />;
         return isPercentField ? formatPercent(value) : formatStat(value);
     };
 

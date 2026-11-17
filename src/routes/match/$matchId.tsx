@@ -2,7 +2,7 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { matchOptions } from "@/lib/match-stats.queries";
 import { UnknownStat } from "@/components/unknown-stat";
-import { getUnavailableStatSet, isStatUnavailable } from "@/lib/match-unavailable-stats";
+import { getUnavailableStatSet, isStatBaseZero, isStatUnavailable } from "@/lib/match-unavailable-stats";
 import { bySetNumber, formatSetScore } from "@/lib/set-scores";
 import { useTranslation } from "react-i18next";
 import { useState, type ReactNode } from "react";
@@ -350,7 +350,7 @@ function MatchStatsPage() {
         if (isStatUnavailable(fieldName, unavailableStats)) return <UnknownStat />;
 
         if (value === 0 && !isPercentField) return <span className="zero-stat">0</span>;
-        if (value == null) return <UnknownStat />;
+        if (value == null) return isStatBaseZero(fieldName, stats) ? "" : <UnknownStat />;
         return formatField(fieldName, value);
     };
 

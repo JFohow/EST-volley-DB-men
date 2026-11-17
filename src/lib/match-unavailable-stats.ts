@@ -68,6 +68,25 @@ export function isStatUnavailable(field: string, unavailableStats: ReadonlySet<s
     return false;
 }
 
+const zeroBaseField: Partial<Record<string, string>> = {
+    serve_errors: "serve_total",
+    serve_aces: "serve_total",
+    reception_errors: "reception_total",
+    reception_positive_pct: "reception_total",
+    reception_excellent_pct: "reception_total",
+    attack_errors: "attack_total",
+    attack_blocked: "attack_total",
+    attack_kills: "attack_total",
+    attack_kill_pct: "attack_total",
+    attack_efficiency: "attack_total",
+};
+
+// A dependent stat is not applicable when its base total is 0 (e.g. no serves means no serve errors or aces).
+export function isStatBaseZero(field: string, stats: Record<string, unknown>): boolean {
+    const base = zeroBaseField[field];
+    return base !== undefined && stats[base] === 0;
+}
+
 const recordedStatFields = [
     "points",
     "block_points",
