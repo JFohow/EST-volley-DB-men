@@ -4,6 +4,7 @@ import { matchOptions } from "@/lib/match-stats.queries";
 import { UnknownStat } from "@/components/unknown-stat";
 import { getUnavailableStatSet, isStatBaseZero, isStatUnavailable } from "@/lib/match-unavailable-stats";
 import { bySetNumber, formatSetScore } from "@/lib/set-scores";
+import { getMatchSources, getStatsUrl } from "@/lib/match-sources";
 import { useTranslation } from "react-i18next";
 import { useState, type ReactNode } from "react";
 
@@ -55,10 +56,8 @@ function MatchStatsPage() {
         currentLanguage === "et" ? match.competition : (match.competition_en ?? match.competition);
     const city = match.city_en ?? match.city;
     const estoniaLabel = t("common.estonia");
-    const sourceUrl =
-        typeof match.source_row === "string" && match.source_row.trim()
-            ? match.source_row.trim()
-            : null;
+    const sourceUrl = getStatsUrl(match);
+    const matchSources = getMatchSources(match);
 
     const getCountryFlag = (country: string | null | undefined) => {
         const normalized = (country ?? "").trim().toLowerCase();
@@ -448,6 +447,24 @@ function MatchStatsPage() {
                                     <span className="inline-flex items-center text-slate-500">
                                         📊 {t("matches.sourceLink")}: N/A
                                     </span>
+                                )}
+                                {matchSources.length > 0 && (
+                                    <div className="mt-1 text-slate-600">
+                                        {t("matches.sourcesLabel")}{" "}
+                                        {matchSources.map((source, index) => (
+                                            <span key={source.number}>
+                                                {index > 0 && " "}
+                                                <a
+                                                    href={source.url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-estonia-blue hover:text-estonia-dark"
+                                                >
+                                                    [{source.number}]
+                                                </a>
+                                            </span>
+                                        ))}
+                                    </div>
                                 )}
                             </div>
 

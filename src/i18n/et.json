@@ -242,6 +242,7 @@
         "title": "Mängud",
         "subtitle": "Kõik Eesti meeste võrkpallikoondise teadaolevad kohtumised.",
         "sourceLink": "Viide statistikale",
+        "sourcesLabel": "Allikad:",
         "partialStatisticsNotice": "NB! Statistika on osaline!",
         "noStatistics": "Selle kohtumise statistikat pole leitud",
         "competitiveMatches": "Võistlusmängud",

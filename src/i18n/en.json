@@ -255,6 +255,7 @@
         "statistics": "Statistics",
         "additionalSetsInfo": "Matches with additional sets have two different statistics: one for the official part, the second for the full match.",
         "sourceLink": "Source for statistics",
+        "sourcesLabel": "Sources:",
         "partialStatisticsNotice": "NB! Partial Statistics!",
         "noStatistics": "No statistics found for this match",
         "statsMode": {
