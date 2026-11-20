@@ -505,6 +505,7 @@ function MatchStatsAllPage() {
                                                     ? `${player.players[0]?.first_name} ${player.players[0]?.last_name}`
                                                     : `${player.players?.first_name} ${player.players?.last_name}`}
                                             </Link>
+                                            {player.player_position_in_match === "LIB" ? " (L)" : ""}
                                         </td>
                                         {hasAnyPlayerStats ? (
                                             <>
