@@ -1,5 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { getAttackErrorsCombined } from "@/lib/attack-errors";
 import { getMatchStatsCoverage } from "@/lib/match-stats-coverage";
 import {
     getUnavailableStatSet,
@@ -60,6 +61,7 @@ type AppearanceRow = {
         attack_total: number | null;
         attack_errors: number | null;
         attack_blocked: number | null;
+        attack_errors_combined: number | null;
         attack_kills: number | null;
         attack_kill_pct: number | null;
         attack_efficiency: number | null;
@@ -85,6 +87,7 @@ type AppearanceRow = {
         attack_total: number | null;
         attack_errors: number | null;
         attack_blocked: number | null;
+        attack_errors_combined: number | null;
         attack_kills: number | null;
         attack_kill_pct: number | null;
         attack_efficiency: number | null;
@@ -190,6 +193,7 @@ async function fetchPlayers(): Promise<PlayerListItem[]> {
                     attack_total,
                     attack_errors,
                     attack_blocked,
+                    attack_errors_combined,
                     attack_kills,
                     attack_kill_pct,
                     attack_efficiency,
@@ -533,7 +537,6 @@ export async function fetchPlayer(playerId: number) {
     let attackKillPctKills = 0;
     let attackEfficiencyTotal = 0;
     let attackEfficiencyKills = 0;
-    let attackEfficiencyBlocked = 0;
     let attackEfficiencyErrors = 0;
 
     for (const { stats, unavailableStats } of rawStats) {
@@ -576,14 +579,14 @@ export async function fetchPlayer(playerId: number) {
             !unavailableStats.has("attack_blocked") &&
             !unavailableStats.has("attack_errors") &&
             typeof stats.attack_total === "number" &&
-            typeof stats.attack_kills === "number" &&
-            typeof stats.attack_blocked === "number" &&
-            typeof stats.attack_errors === "number"
+            typeof stats.attack_kills === "number"
         ) {
-            attackEfficiencyTotal += stats.attack_total;
-            attackEfficiencyKills += stats.attack_kills;
-            attackEfficiencyBlocked += stats.attack_blocked;
-            attackEfficiencyErrors += stats.attack_errors;
+            const errorsCombined = getAttackErrorsCombined(stats);
+            if (errorsCombined !== null) {
+                attackEfficiencyTotal += stats.attack_total;
+                attackEfficiencyKills += stats.attack_kills;
+                attackEfficiencyErrors += errorsCombined;
+            }
         }
     }
 
@@ -595,9 +598,7 @@ export async function fetchPlayer(playerId: number) {
         attackKillPctTotal > 0 ? (attackKillPctKills / attackKillPctTotal) * 100 : null;
     const derivedAttackEfficiency =
         attackEfficiencyTotal > 0
-            ? ((attackEfficiencyKills - attackEfficiencyBlocked - attackEfficiencyErrors) /
-                attackEfficiencyTotal) *
-            100
+            ? ((attackEfficiencyKills - attackEfficiencyErrors) / attackEfficiencyTotal) * 100
             : null;
 
     averages.reception_positive_pct = weightedReceptionPositivePct;

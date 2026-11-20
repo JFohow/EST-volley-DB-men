@@ -46,6 +46,7 @@
             "receptionExcellentPct": "Excellent %",
             "receptionEfficiencyPct": "Efficiency %",
             "attacksInMatch": "Attacks",
+            "attackErrorsInMatch": "Attack errors",
             "attackOutInMatch": "Attacks out of bounds",
             "attackBlockedInMatch": "Blocked attacks",
             "attackSuccessfulInMatch": "Kills",
@@ -71,6 +72,7 @@
             "receptionIdealPctBestInMatch": "Best ideal reception % in a match (minimum 10 receptions).",
             "receptionIdealPctWorstInMatch": "Worst ideal reception % in a match (minimum 10 receptions).",
             "attacksInMatch": "Most attacks in a match.",
+            "attackErrorsInMatch": "Most attack errors (out of bounds + blocked) in a match.",
             "attackOutInMatch": "Most attacks out of bounds in a match.",
             "attackBlockedInMatch": "Most blocked attacks in a match.",
             "attackSuccessfulInMatch": "Most successful attacks in a match.",
@@ -85,9 +87,9 @@
         "filters": {
             "matchType": "Match type",
             "position": "Position",
-            "official": "Official Matches",
-            "competitive": "Competitive Matches",
-            "nonCompetitive": "Non-competitive Matches",
+            "official": "Official",
+            "competitive": "Competitive",
+            "nonCompetitive": "Not official",
             "all": "All Matches",
             "selectMetric": "Select metric"
         },
@@ -318,14 +320,14 @@
         "totalMatchesWithStats": "total matches with stats",
         "statsFilter": {
             "year": "Year",
-            "allYears": "All years",
+            "allYears": "Select year",
             "competition": "Competition",
-            "allCompetitions": "All competitions",
+            "allCompetitions": "Select competition",
             "opponent": "Opponent",
-            "allOpponents": "All opponents",
-            "matches": "Select specific matches",
-            "players": "Select specific players",
-            "matchs": "Select specific matches"
+            "allOpponents": "Select opponent",
+            "matches": "Select match",
+            "players": "Select player",
+            "matchs": "Select match"
         },
         "statsField": {
             "stat": "Stat",
@@ -371,14 +373,18 @@
         "noMatches": "No matches found"
     },
     "statistics": {
+        "sortHint": "To sort by category, click on it.",
+        "positionAll": "ALL",
+        "perGameTitle": "Per Game Statistics",
         "filters": {
-            "official": "Official Matches",
-            "competitive": "Competitive Matches",
-            "nonCompetitive": "Non-competitive Matches",
+            "official": "Official",
+            "competitive": "Competitive",
+            "nonCompetitive": "Not official",
             "all": "All Matches"
         },
         "table": {
             "player": "Player",
+            "general": "General",
             "appearances": "Apps",
             "sets": "Sets",
             "setsStarted": "Sets started",

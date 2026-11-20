@@ -1,6 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import { getAttackErrorsCombined } from "@/lib/attack-errors";
 import { getUnavailableStatSet, type MatchUnavailableStatRow } from "@/lib/match-unavailable-stats";
 import { formatSetScore, isKnownSetScore } from "@/lib/set-scores";
 
@@ -30,6 +31,7 @@ export type GameHighRow = {
   receptionEfficiency: number | null;
   attackTotal: number | null;
   attackErrors: number | null;
+  attackErrorsCombined: number | null;
   attackBlocked: number | null;
   attackKills: number | null;
   attackKillPct: number | null;
@@ -84,6 +86,7 @@ type GameHighAppearanceRow = {
         reception_excellent_pct: number | null;
         attack_total: number | null;
         attack_errors: number | null;
+        attack_errors_combined: number | null;
         attack_blocked: number | null;
         attack_kills: number | null;
         attack_kill_pct: number | null;
@@ -110,6 +113,7 @@ type GameHighAppearanceRow = {
         reception_excellent_pct: number | null;
         attack_total: number | null;
         attack_errors: number | null;
+        attack_errors_combined: number | null;
         attack_blocked: number | null;
         attack_kills: number | null;
         attack_kill_pct: number | null;
@@ -180,16 +184,17 @@ function deriveAttackEfficiency(stats: {
   attack_kills: number | null;
   attack_blocked: number | null;
   attack_errors: number | null;
+  attack_errors_combined: number | null;
 }): number | null {
   if (stats.attack_total == null || stats.attack_total === 0) {
     return null;
   }
 
   const kills = stats.attack_kills ?? 0;
-  const blocked = stats.attack_blocked ?? 0;
-  const errors = stats.attack_errors ?? 0;
+  const errorsCombined =
+    getAttackErrorsCombined(stats) ?? (stats.attack_errors ?? 0) + (stats.attack_blocked ?? 0);
 
-  return ((kills - blocked - errors) / stats.attack_total) * 100;
+  return ((kills - errorsCombined) / stats.attack_total) * 100;
 }
 
 async function fetchGameHighs(): Promise<GameHighRow[]> {
@@ -212,7 +217,7 @@ async function fetchGameHighs(): Promise<GameHighRow[]> {
     const { data, error } = await supabase
       .from("appearances")
       .select(
-        `appearance_id, player_position_in_match, match_id, players(player_id, first_name, last_name, position), player_match_stats!inner(stats_version, points, plus_minus, break_points, serve_total, serve_aces, serve_errors, reception_total, reception_errors, reception_positive_pct, reception_excellent_pct, reception_positive, reception_excellent, reception_negative, reception_error_pct, reception_negative_pct, reception_efficiency, attack_total, attack_errors, attack_blocked, attack_kills, attack_kill_pct, attack_efficiency, block_points)`,
+        `appearance_id, player_position_in_match, match_id, players(player_id, first_name, last_name, position), player_match_stats!inner(stats_version, points, plus_minus, break_points, serve_total, serve_aces, serve_errors, reception_total, reception_errors, reception_positive_pct, reception_excellent_pct, reception_positive, reception_excellent, reception_negative, reception_error_pct, reception_negative_pct, reception_efficiency, attack_total, attack_errors, attack_errors_combined, attack_blocked, attack_kills, attack_kill_pct, attack_efficiency, block_points)`,
       )
       .gt("appearance_id", lastAppearanceId)
       .order("appearance_id", { ascending: true })
@@ -378,6 +383,10 @@ async function fetchGameHighs(): Promise<GameHighRow[]> {
         ),
         attackTotal: unavailableStats.has("attack_total") ? null : stats.attack_total,
         attackErrors: unavailableStats.has("attack_errors") ? null : stats.attack_errors,
+        attackErrorsCombined:
+          unavailableStats.has("attack_errors") || unavailableStats.has("attack_blocked")
+            ? null
+            : getAttackErrorsCombined(stats),
         attackBlocked: unavailableStats.has("attack_blocked") ? null : stats.attack_blocked,
         attackKills: unavailableStats.has("attack_kills") ? null : stats.attack_kills,
         attackKillPct:
@@ -429,6 +438,7 @@ export const TEAM_TOTAL_STAT_FIELDS = [
   "reception_excellent_pct",
   "attack_total",
   "attack_errors",
+  "attack_errors_combined",
   "attack_blocked",
   "attack_kills",
   "attack_kill_pct",

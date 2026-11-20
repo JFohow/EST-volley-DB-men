@@ -485,7 +485,7 @@ function StatisticsPage() {
                                         : "border-white/30 bg-white/10 text-white/90 hover:bg-white/20"
                                         }`}
                                 >
-                                    {position === "ALL" ? "ALL" : position}
+                                    {position === "ALL" ? t("statistics.positionAll") : position}
                                 </button>
                             ))}
                         </div>
@@ -527,7 +527,8 @@ function StatisticsPage() {
                     </div>
                 </div>
 
-                <div className="mt-2">
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    <div>
                     <label className="sr-only">{t("players.statsFilter.matches")}</label>
                     <MultiSelect
                         options={matchOptions.map((m) => ({ value: String(m.id), label: m.label }))}
@@ -537,9 +538,9 @@ function StatisticsPage() {
                         className="w-full"
                         maxDisplay={2}
                     />
-                </div>
+                    </div>
 
-                <div className="mt-2">
+                    <div>
                     <label className="sr-only">{t("players.statsFilter.players")}</label>
                     <MultiSelect
                         options={playerOptions}
@@ -549,17 +550,19 @@ function StatisticsPage() {
                         className="w-full"
                         maxDisplay={2}
                     />
+                    </div>
                 </div>
             </div>
 
             <h2 className="mb-4 text-center font-display text-2xl uppercase italic text-estonia-dark">
                 {displayMode === "total"
                     ? (currentLanguage === "et" ? "Total Statistics" : "Total Statistics")
-                    : (currentLanguage === "et" ? "Per Game Statistics" : "Per Game Statistics")}
+                    : t("statistics.perGameTitle")}
             </h2>
+            <p className="-mt-2 mb-4 text-center text-sm italic text-slate-500">{t("statistics.sortHint")}</p>
 
             <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-                <table className="w-full min-w-[1200px] border-collapse">
+                <table className="w-full border-collapse">
                     <thead className="bg-slate-50">
                         <tr className="border-b-2 border-slate-300">
                             <th rowSpan={2} className="sticky left-0 z-10 border-r-2 border-slate-300 bg-slate-50 px-4 py-3 text-left text-[10px] font-bold uppercase tracking-[0.2em] text-slate-600">
@@ -568,8 +571,7 @@ function StatisticsPage() {
                                     onClick={() => handleSort("name")}
                                     className="inline-flex items-center gap-2"
                                 >
-                                    {t("statistics.table.player")}
-                                    <span>{sortField === "name" ? (sortDirection === "asc" ? "↑" : "↓") : "⇅"}</span>
+                                    {sortField === "name" && sortDirection === "desc" ? "Z-A" : "A-Z"}
                                 </button>
                             </th>
 
@@ -577,10 +579,10 @@ function StatisticsPage() {
                                 <button
                                     type="button"
                                     onClick={() => handleSort("appearances")}
-                                    className="inline-flex items-center gap-1"
+                                    className="inline-flex w-[4.5rem] items-center justify-center gap-1"
                                 >
                                     {t("statistics.table.appearances")}
-                                    <span>{sortField === "appearances" ? (sortDirection === "asc" ? "↑" : "↓") : "⇅"}</span>
+                                    {sortField === "appearances" && <span>{sortDirection === "asc" ? "↑" : "↓"}</span>}
                                 </button>
                             </th>
 
@@ -588,10 +590,10 @@ function StatisticsPage() {
                                 <button
                                     type="button"
                                     onClick={() => handleSort("sets")}
-                                    className="inline-flex items-center gap-1"
+                                    className="inline-flex w-[4.5rem] items-center justify-center gap-1"
                                 >
                                     {t("statistics.table.sets")}
-                                    <span>{sortField === "sets" ? (sortDirection === "asc" ? "↑" : "↓") : "⇅"}</span>
+                                    {sortField === "sets" && <span>{sortDirection === "asc" ? "↑" : "↓"}</span>}
                                 </button>
                             </th>
 
@@ -599,14 +601,16 @@ function StatisticsPage() {
                                 <button
                                     type="button"
                                     onClick={() => handleSort("setsStarted")}
-                                    className="inline-flex items-center gap-1"
+                                    className="inline-flex w-[4.5rem] items-center justify-center gap-1"
                                 >
-                                    {t("statistics.table.setsStarted")}
-                                    <span>{sortField === "setsStarted" ? (sortDirection === "asc" ? "↑" : "↓") : "⇅"}</span>
+                                    <span className="text-center leading-tight">{t("statistics.table.setsStarted")}</span>
+                                    {sortField === "setsStarted" && <span>{sortDirection === "asc" ? "↑" : "↓"}</span>}
                                 </button>
                             </th>
 
-                            <th colSpan={3} className="border-r-2 border-slate-300 px-2 py-3 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500"></th>
+                            <th colSpan={3} className="border-r-2 border-slate-300 px-2 py-3 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
+                                {t("statistics.table.general")}
+                            </th>
 
                             <th colSpan={3} className="border-r-2 border-slate-300 px-2 py-3 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
                                 {t("statistics.table.serve")}
@@ -630,7 +634,7 @@ function StatisticsPage() {
                             {columns.map((column) => (
                                 <th
                                     key={`${column.field}-${column.label}`}
-                                    className={`whitespace-nowrap px-2 py-3 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-slate-600 ${column.field === "plus_minus" || column.field === "serve_aces" || column.field === "reception_excellent_pct" || column.field === "attack_efficiency"
+                                    className={`px-1 py-3 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-slate-600 ${column.field === "plus_minus" || column.field === "serve_aces" || column.field === "reception_excellent_pct" || column.field === "attack_efficiency"
                                         ? "border-r-2 border-slate-300"
                                         : "border-r border-slate-200"
                                         }`}
@@ -641,7 +645,7 @@ function StatisticsPage() {
                                         className="inline-flex items-center gap-1 whitespace-nowrap"
                                     >
                                         {column.label}
-                                        <span>{sortField === column.field ? (sortDirection === "asc" ? "↑" : "↓") : "⇅"}</span>
+                                        {sortField === column.field && <span>{sortDirection === "asc" ? "↑" : "↓"}</span>}
                                     </button>
                                 </th>
                             ))}

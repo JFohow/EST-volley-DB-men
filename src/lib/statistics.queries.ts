@@ -1,6 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { MatchUnavailableStatRow } from "@/lib/match-unavailable-stats";
+import { getAttackErrorsCombined } from "@/lib/attack-errors";
 
 export const statisticsFields = [
     "points",
@@ -49,7 +50,6 @@ export type StatisticsGroup = {
     attackKillPctKills: number;
     attackEfficiencyTotal: number;
     attackEfficiencyKills: number;
-    attackEfficiencyBlocked: number;
     attackEfficiencyErrors: number;
 };
 
@@ -141,7 +141,6 @@ export function createGroup(): StatisticsGroup {
         attackKillPctKills: 0,
         attackEfficiencyTotal: 0,
         attackEfficiencyKills: 0,
-        attackEfficiencyBlocked: 0,
         attackEfficiencyErrors: 0,
     };
 }
@@ -199,14 +198,13 @@ export function addStats(
         !unavailableStats.has("attack_blocked") &&
         !unavailableStats.has("attack_errors") &&
         typeof stats.attack_total === "number" &&
-        typeof stats.attack_kills === "number" &&
-        typeof stats.attack_blocked === "number" &&
-        typeof stats.attack_errors === "number"
+        typeof stats.attack_kills === "number"
     ) {
+        const errorsCombined = getAttackErrorsCombined(stats);
+        if (errorsCombined === null) return;
         group.attackEfficiencyTotal += stats.attack_total;
         group.attackEfficiencyKills += stats.attack_kills;
-        group.attackEfficiencyBlocked += stats.attack_blocked;
-        group.attackEfficiencyErrors += stats.attack_errors;
+        group.attackEfficiencyErrors += errorsCombined;
     }
 }
 
@@ -224,7 +222,7 @@ function deriveAttackEfficiency(group: StatisticsGroup): number {
     const attackTotal = group.attackEfficiencyTotal;
     if (!attackTotal) return 0;
     return (
-        ((group.attackEfficiencyKills - group.attackEfficiencyBlocked - group.attackEfficiencyErrors) /
+        ((group.attackEfficiencyKills - group.attackEfficiencyErrors) /
             attackTotal) *
         100
     );
@@ -250,7 +248,7 @@ async function fetchStatisticsData(): Promise<StatisticsDataset> {
         const { data, error } = await supabase
             .from("appearances")
             .select(
-                `appearance_id, player_id, sets_played_all, sets_started_all, matches(match_id, match_date, opponent, opponent_en, competition, competition_en, estonia_sets, opponent_sets, vm, am, mam, match_unavailable_stats(points_unavailable, block_points_unavailable, plus_minus_unavailable, break_points_unavailable, serve_total_unavailable, serve_aces_unavailable, serve_errors_unavailable, reception_total_unavailable, reception_errors_unavailable, reception_positive_pct_unavailable, reception_excellent_pct_unavailable, attack_total_unavailable, attack_errors_unavailable, attack_blocked_unavailable, attack_kills_unavailable)), player_match_stats(points, block_points, plus_minus, serve_total, serve_aces, serve_errors, reception_total, reception_errors, reception_positive_pct, reception_excellent_pct, attack_total, attack_errors, attack_blocked, attack_kills, attack_kill_pct, attack_efficiency, break_points, stats_version, set1_position, set2_position, set3_position, set4_position, set5_position, set6_position)`,
+                `appearance_id, player_id, sets_played_all, sets_started_all, matches(match_id, match_date, opponent, opponent_en, competition, competition_en, estonia_sets, opponent_sets, vm, am, mam, match_unavailable_stats(points_unavailable, block_points_unavailable, plus_minus_unavailable, break_points_unavailable, serve_total_unavailable, serve_aces_unavailable, serve_errors_unavailable, reception_total_unavailable, reception_errors_unavailable, reception_positive_pct_unavailable, reception_excellent_pct_unavailable, attack_total_unavailable, attack_errors_unavailable, attack_blocked_unavailable, attack_kills_unavailable)), player_match_stats(points, block_points, plus_minus, serve_total, serve_aces, serve_errors, reception_total, reception_errors, reception_positive_pct, reception_excellent_pct, attack_total, attack_errors, attack_blocked, attack_errors_combined, attack_kills, attack_kill_pct, attack_efficiency, break_points, stats_version, set1_position, set2_position, set3_position, set4_position, set5_position, set6_position)`,
             )
             .gt("appearance_id", lastAppearanceId)
             .order("appearance_id", { ascending: true })

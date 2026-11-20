@@ -2,6 +2,7 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { matchOptions } from "@/lib/match-stats.queries";
 import { UnknownStat } from "@/components/unknown-stat";
+import { getAttackErrorsCombined, hasCombinedAttackErrors } from "@/lib/attack-errors";
 import { getUnavailableStatSet, isStatBaseZero, isStatUnavailable } from "@/lib/match-unavailable-stats";
 import { bySetNumber, formatSetScore } from "@/lib/set-scores";
 import { getMatchSources, getStatsUrl } from "@/lib/match-sources";
@@ -159,10 +160,9 @@ function MatchStatsPage() {
         if (attackTotRaw == null || attackTot === 0) return null;
 
         const attackExc = safeInt(stats.attack_kills);
-        const attackBlk = safeInt(stats.attack_blocked);
-        const attackErr = safeInt(stats.attack_errors);
+        const attackErrCombined = getAttackErrorsCombined(stats) ?? safeInt(stats.attack_errors) + safeInt(stats.attack_blocked);
 
-        return ((attackExc - attackBlk - attackErr) / attackTot) * 100;
+        return ((attackExc - attackErrCombined) / attackTot) * 100;
     };
 
     const computeAttackKillPct = (stats: any) => {
@@ -223,14 +223,28 @@ function MatchStatsPage() {
         { field: "reception_excellent_pct", label: "Exc%" },
     ];
 
-    const attackColumns = [
-        { field: "attack_total", label: "Tot" },
-        { field: "attack_errors", label: "Err" },
-        { field: "attack_blocked", label: "Blk" },
-        { field: "attack_kills", label: "Exc." },
-        { field: "attack_kill_pct", label: "Exc.%" },
-        { field: "attack_efficiency", label: "Eff%" },
-    ];
+    // Older matches publish only total attack errors (out-of-bounds + blocked), shown as one "Errors" column.
+    const attackErrorsCombinedMatch =
+        (hasTeamTotalRow && teamTotals.attack_errors_combined != null && teamTotals.attack_blocked == null) ||
+        hasCombinedAttackErrors(players.flatMap((p: any) => p.player_match_stats ?? []));
+
+    // "Errors" spans the width of the Err and Blk columns it replaces.
+    const attackColumns: { field: string; label: string; span?: number }[] = attackErrorsCombinedMatch
+        ? [
+            { field: "attack_total", label: "Tot" },
+            { field: "attack_errors_combined", label: "Errors", span: 2 },
+            { field: "attack_kills", label: "Exc." },
+            { field: "attack_kill_pct", label: "Exc.%" },
+            { field: "attack_efficiency", label: "Eff%" },
+        ]
+        : [
+            { field: "attack_total", label: "Tot" },
+            { field: "attack_errors", label: "Err" },
+            { field: "attack_blocked", label: "Blk" },
+            { field: "attack_kills", label: "Exc." },
+            { field: "attack_kill_pct", label: "Exc.%" },
+            { field: "attack_efficiency", label: "Eff%" },
+        ];
 
     const blockColumns = [{ field: "block_points", label: "PTS" }];
 
@@ -239,8 +253,9 @@ function MatchStatsPage() {
     const matchHasSetPositions = players.some((p: any) =>
         (p.player_match_stats ?? []).some((r: any) => [1, 2, 3, 4, 5, 6].some((set) => getSetPosition(r, set) !== "")),
     );
+    const attackCellCount = attackColumns.reduce((count, col) => count + (col.span ?? 1), 0);
     const statFieldCount =
-        setColumns.length + statColumns.length + serveColumns.length + receptionColumns.length + attackColumns.length + blockColumns.length;
+        setColumns.length + statColumns.length + serveColumns.length + receptionColumns.length + attackCellCount + blockColumns.length;
 
     // With no player stats and no team totals row, the note also covers the totals row.
     const totalsUnderNote = !hasAnyPlayerStats && !hasTeamTotalRow;
@@ -248,7 +263,7 @@ function MatchStatsPage() {
 
     // Number, name and set columns take their content width; the rest share the remaining width equally.
     const flexibleColumnCount =
-        statColumns.length + serveColumns.length + receptionColumns.length + attackColumns.length + blockColumns.length;
+        statColumns.length + serveColumns.length + receptionColumns.length + attackCellCount + blockColumns.length;
 
     // Use one row per player, the same row the table displays for the active mode.
     const getPlayerStats = (player: any) => {
@@ -329,6 +344,7 @@ function MatchStatsPage() {
         ...LIBERO_NEVER_FIELDS,
         "attack_total",
         "attack_errors",
+        "attack_errors_combined",
         "attack_blocked",
         "attack_kills",
         "attack_kill_pct",
@@ -360,7 +376,9 @@ function MatchStatsPage() {
     };
 
     // Team attack efficiency comes from player sums, so it shows "?" if any player's attack input shows "?".
-    const ATTACK_INPUT_FIELDS = ["attack_total", "attack_errors", "attack_blocked", "attack_kills"];
+    const ATTACK_INPUT_FIELDS = attackErrorsCombinedMatch
+        ? ["attack_total", "attack_errors_combined", "attack_kills"]
+        : ["attack_total", "attack_errors", "attack_blocked", "attack_kills"];
     const hasUnknownPlayerAttack = players.some((player) => {
         const stats = getPlayerStats(player);
         if (!stats) return true;
@@ -375,9 +393,10 @@ function MatchStatsPage() {
         // Team attack efficiency is summed from players only when every player's attack input is known.
         if (fieldName === "attack_efficiency" && !hasUnknownPlayerAttack && !isStatUnavailable(fieldName, unavailableStats)) {
             if (!totals.attack_total) return "";
-            return formatPercent(
-                ((totals.attack_kills - totals.attack_blocked - totals.attack_errors) / totals.attack_total) * 100,
-            );
+            const errorsCombined = attackErrorsCombinedMatch
+                ? totals.attack_errors_combined
+                : (totals.attack_errors ?? 0) + (totals.attack_blocked ?? 0);
+            return formatPercent(((totals.attack_kills - errorsCombined) / totals.attack_total) * 100);
         }
 
         // A team totals row is authoritative: a null there means unavailable, never a player sum.
@@ -656,6 +675,7 @@ function MatchStatsPage() {
                                 {attackColumns.map((col) => (
                                     <th
                                         key={col.field}
+                                        colSpan={col.span}
                                         className={`px-2 py-1 text-center text-[10px] font-semibold text-slate-600 border-r-2 border-slate-300`}
                                     >
                                         {col.label}
@@ -758,6 +778,7 @@ function MatchStatsPage() {
                                         {attackColumns.map((col) => (
                                             <td
                                                 key={col.field}
+                                                colSpan={col.span}
                                                 className={`px-2 py-3 text-center text-sm text-slate-700 ${col === attackColumns[attackColumns.length - 1] ? "border-r-2 border-slate-300" : "border-r border-slate-200"}`}
                                             >
                                                 {stats ? renderPlayerStat(col.field, stats) : <UnknownStat />}
@@ -840,6 +861,7 @@ function MatchStatsPage() {
                                 {attackColumns.map((col) => (
                                     <td
                                         key={`total-${col.field}`}
+                                        colSpan={col.span}
                                         className={`px-2 py-3 text-center text-sm text-slate-900 ${col === attackColumns[attackColumns.length - 1] ? "border-r-2 border-slate-300" : "border-r border-slate-200"}`}
                                     >
                                         {getStatValue(col.field)}

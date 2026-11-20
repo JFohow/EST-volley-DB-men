@@ -317,6 +317,7 @@ export type Database = {
           attack_blocked: number | null
           attack_efficiency: number | null
           attack_errors: number | null
+          attack_errors_combined: number | null
           attack_kill_pct: number | null
           attack_kills: number | null
           attack_total: number | null

@@ -41,6 +41,7 @@ export type PlayerMatchStats = {
         attack_total: number | null;
         attack_errors: number | null;
         attack_blocked: number | null;
+        attack_errors_combined: number | null;
         attack_efficiency: number | null;
         attack_kills: number | null;
         attack_kill_pct: number | null;
@@ -78,6 +79,7 @@ const MATCH_TEAM_TOTAL_COLUMNS = [
     "attack_total",
     "attack_errors",
     "attack_blocked",
+    "attack_errors_combined",
     "attack_kills",
     "attack_kill_pct",
     "attack_efficiency",
@@ -135,6 +137,7 @@ export function matchOptions(matchId: number) {
                         attack_total,
                         attack_errors,
                         attack_blocked,
+                        attack_errors_combined,
                         attack_efficiency,
                         attack_kills,
                         attack_kill_pct,

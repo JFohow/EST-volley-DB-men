@@ -2,6 +2,7 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import MultiSelect from "@/components/ui/multi-select";
+import { getAttackErrorsCombined } from "@/lib/attack-errors";
 import { fetchPlayer } from "@/lib/players.queries";
 import { getUnavailableStatSet, type MatchUnavailableStatRow } from "@/lib/match-unavailable-stats";
 import { useTranslation } from "react-i18next";
@@ -391,7 +392,6 @@ function PlayerPage() {
         let attackKillPctKills = 0;
         let attackEfficiencyTotal = 0;
         let attackEfficiencyKills = 0;
-        let attackEfficiencyBlocked = 0;
         let attackEfficiencyErrors = 0;
 
         statColumns.forEach((column) => {
@@ -451,14 +451,14 @@ function PlayerPage() {
                 !unavailableStats.has("attack_blocked") &&
                 !unavailableStats.has("attack_errors") &&
                 typeof stats.attack_total === "number" &&
-                typeof stats.attack_kills === "number" &&
-                typeof stats.attack_blocked === "number" &&
-                typeof stats.attack_errors === "number"
+                typeof stats.attack_kills === "number"
             ) {
-                attackEfficiencyTotal += stats.attack_total;
-                attackEfficiencyKills += stats.attack_kills;
-                attackEfficiencyBlocked += stats.attack_blocked;
-                attackEfficiencyErrors += stats.attack_errors;
+                const errorsCombined = getAttackErrorsCombined(stats);
+                if (errorsCombined !== null) {
+                    attackEfficiencyTotal += stats.attack_total;
+                    attackEfficiencyKills += stats.attack_kills;
+                    attackEfficiencyErrors += errorsCombined;
+                }
             }
         });
 
@@ -473,9 +473,7 @@ function PlayerPage() {
             attackKillPctTotal > 0 ? (attackKillPctKills / attackKillPctTotal) * 100 : null;
         averages["attack_efficiency"] =
             attackEfficiencyTotal > 0
-                ? ((attackEfficiencyKills - attackEfficiencyBlocked - attackEfficiencyErrors) /
-                    attackEfficiencyTotal) *
-                100
+                ? ((attackEfficiencyKills - attackEfficiencyErrors) / attackEfficiencyTotal) * 100
                 : null;
 
         const weightedReceptionPositivePct =

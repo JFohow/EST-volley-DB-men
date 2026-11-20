@@ -46,6 +46,7 @@
             "receptionExcellentPct": "Ideaalne %",
             "receptionEfficiencyPct": "Efektiivsus %",
             "attacksInMatch": "Rünnakuid mängus",
+            "attackErrorsInMatch": "Rünnakuvigu mängus",
             "attackOutInMatch": "Rünnakuid auti mängus",
             "attackBlockedInMatch": "Rünnakuid blokki mängus",
             "attackSuccessfulInMatch": "Resultatiivseid rünnakuid mängus",
@@ -71,6 +72,7 @@
             "receptionIdealPctBestInMatch": "Parim ideaalse vastuvõtu % mängus (vähemalt 10 vastuvõttu).",
             "receptionIdealPctWorstInMatch": "Halvim ideaalse vastuvõtu % mängus (vähemalt 10 vastuvõttu).",
             "attacksInMatch": "Suurim rünnakute arv mängus.",
+            "attackErrorsInMatch": "Suurim rünnakuvigade arv mängus (auti + blokki).",
             "attackOutInMatch": "Suurim auti läinud rünnakute arv mängus.",
             "attackBlockedInMatch": "Suurim blokki löödud rünnakute arv mängus.",
             "attackSuccessfulInMatch": "Suurim resultatiivsete rünnakute arv mängus.",
@@ -85,9 +87,9 @@
         "filters": {
             "matchType": "Mängu tüüp",
             "position": "Positsioon",
-            "official": "Ametlikud mängud",
+            "official": "Ametlikud",
             "competitive": "Võistlusmängud",
-            "nonCompetitive": "Mittevõistlusmängud",
+            "nonCompetitive": "Mitteametlikud",
             "all": "Kõik mängud",
             "selectMetric": "Vali mõõdik"
         },
@@ -318,14 +320,14 @@
         "totalMatchesWithStats": "kokku statistikaandmetega mänge",
         "statsFilter": {
             "year": "Aasta",
-            "allYears": "Kõik aastad",
+            "allYears": "Vali aasta",
             "competition": "Võistlus",
-            "allCompetitions": "Kõik võistlused",
+            "allCompetitions": "Vali võistlus",
             "opponent": "Vastane",
-            "allOpponents": "Kõik vastased",
-            "matches": "Vali soovitud mänge",
-            "players": "Vali soovitud mängijaid",
-            "matchs": "Vali soovitud mänge"
+            "allOpponents": "Vali vastane",
+            "matches": "Vali mäng",
+            "players": "Vali mängija",
+            "matchs": "Vali mäng"
         },
         "statsField": {
             "stat": "Stat",
@@ -371,14 +373,18 @@
         "noMatches": "Mänge ei leitud"
     },
     "statistics": {
+        "sortHint": "Sorteerimiseks vajuta soovitud kategooriale.",
+        "positionAll": "KÕIK",
+        "perGameTitle": "Statistika mängu kohta",
         "filters": {
-            "official": "Ametlikud mängud",
-            "competitive": "Võistlusmängud",
-            "nonCompetitive": "Mittevõistlusmängud",
+            "official": "Ametlik",
+            "competitive": "võistlusmäng",
+            "nonCompetitive": "mitteametlik",
             "all": "Kõik mängud"
         },
         "table": {
             "player": "Mängija",
+            "general": "Üldine",
             "appearances": "Mänge",
             "sets": "Geime",
             "setsStarted": "Alustatud geime",

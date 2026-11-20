@@ -48,6 +48,7 @@ type GameHighCategory =
   | "receptionExcellentPct"
   | "receptionEfficiencyPct"
   | "attackTotal"
+  | "attackErrorsCombined"
   | "attackErrors"
   | "attackBlocked"
   | "attackKills"
@@ -103,6 +104,7 @@ const categoryRules: Record<GameHighCategory, CategoryRule> = {
   receptionExcellentPct: { ...RECEPTION_MIN_ATTEMPTS, isPercent: true, sortDirection: "desc" },
   receptionEfficiencyPct: { ...RECEPTION_MIN_ATTEMPTS, isPercent: true, sortDirection: "desc" },
   attackTotal: { ...ATTACK_MIN_ATTEMPTS, sortDirection: "desc" },
+  attackErrorsCombined: { ...ATTACK_MIN_ATTEMPTS, sortDirection: "desc" },
   attackErrors: { ...ATTACK_MIN_ATTEMPTS, sortDirection: "desc" },
   attackBlocked: { ...ATTACK_MIN_ATTEMPTS, sortDirection: "desc" },
   attackKills: { ...ATTACK_MIN_ATTEMPTS, sortDirection: "desc" },
@@ -129,6 +131,7 @@ type AttackContextKey =
   | "attackTotal"
   | "attackKills"
   | "attackErrors"
+  | "attackErrorsCombined"
   | "attackBlocked"
   | "attackKillPct"
   | "attackEfficiency";
@@ -326,18 +329,44 @@ const ATTACK_COLUMN_ORDER: AttackContextKey[] = [
   "attackEfficiency",
 ];
 
+const ATTACK_COMBINED_ERRORS_COLUMN_ORDER: AttackContextKey[] = [
+  "attackTotal",
+  "attackErrorsCombined",
+  "attackErrors",
+  "attackBlocked",
+  "attackKills",
+  "attackKillPct",
+  "attackEfficiency",
+];
+
 function isAttackMetric(metric: string): boolean {
   return metric.startsWith("attack");
 }
 
 function getAttackContextKeys(metric: string): AttackContextKey[] {
+  if (metric === "attackErrorsCombined") return ATTACK_COMBINED_ERRORS_COLUMN_ORDER;
   return isAttackMetric(metric) ? ATTACK_COLUMN_ORDER : [];
+}
+
+function isMergedAttackRow(
+  metric: string,
+  item: { attackErrors?: number | null; attackBlocked?: number | null; attackErrorsCombined?: number | null },
+): boolean {
+  return (
+    metric !== "attackErrorsCombined" &&
+    isAttackMetric(metric) &&
+    item.attackErrors == null &&
+    item.attackBlocked == null &&
+    item.attackErrorsCombined != null
+  );
 }
 
 function isAttackContextHighlighted(metric: string, key: AttackContextKey): boolean {
   switch (metric) {
     case "attackTotal":
       return key === "attackTotal";
+    case "attackErrorsCombined":
+      return key === "attackErrorsCombined";
     case "attackErrors":
       return key === "attackErrors";
     case "attackBlocked":
@@ -361,6 +390,7 @@ const attackContextLabels: Record<AttackContextKey, string> = {
   attackTotal: "A TOT",
   attackKills: "A KIL",
   attackErrors: "A ERR",
+  attackErrorsCombined: "ERRORS",
   attackBlocked: "A BLK",
   attackKillPct: "ATT%",
   attackEfficiency: "A EFF%",
@@ -454,6 +484,7 @@ const GAME_HIGH_BLOCK_BY_KEY: Record<string, GameHighBlock> = {
   receptionEfficiencyPct: "reception",
   receptionEfficiency: "reception",
   attackTotal: "attacks",
+    attackErrorsCombined: "attacks",
   attackErrors: "attacks",
   attackBlocked: "attacks",
   attackKills: "attacks",
@@ -567,6 +598,7 @@ function GameHighsPage() {
   const { view } = Route.useSearch();
   const viewMode = view === "team" ? "TEAM" : "PLAYERS";
   const [selectedPosition, setSelectedPosition] = useState<string>("ALL");
+  const isSetFilter = selectedPosition === "SET";
   const [matchType, setMatchType] = useState<"ALL" | "OFFICIAL" | "COMPETITIVE" | "NON_OFFICIAL">(
     "OFFICIAL",
   );
@@ -819,6 +851,7 @@ function GameHighsPage() {
       receptionExcellentPct: t("gameHighs.categories.receptionExcellentPct"),
       receptionEfficiencyPct: t("gameHighs.categories.receptionEfficiencyPct"),
       attackTotal: t("gameHighs.categories.attacksInMatch"),
+      attackErrorsCombined: t("gameHighs.categories.attackErrorsInMatch"),
       attackErrors: t("gameHighs.categories.attackOutInMatch"),
       attackBlocked: t("gameHighs.categories.attackBlockedInMatch"),
       attackKills: t("gameHighs.categories.attackSuccessfulInMatch"),
@@ -860,6 +893,7 @@ function GameHighsPage() {
         "receptionExcellentPct",
         "receptionEfficiencyPct",
         "attackTotal",
+        "attackErrorsCombined",
         "attackErrors",
         "attackBlocked",
         "attackKills",
@@ -900,6 +934,7 @@ function GameHighsPage() {
       receptionExcellentPct: categoryLabel.receptionExcellentPct,
       receptionEfficiencyPct: categoryLabel.receptionEfficiencyPct,
       attackTotal: categoryLabel.attackTotal,
+      attackErrorsCombined: categoryLabel.attackErrorsCombined,
       attackErrors: categoryLabel.attackErrors,
       attackBlocked: isEstonian ? "Rünnakud blokki" : "Attacks Blocked",
       attackKills: categoryLabel.attackKills,
@@ -983,6 +1018,9 @@ function GameHighsPage() {
       attackEfficiencyWorst: isEstonian
         ? "Võrdse rünnakuefektiivsuse korral eelistatakse suuremat rünnakute koguarvu (A TOT)."
         : "For equal attack efficiency, more total attacks (A TOT) rank higher.",
+      attackErrorsCombined: isEstonian
+        ? "Võrdse rünnakuvigade arvu korral eelistatakse väiksemat rünnakute koguarvu (A TOT)."
+        : "For equal attack errors, fewer total attacks (A TOT) rank higher.",
       attackErrors: isEstonian
         ? "Võrdse rünnakuvigade arvu korral eelistatakse väiksemat rünnakute koguarvu (A TOT)."
         : "For equal out-of-bounds attacks, fewer total attacks (A TOT) rank higher.",
@@ -1023,6 +1061,7 @@ function GameHighsPage() {
       receptionExcellentLeast: [{ field: "receptionTotal", direction: "asc" }],
       receptionExcellentPct: [{ field: "receptionTotal", direction: "desc" }],
       receptionEfficiencyPct: [{ field: "receptionTotal", direction: "desc" }],
+      attackErrorsCombined: [{ field: "attackTotal", direction: "asc" }],
       attackErrors: [{ field: "attackTotal", direction: "asc" }],
       attackBlocked: [{ field: "attackTotal", direction: "asc" }],
       attackKills: [{ field: "attackTotal", direction: "asc" }],
@@ -1061,7 +1100,10 @@ function GameHighsPage() {
           }
 
           const rule = categoryRules[metric];
-          if (rule.minAttemptsField && rule.minAttempts) {
+          const skipMinAttempts =
+            isSetFilter &&
+            (rule.minAttemptsField === "receptionTotal" || rule.minAttemptsField === "attackTotal");
+          if (rule.minAttemptsField && rule.minAttempts && !skipMinAttempts) {
             const attempts = row[rule.minAttemptsField] ?? 0;
             if (attempts < rule.minAttempts) {
               return false;
@@ -1128,6 +1170,7 @@ function GameHighsPage() {
             row.receptionExcellentPct,
           ),
           attackTotal: row.attackTotal,
+          attackErrorsCombined: row.attackErrorsCombined,
           attackErrors: row.attackErrors,
           attackBlocked: row.attackBlocked,
           attackKills: row.attackKills,
@@ -1159,6 +1202,7 @@ function GameHighsPage() {
   }, [
     playerMetrics,
     playerFilteredRows,
+    isSetFilter,
     categoryLabel,
     isEstonian,
     t,
@@ -1193,6 +1237,7 @@ function GameHighsPage() {
     receptionExcellentPct: "bg-sky-50/60",
     receptionEfficiencyPct: "bg-sky-50/60",
     attackTotal: "bg-rose-50/60",
+    attackErrorsCombined: "bg-rose-50/60",
     attackErrors: "bg-rose-50/60",
     attackBlocked: "bg-rose-50/60",
     attackKills: "bg-rose-50/60",
@@ -1265,6 +1310,7 @@ function GameHighsPage() {
       receptionExcellentCount: number;
       attackTotal: number;
       attackErrors: number;
+      attackErrorsCombined: number;
       attackBlocked: number;
       attackKills: number;
       blockPoints: number;
@@ -1302,6 +1348,7 @@ function GameHighsPage() {
         receptionExcellentCount: 0,
         attackTotal: 0,
         attackErrors: 0,
+        attackErrorsCombined: 0,
         attackBlocked: 0,
         attackKills: 0,
         blockPoints: 0,
@@ -1321,6 +1368,7 @@ function GameHighsPage() {
       current.receptionErrors += row.receptionErrors ?? 0;
       current.attackTotal += row.attackTotal ?? 0;
       current.attackErrors += row.attackErrors ?? 0;
+      current.attackErrorsCombined += row.attackErrorsCombined ?? 0;
       current.attackBlocked += row.attackBlocked ?? 0;
       current.attackKills += row.attackKills ?? 0;
       current.blockPoints += row.blockPoints ?? 0;
@@ -1378,6 +1426,7 @@ function GameHighsPage() {
       const receptionErrors = value("reception_errors", match.receptionErrors);
       const attackTotal = value("attack_total", match.attackTotal);
       const attackErrors = value("attack_errors", match.attackErrors);
+      const attackErrorsCombined = value("attack_errors_combined", match.attackErrorsCombined);
       const attackBlocked = value("attack_blocked", match.attackBlocked);
       const attackKills = value("attack_kills", match.attackKills);
       const blockPoints = value("block_points", match.blockPoints);
@@ -1417,8 +1466,9 @@ function GameHighsPage() {
         attackKills != null &&
         attackBlocked != null &&
         attackErrors != null &&
+        attackErrorsCombined != null &&
         attackTotal > 0
-          ? ((attackKills - attackBlocked - attackErrors) / attackTotal) * 100
+          ? ((attackKills - attackErrorsCombined) / attackTotal) * 100
           : null;
 
       const serveAcePct =
@@ -1454,6 +1504,7 @@ function GameHighsPage() {
         receptionErrors,
         attackTotal,
         attackErrors,
+        attackErrorsCombined,
         attackBlocked,
         attackKills,
         blockPoints,
@@ -1621,6 +1672,11 @@ function GameHighsPage() {
         direction: "desc" as const,
       },
       {
+        key: "attackErrorsCombined",
+        label: isEstonian ? "Rünnakuvead" : "Attack Errors",
+        direction: "desc" as const,
+      },
+      {
         key: "attackErrors",
         label: isEstonian ? "Rünnakud auti" : "Attacks Out of Bounds",
         direction: "desc" as const,
@@ -1727,6 +1783,7 @@ function GameHighsPage() {
             receptionTotal: "reception_total",
             receptionErrors: "reception_errors",
             attackTotal: "attack_total",
+            attackErrorsCombined: "attack_errors",
             attackErrors: "attack_errors",
             attackBlocked: "attack_blocked",
             attackKills: "attack_kills",
@@ -1760,6 +1817,7 @@ function GameHighsPage() {
           }
 
           if (
+            metric.key === "attackErrorsCombined" ||
             metric.key === "attackErrors" ||
             metric.key === "attackBlocked" ||
             metric.key === "attackKills"
@@ -1804,7 +1862,7 @@ function GameHighsPage() {
             previousTeamMatch?.receptionTotal === match.receptionTotal;
         } else if (
           metric.key === "attackKillPct" ||
-          metric.key === "attackEfficiency" ||
+          metric.key === "attackErrorsCombined" ||
           metric.key === "attackErrors" ||
           metric.key === "attackBlocked" ||
           metric.key === "attackKills" ||
@@ -1865,6 +1923,7 @@ function GameHighsPage() {
           serveErrorPct: match.serveErrorPct,
           errorsPerAce: match.errorsPerAce,
           attackTotal: match.attackTotal,
+          attackErrorsCombined: match.attackErrorsCombined,
           attackErrors: match.attackErrors,
           attackBlocked: match.attackBlocked,
           attackKills: match.attackKills,
@@ -1887,6 +1946,10 @@ function GameHighsPage() {
         tieBreakerDescription = isEstonian
           ? "Võrdse rünnakuefektiivsuse korral eelistatakse suuremat rünnakute koguarvu (A TOT)."
           : "For equal attack efficiency, more total attacks (A TOT) rank higher.";
+      } else if (metric.key === "attackErrorsCombined") {
+        tieBreakerDescription = isEstonian
+          ? "Võrdse rünnakuvigade arvu korral eelistatakse väiksemat rünnakute koguarvu (A TOT)."
+          : "For equal attack errors, fewer total attacks (A TOT) rank higher.";
       } else if (metric.key === "attackErrors") {
         tieBreakerDescription = isEstonian
           ? "Võrdse rünnakuvigade arvu korral eelistatakse väiksemat rünnakute koguarvu (A TOT)."
@@ -1997,6 +2060,7 @@ function GameHighsPage() {
     receptionExcellentPct: "bg-sky-50/60",
     receptionEfficiency: "bg-sky-50/60",
     attackTotal: "bg-rose-50/60",
+    attackErrorsCombined: "bg-rose-50/60",
     attackErrors: "bg-rose-50/60",
     attackBlocked: "bg-rose-50/60",
     attackKills: "bg-rose-50/60",
@@ -2079,9 +2143,9 @@ function GameHighsPage() {
             </div>
             <div className="mx-auto grid w-full max-w-[440px] grid-cols-3 gap-2">
               {[
-                { value: 3 as const, label: isEstonian ? "3 geimi" : "3 Sets" },
-                { value: 4 as const, label: isEstonian ? "4 geimi" : "4 Sets" },
-                { value: 5 as const, label: isEstonian ? "5 geimi" : "5 Sets" },
+                { value: 3 as const, label: isEstonian ? "KUNI 3 GEIMI" : "UP TO 3 SETS" },
+                { value: 4 as const, label: isEstonian ? "KUNI 4 GEIMI" : "UP TO 4 SETS" },
+                { value: 5 as const, label: isEstonian ? "KUNI 5 GEIMI" : "UP TO 5 SETS" },
               ].map((option) => (
                 <button
                   key={option.value}
@@ -2266,7 +2330,8 @@ function GameHighsPage() {
                               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-700">
                                 {row.topTenMetric}
                               </p>
-                              {getThresholdLabel(row.key, isEstonian) && (
+                              {!(isSetFilter && getTeamMinAttempts(row.key)?.field !== "serveTotal") &&
+                                getThresholdLabel(row.key, isEstonian) && (
                                 <p className="mt-1 text-[11px] text-slate-500">
                                   {getThresholdLabel(row.key, isEstonian)}
                                 </p>
@@ -2377,14 +2442,26 @@ function GameHighsPage() {
                                           )}
                                         </td>
                                       ))}
-                                      {getAttackContextKeys(row.key).map((key) => (
-                                        <td
-                                          key={key}
-                                          className={`px-2 py-2 text-center text-sm ${isAttackContextHighlighted(row.key, key) ? "bg-amber-100 font-semibold text-estonia-dark" : "text-slate-700"}`}
-                                        >
-                                          {formatAttackContextValue(key, item[key])}
-                                        </td>
-                                      ))}
+                                      {getAttackContextKeys(row.key).map((key) => {
+                                        const merged = isMergedAttackRow(row.key, item);
+                                        if (merged && key === "attackBlocked") return null;
+                                        const isMergedCell = merged && key === "attackErrors";
+                                        const highlighted = isMergedCell
+                                          ? isAttackContextHighlighted(row.key, "attackErrors") ||
+                                            isAttackContextHighlighted(row.key, "attackBlocked")
+                                          : isAttackContextHighlighted(row.key, key);
+                                        return (
+                                          <td
+                                            key={key}
+                                            colSpan={isMergedCell ? 2 : undefined}
+                                            className={`px-2 py-2 text-center text-sm ${highlighted ? "bg-amber-100 font-semibold text-estonia-dark" : "text-slate-700"}`}
+                                          >
+                                            {isMergedCell
+                                              ? formatAttackContextValue("attackErrorsCombined", item.attackErrorsCombined)
+                                              : formatAttackContextValue(key, item[key])}
+                                          </td>
+                                        );
+                                      })}
                                       <td className="px-2 py-2 text-sm text-slate-700">
                                         {item.opponent}
                                       </td>
@@ -2647,14 +2724,26 @@ function GameHighsPage() {
                                             {formatServeContextValue(key, item[key])}
                                           </td>
                                         ))}
-                                        {getAttackContextKeys(row.key).map((key) => (
-                                          <td
-                                            key={key}
-                                            className={`px-2 py-2 text-center text-sm ${isAttackContextHighlighted(row.key, key) ? "bg-amber-100 font-semibold text-estonia-dark" : "text-slate-700"}`}
-                                          >
-                                            {formatAttackContextValue(key, item[key])}
-                                          </td>
-                                        ))}
+                                        {getAttackContextKeys(row.key).map((key) => {
+                                          const merged = isMergedAttackRow(row.key, item);
+                                          if (merged && key === "attackBlocked") return null;
+                                          const isMergedCell = merged && key === "attackErrors";
+                                          const highlighted = isMergedCell
+                                            ? isAttackContextHighlighted(row.key, "attackErrors") ||
+                                              isAttackContextHighlighted(row.key, "attackBlocked")
+                                            : isAttackContextHighlighted(row.key, key);
+                                          return (
+                                            <td
+                                              key={key}
+                                              colSpan={isMergedCell ? 2 : undefined}
+                                              className={`px-2 py-2 text-center text-sm ${highlighted ? "bg-amber-100 font-semibold text-estonia-dark" : "text-slate-700"}`}
+                                            >
+                                              {isMergedCell
+                                                ? formatAttackContextValue("attackErrorsCombined", item.attackErrorsCombined)
+                                                : formatAttackContextValue(key, item[key])}
+                                            </td>
+                                          );
+                                        })}
                                         <td className="px-2 py-2 text-sm text-slate-700">
                                           {item.opponent}
                                         </td>
@@ -2820,6 +2909,8 @@ function getCategoryValue(row: GameHighRow, category: GameHighCategory): number 
       return row.receptionEfficiency;
     case "attackTotal":
       return row.attackTotal;
+    case "attackErrorsCombined":
+      return row.attackErrorsCombined;
     case "attackErrors":
       return row.attackErrors;
     case "attackBlocked":

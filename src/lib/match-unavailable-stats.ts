@@ -62,6 +62,9 @@ export function isStatUnavailable(field: string, unavailableStats: ReadonlySet<s
             unavailableStats.has(f),
         );
     }
+    if (field === "attack_errors_combined") {
+        return unavailableStats.has("attack_errors") || unavailableStats.has("attack_blocked");
+    }
     if (field === "reception_positive_pct" || field === "reception_excellent_pct") {
         return unavailableStats.has("reception_total");
     }
@@ -75,6 +78,7 @@ const zeroBaseField: Partial<Record<string, string>> = {
     reception_positive_pct: "reception_total",
     reception_excellent_pct: "reception_total",
     attack_errors: "attack_total",
+    attack_errors_combined: "attack_total",
     attack_blocked: "attack_total",
     attack_kills: "attack_total",
     attack_kill_pct: "attack_total",
