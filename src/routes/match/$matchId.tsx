@@ -6,7 +6,7 @@ import { getUnavailableStatSet, isStatBaseZero, isStatUnavailable } from "@/lib/
 import { bySetNumber, formatSetScore } from "@/lib/set-scores";
 import { getMatchSources, getStatsUrl } from "@/lib/match-sources";
 import { useTranslation } from "react-i18next";
-import { useState, type ReactNode } from "react";
+import { isValidElement, useState, type ReactNode } from "react";
 
 const PERCENT_FIELDS = new Set([
     "reception_positive_pct",
@@ -250,6 +250,18 @@ function MatchStatsPage() {
     const flexibleColumnCount =
         statColumns.length + serveColumns.length + receptionColumns.length + attackColumns.length + blockColumns.length;
 
+    // Use one row per player, the same row the table displays for the active mode.
+    const getPlayerStats = (player: any) => {
+        const rows = player.player_match_stats ?? [];
+        if (!rows || rows.length === 0) return null;
+
+        if (statsMode === "official") {
+            return rows.find((r: any) => r?.stats_version === "AM") ?? rows[0] ?? null;
+        }
+
+        return rows.find((r: any) => r?.stats_version === "ALL") ?? rows[0] ?? null;
+    };
+
     // Calculate totals
     const calculateTotals = () => {
         const totals: Record<string, number> = {};
@@ -268,18 +280,6 @@ function MatchStatsPage() {
             totals[col.field] = 0;
             counts[col.field] = 0;
         });
-
-        const getPlayerStats = (player: any) => {
-            // Use one row per player, the same row the table displays for the active mode.
-            const rows = player.player_match_stats ?? [];
-            if (!rows || rows.length === 0) return null;
-
-            if (statsMode === "official") {
-                return rows.find((r: any) => r?.stats_version === "AM") ?? rows[0] ?? null;
-            }
-
-            return rows.find((r: any) => r?.stats_version === "ALL") ?? rows[0] ?? null;
-        };
 
         players.forEach((player) => {
             const stats = getPlayerStats(player);
@@ -359,7 +359,27 @@ function MatchStatsPage() {
         return formatField(fieldName, value);
     };
 
+    // Team attack efficiency comes from player sums, so it shows "?" if any player's attack input shows "?".
+    const ATTACK_INPUT_FIELDS = ["attack_total", "attack_errors", "attack_blocked", "attack_kills"];
+    const hasUnknownPlayerAttack = players.some((player) => {
+        const stats = getPlayerStats(player);
+        if (!stats) return true;
+        const cellStats = { ...stats, player_position_in_match: player.player_position_in_match };
+        return ATTACK_INPUT_FIELDS.some((field) => {
+            const cell = renderPlayerStat(field, cellStats);
+            return isValidElement(cell) && cell.type === UnknownStat;
+        });
+    });
+
     const getStatValue = (fieldName: string): ReactNode => {
+        // Team attack efficiency is summed from players only when every player's attack input is known.
+        if (fieldName === "attack_efficiency" && !hasUnknownPlayerAttack && !isStatUnavailable(fieldName, unavailableStats)) {
+            if (!totals.attack_total) return "";
+            return formatPercent(
+                ((totals.attack_kills - totals.attack_blocked - totals.attack_errors) / totals.attack_total) * 100,
+            );
+        }
+
         // A team totals row is authoritative: a null there means unavailable, never a player sum.
         if (hasTeamTotalRow && fieldName in teamTotals) {
             const teamValue = teamTotals[fieldName];
@@ -367,6 +387,7 @@ function MatchStatsPage() {
             if (fieldName === "plus_minus") return formatPlusMinus(teamValue);
             return PERCENT_FIELDS.has(fieldName) ? formatPercent(teamValue) : formatStat(teamValue);
         }
+        if (fieldName === "attack_efficiency") return <UnknownStat />;
         if (isStatUnavailable(fieldName, unavailableStats)) return <UnknownStat />;
 
         const value = totals[fieldName];
@@ -385,15 +406,6 @@ function MatchStatsPage() {
         if (fieldName === "attack_kill_pct") {
             if (!totals.attack_total) return "";
             return formatPercent((totals.attack_kills / totals.attack_total) * 100);
-        }
-
-        if (fieldName === "attack_efficiency") {
-            if (!totals.attack_total) return "";
-            return formatPercent(
-                ((totals.attack_kills - totals.attack_blocked - totals.attack_errors) /
-                    totals.attack_total) *
-                100,
-            );
         }
 
         if (fieldName === "plus_minus") return formatPlusMinus(value);
