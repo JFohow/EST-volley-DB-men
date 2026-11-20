@@ -132,6 +132,9 @@ function MatchStatsPage() {
         return `${Math.round(Number(value))}%`;
     };
 
+    // W-P (plus/minus): positive values get a leading "+".
+    const formatPlusMinus = (value: number): string => (value > 0 ? `+${Math.round(value)}` : formatStat(value));
+
     const formatField = (fieldName: string, value: number | null): string => {
         if (value == null) return "";
 
@@ -141,6 +144,7 @@ function MatchStatsPage() {
         if (fieldName.includes("pct") || fieldName === "attack_kill_pct") {
             return formatPercent(value);
         }
+        if (fieldName === "plus_minus") return formatPlusMinus(Number(value));
         return formatStat(Number(value));
     };
 
@@ -189,6 +193,8 @@ function MatchStatsPage() {
         setNumber: number,
     ) => {
         if (!stats) return "";
+        // The AM (official) view only covers the official sets, not additional sets.
+        if (statsMode === "official" && setNumber > match.estonia_sets + match.opponent_sets) return "";
         if (setNumber === 1) return stats.set1_position ?? "";
         if (setNumber === 2) return stats.set2_position ?? "";
         if (setNumber === 3) return stats.set3_position ?? "";
@@ -358,6 +364,7 @@ function MatchStatsPage() {
         if (hasTeamTotalRow && fieldName in teamTotals) {
             const teamValue = teamTotals[fieldName];
             if (teamValue == null) return <UnknownStat />;
+            if (fieldName === "plus_minus") return formatPlusMinus(teamValue);
             return PERCENT_FIELDS.has(fieldName) ? formatPercent(teamValue) : formatStat(teamValue);
         }
         if (isStatUnavailable(fieldName, unavailableStats)) return <UnknownStat />;
@@ -389,6 +396,7 @@ function MatchStatsPage() {
             );
         }
 
+        if (fieldName === "plus_minus") return formatPlusMinus(value);
         return formatStat(value);
     };
 
